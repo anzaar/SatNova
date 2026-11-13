@@ -192,7 +192,7 @@ class SatNovaScreen(
         val page = stack().apply {
             setPadding(16.dp, 20.dp, 16.dp, 36.dp)
         }
-        root.addView(page, ScrollView.LayoutParams(-1, -2))
+        root.addView(page, ViewGroup.LayoutParams(-1, -2))
 
         // Identity
         val branding = row()
@@ -232,7 +232,7 @@ class SatNovaScreen(
             inputType = InputType.TYPE_CLASS_PHONE
             setPadding(14.dp, 0, 12.dp, 0)
             background = shape(tileColor, 13, hairline)
-            selectAllOnFocus = true
+            setSelectAllOnFocus(true)
         }
         connection.addView(ip, margin(height = 48, top = 14))
         val connectLine = row()
