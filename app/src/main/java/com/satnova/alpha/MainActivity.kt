@@ -79,7 +79,7 @@ class MainActivity : Activity() {
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val scroll = ScrollView(this).apply { setBackgroundColor(bg); fillViewport = true }
+        val scroll = ScrollView(this).apply { setBackgroundColor(bg); isFillViewport = true }
         val root = column()
         scroll.addView(root)
         val title = label("SATNOVA", 29f).apply { setTypeface(null, Typeface.BOLD) }
