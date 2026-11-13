@@ -13,6 +13,13 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import java.io.InputStream
+import java.io.ByteArrayInputStream
+import java.util.zip.InflaterInputStream
+import org.json.JSONArray
+import org.json.JSONObject
+import org.json.JSONTokener
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.ConcurrentHashMap
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
@@ -34,6 +41,13 @@ class MainActivity : Activity() {
     private lateinit var connectButton: Button
     private val work = Executors.newSingleThreadExecutor()
     private val discoveryWork = Executors.newSingleThreadExecutor()
+    private val monitorWork = Executors.newSingleThreadScheduledExecutor()
+    private val fieldViews = linkedMapOf<String,TextView>()
+    private val channelNames = ConcurrentHashMap<String,String>()
+    @Volatile private var currentChannelId = ""
+    @Volatile private var totalChannelCount = 0
+    @Volatile private var nextChannelIndex = 0
+    private var monitorTicks = 0
     @Volatile private var socket: Socket? = null
     @Volatile private var verified = false
     @Volatile private var jsonMode = true
@@ -79,12 +93,14 @@ class MainActivity : Activity() {
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val scroll = ScrollView(this).apply { setBackgroundColor(bg); isFillViewport = true }
+        window.statusBarColor = bg
+        window.navigationBarColor = bg
+        val scroll = ScrollView(this).apply { setBackgroundColor(bg); isFillViewport = true; fitsSystemWindows = true }
         val root = column()
         scroll.addView(root)
         val title = label("SATNOVA", 29f).apply { setTypeface(null, Typeface.BOLD) }
         root.addView(title)
-        root.addView(label("SMART SATELLITE CONTROL  /  ALPHA 0.1", 12f, accent))
+        root.addView(label("SMART SATELLITE CONTROL  /  ALPHA 0.2", 12f, accent))
         root.addView(label("Echolink Zen 4 · Local network prototype", 13f, muted))
         status = label("Disconnected. Connect the phone and receiver to the same Wi-Fi.", 15f, accent)
         root.addView(status)
@@ -99,6 +115,35 @@ class MainActivity : Activity() {
         connectButton = button("Connect", connection) {
             if (verified) work.execute { disconnect(); report("Disconnected") }
             else connect(ip.text.toString().trim())
+        }
+
+        val monitor = column().apply { setBackgroundColor(surface) }
+        monitor.addView(label("RECEIVER LIVE MONITOR", 20f, accent))
+        val fields = listOf(
+            "Chaîne actuelle" to "Lecture en attente",
+            "Programme en cours / EPG" to "Non reçu du récepteur",
+            "Volume" to "Non communiqué par le récepteur",
+            "Mute" to "En attente de lecture",
+            "Signal / fréquence" to "Non communiqué",
+            "Nombre de chaînes" to "En attente de lecture",
+            "Firmware" to "En attente de lecture",
+            "Dernière réponse" to "—",
+            "Dernière commande envoyée" to "Aucune",
+            "Données brutes reçues" to "Aucune"
+        )
+        for ((key,value) in fields) {
+            monitor.addView(label(key.uppercase(), 12f, muted))
+            val v=label(value, if(key=="Chaîne actuelle") 24f else 16f,fg)
+            fieldViews[key]=v
+            monitor.addView(v)
+        }
+        root.addView(monitor)
+        val refreshLine = row(root)
+        button("Actualiser l'état",refreshLine) {
+            if (!verified) report("Connect first") else work.execute {
+                try { requestState(15);requestState(3);requestState(19) }
+                catch (e:Exception) { report("Refresh: "+e.message) }
+            }
         }
         root.addView(label("REMOTE CONTROL", 21f))
         val power = row(root)
@@ -140,7 +185,20 @@ class MainActivity : Activity() {
         root.addView(diagnostics)
         root.addView(label("No ads. No cloud. Keep port 20000 private. Debug build — not hardware tested.", 12f, muted))
         setContentView(scroll)
+        monitorWork.scheduleWithFixedDelay({
+            if (verified) work.execute {
+                try {
+                    requestState(3)
+                    requestState(19)
+                    monitorTicks++
+                    if(monitorTicks%6==0)requestState(15)
+                    if(monitorTicks%3==0)requestState(26)
+                } catch (e:Exception){report("Monitor: "+e.message)}
+            }
+        },3,4,TimeUnit.SECONDS)
     }
+    private fun showField(key:String,value:String)=runOnUiThread { fieldViews[key]?.text=value }
+
     private fun isPrivate(host: String): Boolean {
         val p = host.split('.')
         if (p.size != 4) return false
@@ -273,6 +331,7 @@ class MainActivity : Activity() {
         disconnect()
         work.shutdownNow()
         discoveryWork.shutdownNow()
+        monitorWork.shutdownNow()
         super.onDestroy()
     }
 }
