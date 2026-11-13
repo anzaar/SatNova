@@ -199,6 +199,119 @@ class MainActivity : Activity() {
     }
     private fun showField(key:String,value:String)=runOnUiThread { fieldViews[key]?.text=value }
 
+
+    private fun requestState(type:Int,from:Int=0,to:Int=0) {
+        val active=socket ?: return
+        if(!verified) return
+        val payload=if(jsonMode){
+            val obj=JSONObject().put("request",type.toString())
+            if(type==0){
+                obj.put("FromIndex",from.toString())
+                obj.put("ToIndex",to.toString())
+            }
+            obj.toString()
+        }else{
+            if(type==0)
+                "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"0\"><FromIndex>"+from+"</FromIndex><ToIndex>"+to+"</ToIndex></Command>"
+            else
+                "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\""+type+"\" />"
+        }
+        active.getOutputStream().write(frame(payload))
+        active.getOutputStream().flush()
+    }
+    private fun requestNextChannelPage() {
+        if(!verified||totalChannelCount<=0||nextChannelIndex>=totalChannelCount||nextChannelIndex>=3000)return
+        val from=nextChannelIndex
+        val to=minOf(from+99,totalChannelCount-1,2999)
+        requestState(0,from,to)
+        nextChannelIndex=to+1
+    }
+    private fun rows(text:String):List<JSONObject> = try {
+        when(val value=JSONTokener(text).nextValue()){
+            is JSONArray -> (0 until value.length()).mapNotNull { value.optJSONObject(it) }
+            is JSONObject -> {
+                val a=value.optJSONArray("array") ?: value.optJSONArray("Array")
+                if(a==null) listOf(value) else (0 until a.length()).mapNotNull{a.optJSONObject(it)}
+            }
+            else -> emptyList()
+        }
+    } catch (_:Exception){ emptyList() }
+    private fun pick(record:JSONObject,vararg names:String):String?{
+        for(k in names){
+            val value=record.optString(k,"").trim()
+            if(value.isNotEmpty()&&value!="null")return value
+        }
+        return null
+    }
+    private fun showCurrent(){
+        if(currentChannelId.isNotEmpty())
+            showField("Chaîne actuelle",channelNames[currentChannelId] ?: "ID "+currentChannelId+" · nom en chargement")
+    }
+    private fun handleReply(kind:Int,statusCode:Int,body:ByteArray) {
+        val text=body.toString(StandardCharsets.UTF_8).trim()
+        val date=java.text.SimpleDateFormat("HH:mm:ss",java.util.Locale.US).format(java.util.Date())
+        showField("Dernière réponse",date+" · type "+kind+" · code "+statusCode)
+        showField("Données brutes reçues",if(text.isEmpty()) "(no body)" else text.take(900))
+        if(statusCode!=0){
+            runOnUiThread { diagnostics.text="Réponse "+kind+": refus code "+statusCode }
+            return
+        }
+        if(kind in 2000..2999){
+            if(kind in listOf(2001,2002,2003,2004)) work.execute {
+                try{
+                    requestState(3);requestState(19)
+                    if(kind==2002){channelNames.clear();nextChannelIndex=0;requestNextChannelPage()}
+                }catch(_:Exception){}
+            }
+            return
+        }
+        val recs=rows(text)
+        when(kind){
+            3 -> {
+                val id=recs.firstOrNull()?.let { pick(it,"Data","ProgramId","ServiceID") }
+                if(id!=null){currentChannelId=id;showCurrent()}
+            }
+            19 -> {
+                val value=recs.firstOrNull()?.let { pick(it,"Data","MuteState") }
+                if(value!=null)
+                    showField("Mute",if(value=="1")"ON (confirmé)" else if(value=="0")"OFF (confirmé)" else value)
+            }
+            14,15 -> {
+                val info=recs.firstOrNull() ?: return
+                pick(info,"SoftwareVersion")?.let{showField("Firmware",it)}
+                pick(info,"ProductName","ModelName")?.let{runOnUiThread {diagnostics.text="Récepteur confirmé: "+it}}
+                pick(info,"ChannelNum")?.let{ n->
+                    showField("Nombre de chaînes",n+" (confirmé)")
+                    val count=n.toIntOrNull()
+                    if(count!=null&&count>0&&count!=totalChannelCount){
+                        totalChannelCount=count;nextChannelIndex=0;channelNames.clear()
+                        work.execute{try{requestNextChannelPage()}catch(_:Exception){}}
+                    }
+                }
+                pick(info,"MuteState")?.let{showField("Mute",if(it=="1")"ON (rapporté)" else "OFF (rapporté)")}
+                pick(info,"Volume","VolumeValue","VolumeState")?.let{showField("Volume",it+" (rapporté)")}
+                pick(info,"Signal","SignalLevel","SignalQuality")?.let{showField("Signal / fréquence",it+" (rapporté)")}
+            }
+            0 -> {
+                for(item in recs){
+                    val id=pick(item,"ServiceID","ProgramId") ?: continue
+                    val name=pick(item,"ServiceName","Name","ChannelName","ProgramName") ?: "Service "+id
+                    channelNames[id]=name
+                    if(id==currentChannelId){
+                        pick(item,"EventName","EventTitle","CurrentEvent","NowPlaying")?.let{
+                            showField("Programme en cours / EPG",it+" (rapporté)")
+                        }
+                        val freq=listOfNotNull(pick(item,"SatelliteName"),pick(item,"Frequency"),pick(item,"Polarization"))
+                        if(freq.isNotEmpty())showField("Signal / fréquence",freq.joinToString(" • "))
+                    }
+                }
+                showCurrent()
+                if(recs.isNotEmpty()&&nextChannelIndex<totalChannelCount&&nextChannelIndex<3000)
+                    work.execute{try{requestNextChannelPage()}catch(_:Exception){}}
+            }
+        }
+    }
+
     private fun isPrivate(host: String): Boolean {
         val p = host.split('.')
         if (p.size != 4) return false
