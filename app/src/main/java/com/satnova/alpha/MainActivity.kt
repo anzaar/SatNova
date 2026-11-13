@@ -368,6 +368,15 @@ class MainActivity : Activity() {
             report("LOGIN VERIFIED: $model · " + if(useJson) "JSON" else "XML")
             runOnUiThread { diagnostics.text = "Protocol login verified; test Volume+ while watching the TV. $model" }
             s.soTimeout = 0
+            showField("Chaîne actuelle","Lecture en cours…")
+            work.execute {
+                try {
+                    requestState(15)
+                    requestState(14)
+                    requestState(3)
+                    requestState(19)
+                }catch(e:Exception){report("Initial state: "+e.message)}
+            }
             Thread {
                 try {
                     val input = s.getInputStream()
@@ -377,8 +386,14 @@ class MainActivity : Activity() {
                         val bb = java.nio.ByteBuffer.wrap(header).order(java.nio.ByteOrder.LITTLE_ENDIAN)
                         bb.position(4)
                         val length = bb.int
-                        if (length !in 0..2000000) throw IllegalStateException("Response too large")
-                        read(input,length)
+                        val kind = bb.int
+                        val statusCode = bb.int
+                        if(length !in 0..2000000)throw IllegalStateException("Response too large")
+                        val raw=if(length>0)read(input,length) else ByteArray(0)
+                        val decoded=if(raw.isNotEmpty())try{
+                            InflaterInputStream(ByteArrayInputStream(raw)).use{it.readBytes()}
+                        }catch(_:Exception){raw}else raw
+                        handleReply(kind,statusCode,decoded)
                     }
                 } catch (e: Exception) {
                     if (socket === s) { socket = null; setVerified(false); report("Connection lost: ${e.message}") }
@@ -396,7 +411,12 @@ class MainActivity : Activity() {
             val payload = if (jsonMode) "{\"request\":\"1040\",\"array\":[{\"KeyValue\":\"$value\"}]}"
                 else "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1040\"><parm><KeyValue>$value</KeyValue></parm></Command>"
             s.getOutputStream().write(frame(payload)); s.getOutputStream().flush()
-            report("Sent key $value. Check the receiver screen.")
+            showField("Dernière commande envoyée","Key "+value+" envoyé · effet non confirmé")
+            if(value in listOf(69,70,35,36,23)) {
+                requestState(3)
+                requestState(19)
+            }
+            report("Commande "+value+" envoyée. État récepteur en cours de vérification.")
         } catch (e: Exception) { disconnect(); report("Failed to send key: ${e.message}") }
     }
     private fun discover() = discoveryWork.execute {
