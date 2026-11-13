@@ -1,6 +1,8 @@
 package com.satnova.alpha
 
 import android.app.Activity
+import android.content.Intent
+import android.net.Uri
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
@@ -45,6 +47,9 @@ class MainActivity : Activity() {
     private val fieldViews = linkedMapOf<String,TextView>()
     private val channelNames = ConcurrentHashMap<String,String>()
     @Volatile private var currentChannelId = ""
+    @Volatile private var currentTvState = 0
+    @Volatile private var streamPending = false
+    @Volatile private var streamOpened = false
     @Volatile private var totalChannelCount = 0
     @Volatile private var nextChannelIndex = 0
     private var monitorTicks = 0
@@ -145,6 +150,9 @@ class MainActivity : Activity() {
                 catch (e:Exception) { report("Refresh: "+e.message) }
             }
         }
+        val liveLine = row(root)
+        button("▶ REGARDER LA TV EN DIRECT",liveLine) { startLiveTv() }
+        root.addView(label("SAT>IP / RTSP • Essai vidéo sur le réseau local. Compatible seulement si le récepteur propose un flux.",12f,muted))
         root.addView(label("REMOTE CONTROL", 21f))
         val power = row(root)
         button("Power", power) { sendKey(42) }
@@ -252,6 +260,35 @@ class MainActivity : Activity() {
         val date=java.text.SimpleDateFormat("HH:mm:ss",java.util.Locale.US).format(java.util.Date())
         showField("Dernière réponse",date+" · type "+kind+" · code "+statusCode)
         showField("Données brutes reçues",if(text.isEmpty()) "(no body)" else text.take(900))
+        if(kind==1009){
+            if(!streamPending) return
+            streamPending=false
+            if(statusCode!=0){
+                report("Echolink a refusé le streaming (code "+statusCode+"). Vérifier SAT>IP.")
+                return
+            }
+            val normalized=text.replace("\\/","/")
+            val link=Regex("""rtsp://[^\s"'<>\\]+""", RegexOption.IGNORE_CASE)
+                .find(normalized)?.value?.trimEnd(',', '}', ']')
+            if(link==null){
+                report("Réponse 1009 reçue, mais aucune URL RTSP. SAT>IP peut être désactivé.")
+                return
+            }
+            val streamHost=Uri.parse(link).host ?: ""
+            if(!isPrivate(streamHost)){
+                report("Adresse du flux refusée (hors réseau local).")
+                return
+            }
+            streamOpened=true
+            report("URL RTSP reçue. Ouverture du lecteur vidéo…")
+            runOnUiThread {
+                val intent=Intent(this,LiveTvActivity::class.java)
+                intent.putExtra("stream_url",link)
+                intent.putExtra("channel_title",channelNames[currentChannelId] ?: "Canal "+currentChannelId)
+                startActivity(intent)
+            }
+            return
+        }
         if(statusCode!=0){
             runOnUiThread { diagnostics.text="Réponse "+kind+": refus code "+statusCode }
             return
@@ -298,6 +335,7 @@ class MainActivity : Activity() {
                     val name=pick(item,"ServiceName","Name","ChannelName","ProgramName") ?: "Service "+id
                     channelNames[id]=name
                     if(id==currentChannelId){
+                        pick(item,"Radio")?.toIntOrNull()?.let {currentTvState=if(it==1) 1 else 0}
                         pick(item,"EventName","EventTitle","CurrentEvent","NowPlaying")?.let{
                             showField("Programme en cours / EPG",it+" (rapporté)")
                         }
@@ -312,6 +350,51 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun startLiveTv(){
+        if(!verified){report("Connecter Echolink avant le streaming.");return}
+        if(streamPending){report("Demande de vidéo déjà en cours…");return}
+        val id=currentChannelId
+        if(id.isBlank()){
+            report("Chaîne inconnue. Attendre la synchro, puis réessayer.")
+            work.execute{try{requestState(3)}catch(_:Exception){}}
+            return
+        }
+        streamPending=true
+        report("Demande du flux SAT>IP pour la chaîne "+(channelNames[id] ?: id)+"…")
+        work.execute {
+            try {
+                val s=socket ?: throw IllegalStateException("Récepteur déconnecté")
+                val payload=if(jsonMode){
+                    JSONObject()
+                        .put("request","1009")
+                        .put("array",JSONArray().put(
+                            JSONObject().put("TvState",currentTvState.toString())
+                                .put("ProgramId",id)
+                        )).toString()
+                }else{
+                    "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1009\"><parm><TvState>"+currentTvState+"</TvState><ProgramId>"+id+"</ProgramId></parm></Command>"
+                }
+                s.getOutputStream().write(frame(payload))
+                s.getOutputStream().flush()
+                monitorWork.schedule({
+                    if(streamPending){
+                        streamPending=false
+                        report("Récepteur sans réponse pour vidéo (1009). SAT>IP à vérifier.")
+                    }
+                },12,TimeUnit.SECONDS)
+            }catch(e:Exception){
+                streamPending=false
+                report("Demande streaming impossible: "+(e.message ?: "erreur"))
+            }
+        }
+    }
+    override fun onResume(){
+        super.onResume()
+        if(streamOpened){
+            streamOpened=false
+            if(verified)work.execute{try{requestState(1012)}catch(_:Exception){}}
+        }
+    }
     private fun isPrivate(host: String): Boolean {
         val p = host.split('.')
         if (p.size != 4) return false

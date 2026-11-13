@@ -9,12 +9,19 @@ android {
         applicationId = "com.satnova.alpha"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0-alpha"
+        versionCode = 3
+        versionName = "0.3.0-alpha"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+}
+
+dependencies {
+    val media3Version = "1.9.4"
+    implementation("androidx.media3:media3-exoplayer:${media3Version}")
+    implementation("androidx.media3:media3-exoplayer-rtsp:${media3Version}")
+    implementation("androidx.media3:media3-ui:${media3Version}")
 }
