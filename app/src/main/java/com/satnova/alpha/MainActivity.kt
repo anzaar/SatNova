@@ -100,110 +100,44 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = bg
         window.navigationBarColor = bg
-        val scroll = ScrollView(this).apply { setBackgroundColor(bg); isFillViewport = true; fitsSystemWindows = true }
-        val root = column()
-        scroll.addView(root)
-        val title = label("SATNOVA", 29f).apply { setTypeface(null, Typeface.BOLD) }
-        root.addView(title)
-        root.addView(label("SMART SATELLITE CONTROL  /  ALPHA 0.2", 12f, accent))
-        root.addView(label("Echolink Zen 4 · Local network prototype", 13f, muted))
-        status = label("Disconnected. Connect the phone and receiver to the same Wi-Fi.", 15f, accent)
-        root.addView(status)
-        ip = EditText(this).apply {
-            setSingleLine(true); setText("192.168.1.2")
-            setTextColor(fg); setHintTextColor(muted); hint = "Receiver local IP"
-            inputType = android.text.InputType.TYPE_CLASS_PHONE
-        }
-        root.addView(ip)
-        val connection = row(root)
-        button("Discover", connection) { discover() }
-        connectButton = button("Connect", connection) {
-            if (verified) work.execute { disconnect(); report("Disconnected") }
-            else connect(ip.text.toString().trim())
-        }
-
-        val monitor = column().apply { setBackgroundColor(surface) }
-        monitor.addView(label("RECEIVER LIVE MONITOR", 20f, accent))
-        val fields = listOf(
-            "Chaîne actuelle" to "Lecture en attente",
-            "Programme en cours / EPG" to "Non reçu du récepteur",
-            "Volume" to "Non communiqué par le récepteur",
-            "Mute" to "En attente de lecture",
-            "Signal / fréquence" to "Non communiqué",
-            "Nombre de chaînes" to "En attente de lecture",
-            "Firmware" to "En attente de lecture",
-            "Dernière réponse" to "—",
-            "Dernière commande envoyée" to "Aucune",
-            "Données brutes reçues" to "Aucune"
+        val screen = SatNovaScreen(
+            activity = this,
+            onDiscover = { discover() },
+            onConnect = {
+                if (verified) work.execute { disconnect(); report("Déconnecté") }
+                else connect(ip.text.toString().trim())
+            },
+            onWatch = { startLiveTv() },
+            onRefresh = {
+                if (!verified) report("Connecter le récepteur d'abord")
+                else work.execute {
+                    try {
+                        requestState(15)
+                        requestState(3)
+                        requestState(19)
+                    } catch (e: Exception) { report("Actualisation : " + e.message) }
+                }
+            },
+            onKey = { code -> sendKey(code) }
         )
-        for ((key,value) in fields) {
-            monitor.addView(label(key.uppercase(), 12f, muted))
-            val v=label(value, if(key=="Chaîne actuelle") 24f else 16f,fg)
-            fieldViews[key]=v
-            monitor.addView(v)
-        }
-        root.addView(monitor)
-        val refreshLine = row(root)
-        button("Actualiser l'état",refreshLine) {
-            if (!verified) report("Connect first") else work.execute {
-                try { requestState(15);requestState(3);requestState(19) }
-                catch (e:Exception) { report("Refresh: "+e.message) }
-            }
-        }
-        val liveLine = row(root)
-        button("▶ REGARDER LA TV EN DIRECT",liveLine) { startLiveTv() }
-        root.addView(label("SAT>IP / RTSP • Essai vidéo sur le réseau local. Compatible seulement si le récepteur propose un flux.",12f,muted))
-        root.addView(label("REMOTE CONTROL", 21f))
-        val power = row(root)
-        button("Power", power) { sendKey(42) }
-        button("Mute", power) { sendKey(23) }
-        button("EPG", power) { sendKey(32) }
-        val volume = row(root)
-        button("Volume +", volume) { sendKey(35) }
-        button("Up", volume) { sendKey(1) }
-        button("CH +", volume) { sendKey(69) }
-        val nav = row(root)
-        button("Left", nav) { sendKey(3) }
-        button("OK", nav) { sendKey(5) }
-        button("Right", nav) { sendKey(4) }
-        val down = row(root)
-        button("Volume -", down) { sendKey(36) }
-        button("Down", down) { sendKey(2) }
-        button("CH -", down) { sendKey(70) }
-        val menu = row(root)
-        button("Menu", menu) { sendKey(6) }
-        button("Exit", menu) { sendKey(7) }
-        button("Info", menu) { sendKey(57) }
-        button("Fav", menu) { sendKey(33) }
-        val colors = row(root)
-        button("Red", colors) { sendKey(8) }
-        button("Green", colors) { sendKey(9) }
-        button("Yellow", colors) { sendKey(10) }
-        button("Blue", colors) { sendKey(11) }
-        listOf(listOf(1,2,3), listOf(4,5,6), listOf(7,8,9)).forEach { digits ->
-            val r = row(root)
-            digits.forEach { number -> button("$number", r) { sendKey(number+12) } }
-        }
-        val last = row(root)
-        button("TV/R", last) { sendKey(22) }
-        button("0", last) { sendKey(12) }
-        button("Back", last) { sendKey(29) }
-        root.addView(label("DIAGNOSTICS", 19f))
-        diagnostics = label("Login not checked. Port 20000 is not proof of compatibility.", 13f, muted)
-        root.addView(diagnostics)
-        root.addView(label("No ads. No cloud. Keep port 20000 private. Debug build — not hardware tested.", 12f, muted))
-        setContentView(scroll)
+        status = screen.status
+        ip = screen.ip
+        connectButton = screen.connectButton
+        diagnostics = screen.diagnostics
+        fieldViews.putAll(screen.fields)
+        setContentView(screen.root)
+
         monitorWork.scheduleWithFixedDelay({
             if (verified) work.execute {
                 try {
                     requestState(3)
                     requestState(19)
                     monitorTicks++
-                    if(monitorTicks%6==0)requestState(15)
-                    if(monitorTicks%3==0)requestState(26)
-                } catch (e:Exception){report("Monitor: "+e.message)}
+                    if (monitorTicks % 6 == 0) requestState(15)
+                    if (monitorTicks % 3 == 0) requestState(26)
+                } catch (e: Exception) { report("Monitor : " + e.message) }
             }
-        },3,4,TimeUnit.SECONDS)
+        }, 3, 4, TimeUnit.SECONDS)
     }
     private fun showField(key:String,value:String)=runOnUiThread { fieldViews[key]?.text=value }
 
