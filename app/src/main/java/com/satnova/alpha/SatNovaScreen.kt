@@ -14,6 +14,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Space
@@ -75,6 +76,8 @@ class SatNovaScreen(
         private set
     private lateinit var inlinePoster: TextView
     private lateinit var pinnedPlayer: LinearLayout
+    private var showHomeList:(()->Unit)?=null
+    private var homeListSelected=false
     private var streamHasPlayed = false
     val status: TextView
     val ip: EditText
@@ -236,16 +239,14 @@ class SatNovaScreen(
         scroller.addView(content, ViewGroup.LayoutParams(-1,-2))
         fun pageBox()=stack().apply{setPadding(16.dp,20.dp,16.dp,36.dp)}
         val page=pageBox()
-        val channelsPage=pageBox()
         val satellitePage=pageBox()
         val settingsPage=pageBox()
-        val pages=listOf(page, channelsPage, satellitePage, settingsPage)
+        val pages=listOf(page, satellitePage, settingsPage)
         pages.forEachIndexed { index,view ->
             view.visibility=if(index==0)View.VISIBLE else View.GONE
             content.addView(view)
         }
         catalog = CatalogPanel(activity, onChannelTune, onReadTransponders, onReadSignal, onEpgRemote, {goToChannels?.invoke()})
-        channelsPage.addView(catalog.channelsPage,margin())
         satellitePage.addView(catalog.satellitePage,margin())
         satellitePage.addView(action("⟳  Actualiser les satellites", tileColor, lavender, 46,
             onClick=onReadSatellites),margin(top=12))
@@ -253,23 +254,23 @@ class SatNovaScreen(
             setPadding(8.dp,7.dp,8.dp,7.dp)
             setBackgroundColor(panelColor)
         }
-        val titles=listOf("⌂\nAccueil","☷\nChaînes","◈\nSatellites","⚙\nOptions")
+        val titles=listOf("⌂\nAccueil","◈\nSatellites","⚙\nOptions")
         val navButtons=mutableListOf<TextView>()
         fun showTab(tab:Int){
-            catalog.showTab(tab)
+            catalog.showTab(if(tab==1)2 else 0)
             pages.forEachIndexed{i,p->p.visibility=if(i==tab)View.VISIBLE else View.GONE}
             navButtons.forEachIndexed{i,b->
                 b.setTextColor(if(i==tab)lavender else secondary)
                 b.background=shape(if(i==tab)tileColor else panelColor,13)
             }
             scroller.scrollTo(0,0)
-            if(tab==1)onChannelRefresh()
-            if(tab==2)onReadSatellites()
+            if(tab==0 && homeListSelected)onChannelRefresh()
+            if(tab==1){onChannelRefresh();onReadSatellites()}
             onTabChanged(tab)
         }
-        goToChannels={showTab(1)}
+        goToChannels={showTab(0);showHomeList?.invoke()}
         goToRemote={showTab(0)}
-        goToSettings={showTab(3)}
+        goToSettings={showTab(2)}
         goToHome={showTab(0)}
         titles.forEachIndexed {i,t->
             val item=text(t,11f,secondary,i==0).apply{
@@ -300,20 +301,21 @@ class SatNovaScreen(
 
         // Identity
         val branding = row()
-        val mark = text("✦", 29f, Color.WHITE, true).apply {
-            gravity = Gravity.CENTER
-            background = shape(purple, 17, colors = intArrayOf(purple, blue))
+        val mark=ImageView(activity).apply{
+            setImageResource(R.drawable.satnova_icon)
+            contentDescription="Logo SatNova"
+            scaleType=ImageView.ScaleType.FIT_CENTER
         }
-        branding.addView(mark, margin(width = 56, height = 56, right = 12))
+        branding.addView(mark,margin(width=40,height=40,right=9))
         val brandTexts = stack()
-        brandTexts.addView(text("SATNOVA", 25f, Color.WHITE, true))
+        brandTexts.addView(text("SATNOVA", 18f, Color.WHITE, true))
         val receiverModel=text("Récepteur non identifié",10f,lavender,true)
         brandTexts.addView(receiverModel,margin(top=5))
         fields["Modèle du récepteur"]=receiverModel
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 1.10", 12f, lavender, true).apply {
+        val version = text("α 1.11", 10f, lavender, true).apply {
             gravity = Gravity.CENTER
-            setPadding(11.dp, 9.dp, 11.dp, 9.dp)
+            setPadding(9.dp, 7.dp, 9.dp, 7.dp)
             background = shape(tileColor, 50, hairline)
         }
         branding.addView(version)
@@ -381,11 +383,12 @@ class SatNovaScreen(
             isClickable = true
             setOnClickListener { goToSettings?.invoke() }
         }
+        connectionBadge.visibility=View.GONE
         hero.addView(connectionBadge)
         fields["État connexion"] = connectionBadge
 
-        hero.addView(text("CHAÎNE ACTUELLE", 11f, lavender, true), margin(top = 8))
-        val now = text("Lecture de la chaîne en cours…", 27f, Color.WHITE, true).apply {
+
+        val now = text("Lecture de la chaîne en cours…", 24f, Color.WHITE, true).apply {
             maxLines = 2
         }
         hero.addView(now, margin(top = 7))
@@ -418,6 +421,8 @@ class SatNovaScreen(
         pinnedPlayer=stack().apply{setPadding(16.dp,8.dp,16.dp,8.dp)}
         pinnedPlayer.addView(videoFrame,margin(height=videoHeight.coerceAtMost(190.dp)))
         root.addView(pinnedPlayer,0,margin())
+        page.removeView(branding)
+        root.addView(branding,0,margin(height=52,left=16,right=16))
         val inlineState=text("En attente du flux vidéo du récepteur…",12f,secondary)
         pinnedPlayer.addView(inlineState,margin(top=6))
         fields["Lecture intégrée"]=inlineState
@@ -432,27 +437,32 @@ class SatNovaScreen(
         hero.addView(tpInfo,margin(top=4))
         fields["Transpondeur actuel"]=tpInfo
 
-        val epgRow=row()
-        epgRow.addView(text("EPG : ",12f,lavender,true))
-        val program=text("Non communiqué par le récepteur",12f,secondary)
-        epgRow.addView(program,LinearLayout.LayoutParams(0,-2,1f))
-        hero.addView(epgRow,margin(top=10))
-        fields["Programme en cours / EPG"]=program
+        hero.addView(catalog.signalView,margin(top=2))
 
         val videoDiagnostic=text("",11f,secondary).apply { visibility=View.GONE }
-        hero.addView(videoDiagnostic,margin(top=6))
+
         fields["Diagnostic vidéo"]=videoDiagnostic
 
         // Mini remote on Accueil. Key codes 1/2 verified for navigation / channel selection
         // on G-MScreen firmware; previous 69/70 were not consistently supported.
         val mini = card(page, top = 14)
-        section(mini, "Télécommande", "CH • Volume • Navigation • Mute")
-        remoteRow(mini,listOf("CH −" to 70, "MUTE" to 23, "CH +" to 69))
-        remoteRow(mini,listOf("VOL −" to 36,"▲" to 1,"VOL +" to 35))
-        remoteRow(mini,listOf("◀" to 3,"OK" to 5,"▶" to 4))
-        remoteRow(mini,listOf("MENU" to 6,"▼" to 2,"EXIT" to 7))
+        lateinit var applyMode:(Boolean,Boolean)->Unit
+        val switcher=row()
+        val remoteMode=action("Télécommande",height=44,onClick={applyMode(false,true)})
+        val listMode=action("Liste",height=44,onClick={applyMode(true,true)})
+        addWeighted(switcher,remoteMode,right=4)
+        addWeighted(switcher,listMode,left=4)
+        mini.addView(switcher,margin(bottom=10))
+        val remoteContent=stack()
+        mini.addView(remoteContent)
+        mini.addView(catalog.channelsPage)
+
+        remoteRow(remoteContent,listOf("CH −" to 70, "MUTE" to 23, "CH +" to 69))
+        remoteRow(remoteContent,listOf("VOL −" to 36,"▲" to 1,"VOL +" to 35))
+        remoteRow(remoteContent,listOf("◀" to 3,"OK" to 5,"▶" to 4))
+        remoteRow(remoteContent,listOf("MENU" to 6,"▼" to 2,"EXIT" to 7))
         val remoteFeedback = text("Dernière commande : aucune",12f,secondary)
-        mini.addView(remoteFeedback,margin(top=10))
+        remoteContent.addView(remoteFeedback,margin(top=10))
         fields["Retour télécommande"]=remoteFeedback
         val extraInline=stack().apply {visibility=View.GONE}
         remoteRow(extraInline,listOf("POWER" to 42,"EPG" to 32,"INFO" to 57))
@@ -462,13 +472,25 @@ class SatNovaScreen(
         remoteRow(extraInline,listOf("FAV" to 33,"0" to 12,"RECALL" to 29))
         remoteRow(extraInline,listOf("TV / RADIO" to 22,"SUB" to 31,"TXT" to 34))
         remoteRow(extraInline,listOf("ROUGE" to 8,"VERT" to 9,"JAUNE" to 10,"BLEU" to 11))
-        mini.addView(extraInline)
+        remoteContent.addView(extraInline)
         val expandRemote=action("⌄  Afficher plus de commandes",tileColor,lavender,46,
             onClick={
                 val opening=extraInline.visibility!=View.VISIBLE
                 extraInline.visibility=if(opening)View.VISIBLE else View.GONE
             })
-        mini.addView(expandRemote,margin(top=12))
+        remoteContent.addView(expandRemote,margin(top=12))
+
+        applyMode={list,notify->
+            homeListSelected=list
+            remoteContent.visibility=if(list)View.GONE else View.VISIBLE
+            catalog.setHomeListVisible(list)
+            remoteMode.background=touch(if(list)tileColor else purple,14)
+            listMode.background=touch(if(list)purple else tileColor,14)
+            activity.getSharedPreferences("satnova",0).edit().putBoolean("home_list",list).apply()
+            if(list && notify)onChannelRefresh()
+        }
+        showHomeList={applyMode(true,true)}
+        applyMode(activity.getSharedPreferences("satnova",0).getBoolean("home_list",false),false)
 
         // Move advanced connection settings away from the first screen.
         page.removeView(connection)
@@ -563,6 +585,7 @@ class SatNovaScreen(
         diagBody.addView(text("ÉTAT / PROTOCOLE", 11f, lavender, true), margin(top = 12))
         diagnostics = text("Login non vérifié", 13f, secondary)
         diagBody.addView(diagnostics, margin(top = 7))
+        diagBody.addView(videoDiagnostic,margin(top=6))
         listOf(
             "Firmware" to "En attente",
             "Dernière réponse" to "—",
@@ -598,6 +621,7 @@ class SatNovaScreen(
     fun setSignalMonitoring(active:Boolean)=activity.runOnUiThread{catalog.setSignalMonitoring(active)}
     fun updateTunerSignal(value:ReceiverTelemetry.Signal,at:Long)=activity.runOnUiThread{catalog.updateTunerSignal(value,at)}
     fun close(){catalog.close()}
+    fun setCurrentChannel(id:String)=activity.runOnUiThread{catalog.setCurrentChannel(id)}
 
     fun updateZapStatus(message:String){
         activity.runOnUiThread{catalog.updateZapStatus(message)}

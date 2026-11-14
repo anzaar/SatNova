@@ -7,7 +7,7 @@ import java.util.Locale
 class CatalogIndex(channels:List<JSONObject>,satellites:List<JSONObject>,tps:List<JSONObject>) {
     data class Channel(val id:String,val name:String,val satellite:String?,val tp:String?,
         val frequency:String?,val polarization:String?,val symbolRate:String?,
-        val radio:Boolean,val favorite:Boolean,val epg:String?,val next:String?,val record:JSONObject) {
+        val radio:Boolean,val favorite:Boolean,val epg:String?,val next:String?,val record:JSONObject,val position:Int) {
         val search=(name+" "+(satellite?:"")).lowercase(Locale.ROOT)
     }
     data class Satellite(val key:String,val name:String,val record:JSONObject)
@@ -36,8 +36,8 @@ class CatalogIndex(channels:List<JSONObject>,satellites:List<JSONObject>,tps:Lis
     }
     // Only unambiguous TP indexes may supply a channel's satellite.
     private val uniqueTp=transponders.groupBy{it.key}.filterValues{it.size==1}.mapValues{it.value.first()}
-    val channelRows=channels.mapNotNull{r->
-        val id=value(r,"ServiceID","ProgramId","ProgramID")?:return@mapNotNull null
+    val channelRows=channels.mapIndexedNotNull{position,r->
+        val id=value(r,"ServiceID","ProgramId","ProgramID")?:return@mapIndexedNotNull null
         val tp=tpId(r)
         val tr=uniqueTp[tp]
         val sat=satelliteKey(r)?:tr?.satellite
@@ -46,7 +46,9 @@ class CatalogIndex(channels:List<JSONObject>,satellites:List<JSONObject>,tps:Lis
             freq(r)?:tr?.record?.let{freq(it)},pol(r)?:tr?.record?.let{pol(it)},sr(r)?:tr?.record?.let{sr(it)},
             value(r,"Radio","TvState")=="1",fav=="1"||fav.equals("true",true),
             value(r,"EventName","EventTitle","CurrentEvent","NowPlaying","EpgTitle","EPGName"),
-            value(r,"NextEvent","NextEventTitle","NextProgramme"),r)
+            value(r,"NextEvent","NextEventTitle","NextProgramme"),r,
+            value(r,"ChannelNumber","ChannelNo","ChNum","ProgramNumber")?.toIntOrNull()
+                ?:value(r,"ChannelIndex","Index")?.toIntOrNull()?.plus(1)?:position+1)
     }
     val tpsBySatellite=transponders.filter{it.satellite!=null}.groupBy{it.satellite!!}
     val channelsBySatellite=channelRows.filter{it.satellite!=null}.groupBy{it.satellite!!}

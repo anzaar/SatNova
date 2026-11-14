@@ -24,3 +24,16 @@ bounded catalogue when Channels is opened. Request 24 supplies TP metadata.
 Channel/satellite/TP associations are indexed on a worker and lists render at
 most 30 items per page. The live video surface stays outside tab visibility
 changes so tab switches do not destroy a running decoder's surface.
+
+## SatNova 1.11
+
+The home control area switches between the same working remote payloads and an
+inline channel picker. Filters retain original receiver order and global channel
+numbers. Satellite cards rank by actual loaded channel count; partial counts
+are identified as loading. Signal gauges and sound control sit with the current
+channel, without an EPG placeholder. The original vector launcher icon is restored.
+
+LibVLC keeps the same decoding setup with a 1800 ms network/live cache and HTTP
+reconnect. A Buffering event at 100 percent reports playback, not perpetual
+buffering; progress notices are throttled. Catalogue paging is paced and deferred
+while the player buffers once the current channel is identified.

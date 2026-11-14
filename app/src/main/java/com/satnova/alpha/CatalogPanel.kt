@@ -1,6 +1,7 @@
 package com.satnova.alpha
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -8,16 +9,16 @@ import android.os.Handler
 import android.os.Looper
 import android.text.Editable
 import android.text.TextWatcher
-import android.view.ViewGroup
+import android.view.Gravity
+import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import org.json.JSONObject
-import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicLong
 
-/** Bounded view trees; all channel/TP association work runs off the Android UI thread. */
+/** Native, bounded channel picker embedded in the home controls. All indexing runs on a worker. */
 class CatalogPanel(private val activity:Activity,private val tune:(String,Int)->Unit,
     private val refreshTp:()->Unit,measureSignal:()->Unit,private val openEpg:()->Unit,
     private val openChannelTab:()->Unit) {
@@ -25,30 +26,31 @@ class CatalogPanel(private val activity:Activity,private val tune:(String,Int)->
     private val light=Color.rgb(247,249,255)
     private val muted=Color.rgb(159,174,199)
     private val accent=Color.rgb(183,171,255)
-    private val Int.dp get()=(this*activity.resources.displayMetrics.density+0.5f).toInt()
+    private val green=Color.rgb(83,226,177)
+    private val Int.dp get()=(this*activity.resources.displayMetrics.density+.5f).toInt()
     private fun txt(s:String,size:Float=14f,color:Int=light,bold:Boolean=false)=TextView(activity).apply{
-        text=s;textSize=size;setTextColor(color);if(bold)setTypeface(null,Typeface.BOLD)
+        text=s;textSize=size;setTextColor(color);includeFontPadding=false
+        if(bold)setTypeface(null,Typeface.BOLD)
     }
     private fun col()=LinearLayout(activity).apply{orientation=LinearLayout.VERTICAL}
     private fun lp(top:Int=0,bottom:Int=0)=LinearLayout.LayoutParams(-1,-2).apply{setMargins(0,top.dp,0,bottom.dp)}
-    private fun tile(s:String,action:()->Unit)=txt(s,15f,light,true).apply{
-        setPadding(14.dp,14.dp,14.dp,14.dp)
-        background=GradientDrawable().apply{setColor(surface);cornerRadius=15.dp.toFloat()}
+    private fun tile(s:String,action:()->Unit)=txt(s,14f,light,true).apply{
+        setPadding(12.dp,13.dp,12.dp,13.dp)
+        background=GradientDrawable().apply{setColor(surface);cornerRadius=14.dp.toFloat()}
         isClickable=true;isFocusable=true;setOnClickListener{action()}
     }
     val channelsPage=col()
     val satellitePage=col()
     private val channelList=col()
     private val satelliteList=col()
-    private val tpList=col()
-    private val channelDetail=col()
-    private val tpDetail=col()
-    private val count=txt("Chargement des chaînes…",12f,muted)
-    private val satNotice=txt("En attente des satellites",13f,muted)
-    private val tpNotice=txt("Choisissez un satellite",13f,muted)
-    private val zapStatus=txt("",12f,accent)
+    private val count=txt("Lecture des chaînes…",11f,muted)
+    private val satNotice=txt("Lecture des satellites…",12f,muted)
+    private val zapStatus=txt("",12f,green)
     private val filter=EditText(activity)
+    private val satChip=tile("Tous les satellites ▾"){chooseSatellite()}
+    private val tpChip=tile("Toutes les fréquences ▾"){chooseTp()}
     private val signal=SignalPanel(activity,measureSignal)
+    val signalView:View get()=signal.root
     private val worker=Executors.newSingleThreadExecutor()
     private val main=Handler(Looper.getMainLooper())
     private val version=AtomicLong()
@@ -59,59 +61,83 @@ class CatalogPanel(private val activity:Activity,private val tune:(String,Int)->
     private var tps=emptyList<JSONObject>()
     private var index=CatalogIndex(emptyList(),emptyList(),emptyList())
     private var activeTab=0
+    private var listVisible=false
     private var complete=false
     private var filterMode=0
     private var channelPage=0
     private var satellitePageNumber=0
-    private var tpPageNumber=0
     private var selectedSatellite:String?=null
-    private var selectedTp:Pair<String,String>?=null
+    private var selectedTp:String?=null
+    private var currentId=""
+    private var pendingId=""
+    private var focusCurrent=false
     private val pageSize=30
+    private fun channelsVisible()=activeTab==0 && listVisible
     private val rebuild=Runnable{
-        val generation=version.get()
-        val c=channels;val s=satellites;val t=tps
-        worker.execute{
-            if(version.get()!=generation || closed)return@execute
-            val built=CatalogIndex(c,s,t)
-            main.post{
-                if(closed || version.get()!=generation)return@post
-                index=built
-                if(activeTab==1)renderChannels()
-                if(activeTab==2){renderSatellites();renderTps()}
+        if(!closed){
+            val generation=version.get()
+            val c=channels;val s=satellites;val t=tps
+            worker.execute{
+                if(version.get()!=generation || closed)return@execute
+                val built=CatalogIndex(c,s,t)
+                main.post{
+                    if(closed || version.get()!=generation)return@post
+                    index=built
+                    if(channelsVisible())renderChannels()
+                    if(activeTab==2)renderSatellites()
+                }
             }
         }
     }
     private fun invalidate(){
-        version.incrementAndGet()
-        main.removeCallbacks(rebuild)
-        main.postDelayed(rebuild,120)
+        if(closed)return
+        version.incrementAndGet();main.removeCallbacks(rebuild);main.postDelayed(rebuild,180)
     }
     init {
-        channelsPage.addView(txt("Chaînes TV & Radio",23f,light,true),lp(bottom=10))
-        val modes=LinearLayout(activity)
-        listOf("TV","Radio","Favoris").forEachIndexed{i,name->
-            modes.addView(tile(name){filterMode=i;channelPage=0;renderChannels()},LinearLayout.LayoutParams(0,-2,1f))
-        }
-        channelsPage.addView(modes,lp(bottom=10))
-        filter.hint="Rechercher une chaîne…";filter.setSingleLine(true)
+        val chips=LinearLayout(activity)
+        satChip.maxLines=1;tpChip.maxLines=1
+        satChip.textSize=11f;tpChip.textSize=11f
+        chips.addView(satChip,LinearLayout.LayoutParams(0,-2,1f).apply{rightMargin=4.dp})
+        chips.addView(tpChip,LinearLayout.LayoutParams(0,-2,1f).apply{leftMargin=4.dp})
+        channelsPage.addView(chips,lp(top=10,bottom=8))
+        val search=LinearLayout(activity).apply{gravity=Gravity.CENTER_VERTICAL}
+        filter.hint="Rechercher…";filter.setSingleLine(true);filter.textSize=14f
         filter.setTextColor(light);filter.setHintTextColor(muted)
-        channelsPage.addView(filter,lp(bottom=8));channelsPage.addView(count,lp(bottom=8))
-        channelsPage.addView(channelDetail);channelsPage.addView(channelList)
+        search.addView(filter,LinearLayout.LayoutParams(0,44.dp,1f))
+        search.addView(tile("⋯"){
+            val labels=arrayOf("Toutes les chaînes","TV","Radio","Favoris du récepteur")
+            AlertDialog.Builder(activity).setTitle("Afficher").setSingleChoiceItems(labels,filterMode){dialog,which->
+                filterMode=which;channelPage=0;focusCurrent=false;renderChannels();dialog.dismiss()
+            }.show()
+        })
+        channelsPage.addView(search,lp(bottom=8))
+        channelsPage.addView(count,lp(bottom=8))
+        channelsPage.addView(zapStatus,lp(bottom=8));zapStatus.visibility=View.GONE
+        channelsPage.addView(channelList)
         filter.addTextChangedListener(object:TextWatcher{
             override fun beforeTextChanged(s:CharSequence?,start:Int,count:Int,after:Int){}
-            override fun onTextChanged(s:CharSequence?,start:Int,before:Int,count:Int){channelPage=0;renderChannels()}
+            override fun onTextChanged(s:CharSequence?,start:Int,before:Int,count:Int){channelPage=0;focusCurrent=false;renderChannels()}
             override fun afterTextChanged(s:Editable?){}
         })
-        satellitePage.addView(signal.root,lp(bottom=18))
         satellitePage.addView(txt("Satellites",23f,light,true),lp(bottom=8))
-        satellitePage.addView(satNotice,lp(bottom=8));satellitePage.addView(satelliteList)
-        satellitePage.addView(tpNotice,lp(top=16,bottom=8));satellitePage.addView(tpList)
-        satellitePage.addView(tpDetail,lp(top=12))
+        satellitePage.addView(txt("Les plus fournis en premier",12f,accent),lp(bottom=8))
+        satellitePage.addView(satNotice,lp(bottom=12));satellitePage.addView(satelliteList)
     }
     fun showTab(tab:Int){
         activeTab=tab
-        if(tab==1)renderChannels()
-        if(tab==2){renderSatellites();renderTps()}
+        if(channelsVisible())renderChannels()
+        if(tab==2)renderSatellites()
+    }
+    fun setHomeListVisible(visible:Boolean){
+        listVisible=visible;channelsPage.visibility=if(visible)View.VISIBLE else View.GONE
+        if(visible){focusCurrent=true;renderChannels()}
+        else searchVersion.incrementAndGet()
+    }
+    fun setCurrentChannel(id:String){
+        if(currentId==id)return
+        currentId=id
+        if(pendingId==id){pendingId="";zapStatus.text="● Chaîne confirmée"}
+        if(channelsVisible())renderChannels()
     }
     fun updateChannels(rows:List<JSONObject>,fullyLoaded:Boolean){channels=rows;complete=fullyLoaded;invalidate()}
     fun updateSatellites(rows:List<JSONObject>){satellites=rows;invalidate()}
@@ -121,83 +147,86 @@ class CatalogPanel(private val activity:Activity,private val tune:(String,Int)->
         val nav=LinearLayout(activity)
         if(number>0)nav.addView(tile("‹ Précédent"){change(number-1)},LinearLayout.LayoutParams(0,-2,1f))
         if((number+1)*pageSize<size)nav.addView(tile("Suivant ›"){change(number+1)},LinearLayout.LayoutParams(0,-2,1f))
-        parent.addView(nav,lp(top=8,bottom=8))
+        if(nav.childCount>0)parent.addView(nav,lp(top=8,bottom=8))
+    }
+    private fun updateChips(){
+        satChip.text=(index.satelliteRows.firstOrNull{it.key==selectedSatellite}?.name?:"Tous les satellites")+" ▾"
+        tpChip.text=(index.transponders.firstOrNull{it.key==selectedTp && it.satellite==selectedSatellite}?.label?:"Toutes les fréquences")+" ▾"
+    }
+    private fun chooseSatellite(after:(()->Unit)?=null){
+        val rows=CatalogQuery.satellites(index)
+        val labels=arrayOf("Tous les satellites")+rows.map{s->"${s.name}  ·  ${index.channelsBySatellite[s.key]?.size?:0}"}
+        AlertDialog.Builder(activity).setTitle("Quel satellite ?").setItems(labels){_,which->
+            selectedSatellite=if(which==0)null else rows[which-1].key
+            selectedTp=null;channelPage=0;focusCurrent=false;updateChips();renderChannels();after?.invoke()
+        }.setNegativeButton("Fermer",null).show()
+    }
+    private fun chooseTp(){
+        val sat=selectedSatellite
+        if(sat==null){chooseSatellite{if(selectedSatellite!=null)chooseTp()};return}
+        val all=index.tpsBySatellite[sat]?:emptyList()
+        val rows=all.filter{!index.channelsByTp[sat to it.key].isNullOrEmpty()}
+        if(rows.isEmpty() && tps.isEmpty()){refreshTp()}
+        val labels=arrayOf("Toutes les fréquences")+rows.map{it.label+"  ·  "+(index.channelsByTp[sat to it.key]?.size?:0)}
+        AlertDialog.Builder(activity).setTitle("Quelle fréquence ?").setItems(labels){_,which->
+            selectedTp=if(which==0)null else rows[which-1].key
+            channelPage=0;focusCurrent=false;updateChips();renderChannels()
+        }.setNegativeButton("Fermer",null).show()
     }
     private fun renderChannels(){
-        if(activeTab!=1 || closed)return
+        if(!channelsVisible() || closed)return
         val generation=searchVersion.incrementAndGet()
-        val data=index;val mode=filterMode;val term=filter.text.toString().trim().lowercase(Locale.ROOT)
-        val pageNumber=channelPage
+        val data=index;val mode=filterMode;val term=filter.text.toString()
+        val sat=selectedSatellite;val tp=selectedTp;val pageNumber=channelPage
+        val focus=focusCurrent;val playing=currentId
+        updateChips()
         worker.execute{
-            val found=data.channelRows.filter{c->
-                (when(mode){0->!c.radio;1->c.radio;else->c.favorite}) && (term.isBlank() || c.search.contains(term))
-            }
+            val found=CatalogQuery.channels(data,mode,sat,tp,term)
+            val playingIndex=if(focus)found.indexOfFirst{it.id==playing} else -1
+            val desired=if(playingIndex>=0)playingIndex/pageSize else pageNumber
+            val number=desired.coerceAtMost(((found.size-1)/pageSize).coerceAtLeast(0))
             main.post{
-                if(closed || activeTab!=1 || generation!=searchVersion.get())return@post
-                channelList.removeAllViews()
-                val number=pageNumber.coerceAtMost(((found.size-1)/pageSize).coerceAtLeast(0))
-                channelPage=number
-                count.text="${found.size} chaîne(s) • "+(if(complete)"liste chargée" else "lecture progressive…")
-                page(found,number).forEach{c->channelList.addView(tile(c.name+"\n"+listOfNotNull(c.frequency,c.polarization).joinToString(" · ")){
-                    showChannel(c)
-                },lp(bottom=7))}
-                pager(channelList,found.size,number){channelPage=it;renderChannels()}
-                if(found.isEmpty())channelList.addView(txt("Aucune chaîne reçue ou correspondante.",13f,muted))
+                if(closed || !channelsVisible() || generation!=searchVersion.get())return@post
+                focusCurrent=false;channelPage=number;channelList.removeAllViews()
+                val modeLabel=when(mode){1->"TV";2->"Radio";3->"Favoris";else->"Ordre du récepteur"}
+                count.text="$modeLabel  •  ${found.size} chaîne(s)"+(if(!complete)"  ·  chargement…" else "")
+                page(found,number).forEach{c->
+                    val live=c.id==currentId
+                    val label=c.position.toString().padStart(3,'0')+"   "+c.name+(if(live)"   ●" else "")
+                    val row=tile(label){
+                        if(c.id!=currentId){
+                            pendingId=c.id;zapStatus.text="Changement vers ${c.name}…";zapStatus.visibility=View.VISIBLE
+                            tune(c.id,if(c.radio)1 else 0)
+                        }
+                    }
+                    if(live){row.setTextColor(green);row.background=GradientDrawable().apply{setColor(Color.rgb(36,48,64));cornerRadius=14.dp.toFloat();setStroke(1.dp,green)}}
+                    row.contentDescription="Chaîne ${c.position}, ${c.name}"+(if(live)", en cours" else "")
+                    channelList.addView(row,lp(bottom=6))
+                }
+                pager(channelList,found.size,number){channelPage=it;focusCurrent=false;renderChannels()}
+                if(found.isEmpty())channelList.addView(txt(if(complete)"Aucune chaîne pour ce choix." else "Lecture des chaînes du récepteur…",13f,muted))
             }
         }
-    }
-    private fun showChannel(c:CatalogIndex.Channel){
-        channelDetail.removeAllViews()
-        channelDetail.addView(txt(c.name,22f,light,true),lp(top=10,bottom=8))
-        channelDetail.addView(txt(listOfNotNull(c.frequency?.let{"$it MHz"},c.polarization,c.symbolRate?.let{"SR $it"}).joinToString(" · "),13f,muted))
-        channelDetail.addView(txt("EPG : "+(c.epg?:"Non communiqué par le récepteur")),lp(top=8))
-        c.next?.let{channelDetail.addView(txt("Ensuite : $it",13f,muted),lp(top=6))}
-        channelDetail.addView(tile("▶ Zapper sur le récepteur"){tune(c.id,if(c.radio)1 else 0)},lp(top=12))
-        channelDetail.addView(tile("EPG sur la TV"){openEpg()},lp(top=7))
-        (zapStatus.parent as? ViewGroup)?.removeView(zapStatus)
-        channelDetail.addView(zapStatus,lp(top=8,bottom=12))
     }
     private fun renderSatellites(){
-        if(activeTab!=2)return
-        val rows=index.satelliteRows
+        if(activeTab!=2 || closed)return
+        val rows=CatalogQuery.satellites(index)
         satellitePageNumber=satellitePageNumber.coerceAtMost(((rows.size-1)/pageSize).coerceAtLeast(0))
-        satNotice.text="${rows.size} satellites configurés • liste du récepteur"
+        satNotice.text="${rows.size} satellites  •  ${index.channelRows.size} chaînes chargées"+(if(!complete)"…" else "")
         satelliteList.removeAllViews()
         page(rows,satellitePageNumber).forEach{s->
-            val channelCount=index.channelsBySatellite[s.key]?.size?:0
-            satelliteList.addView(tile("🛰 ${s.name}\n$channelCount chaîne(s) associée(s)"){
-                selectedSatellite=s.key;selectedTp=null;tpPageNumber=0
-                tpDetail.removeAllViews();renderTps()
-                if(tps.isEmpty()){tpNotice.text="Lecture des transpondeurs…";refreshTp()}
-            },lp(bottom=7))
+            val n=index.channelsBySatellite[s.key]?.size?:0
+            val detail=if(n>0)"$n chaînes  ›" else if(complete)"Aucune chaîne associée" else "Lecture des chaînes…"
+            satelliteList.addView(tile("${s.name}\n$detail"){
+                selectedSatellite=s.key;selectedTp=null;channelPage=0;focusCurrent=false
+                openChannelTab()
+            },lp(bottom=8))
         }
         pager(satelliteList,rows.size,satellitePageNumber){satellitePageNumber=it;renderSatellites()}
-    }
-    private fun renderTps(){
-        if(activeTab!=2)return
-        tpList.removeAllViews()
-        val sat=selectedSatellite?:return
-        val rows=index.tpsBySatellite[sat]?:emptyList()
-        tpPageNumber=tpPageNumber.coerceAtMost(((rows.size-1)/pageSize).coerceAtLeast(0))
-        tpNotice.text=if(rows.isEmpty())"Aucun transpondeur associé reçu" else "${rows.size} transpondeur(s)"
-        page(rows,tpPageNumber).forEach{tp->
-            val key=sat to tp.key
-            val count=index.channelsByTp[key]?.size?:0
-            tpList.addView(tile(tp.label+"\n$count chaîne(s) associée(s)"){
-                selectedTp=key;tpDetail.removeAllViews()
-                tpDetail.addView(txt(tp.label,18f,accent,true),lp(bottom=8))
-                val matched=index.channelsByTp[key]?:emptyList()
-                matched.take(pageSize).forEach{c->tpDetail.addView(tile(c.name){
-                    openChannelTab();showChannel(c)
-                },lp(bottom=6))}
-                if(matched.size>pageSize)tpDetail.addView(txt("Utilisez Chaînes pour la liste complète",12f,muted))
-            },lp(bottom=7))
-        }
-        pager(tpList,rows.size,tpPageNumber){tpPageNumber=it;renderTps()}
     }
     fun updateSignal(message:String)=signal.message(message)
     fun setSignalMonitoring(active:Boolean)=signal.setActive(active)
     fun updateTunerSignal(value:ReceiverTelemetry.Signal,at:Long)=signal.update(value,at)
-    fun updateZapStatus(message:String){zapStatus.text=message}
+    fun updateZapStatus(message:String){zapStatus.text=message;zapStatus.visibility=View.VISIBLE}
     fun close(){closed=true;version.incrementAndGet();searchVersion.incrementAndGet();main.removeCallbacksAndMessages(null);worker.shutdownNow();signal.close()}
 }

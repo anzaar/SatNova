@@ -78,6 +78,7 @@ class MainActivity : Activity() {
     @Volatile private var signalMonitoring=false
     @Volatile private var signalRequestAt=0L
     @Volatile private var foreground=true
+    @Volatile private var videoBuffering=false
     @Volatile private var selectedTab=0
     @Volatile private var channelPageRequestAt=0L
     @Volatile private var channelPageTo=0
@@ -179,7 +180,7 @@ class MainActivity : Activity() {
             onEpgRemote = { sendKey(32) },
             onTabChanged = { tab ->
                 selectedTab=tab
-                if(::screen.isInitialized)setSignalMonitoring(tab==2)
+                if(::screen.isInitialized)setSignalMonitoring(tab<=1)
             },
             onRefresh = {
                 if (!verified) report("Connecter le récepteur d'abord")
@@ -203,13 +204,13 @@ class MainActivity : Activity() {
         diagnostics = screen.diagnostics
         fieldViews.putAll(screen.fields)
         setContentView(screen.root)
-        inlinePlayer=InlineVlcPlayer(this,screen.inlineVideo){ msg ->
+        inlinePlayer=InlineVlcPlayer(this,screen.inlineVideo,status={ msg ->
             screen.showInlineState(msg)
             if(msg.startsWith("LIVE • lecture")){
                 screen.setVideoPlaying(true)
                 loadTunerMetadata()
             }
-        }
+        },buffering={waiting->videoBuffering=waiting})
         screen.setReceiverOnline(false)
         // Auto-connect only to an IP previously verified by SatNova.
         val rememberedIp=getSharedPreferences("satnova",Context.MODE_PRIVATE)
@@ -232,7 +233,8 @@ class MainActivity : Activity() {
                     if(monitorTicks%5==0)requestState(15)
                     if(monitorTicks%7==0)requestState(14)
                     requestState(26)
-                    if(!channelRecords.containsKey(currentChannelId))requestNextChannelPage()
+                    if(foreground && (!channelRecords.containsKey(currentChannelId) ||
+                        (catalogWanted && !videoBuffering)))requestNextChannelPage()
                 }catch(e:Exception){report("Synchronisation : "+e.message)}
             }
         }, 6, 12, TimeUnit.SECONDS)
@@ -432,13 +434,17 @@ class MainActivity : Activity() {
         requestState(0,from,to)
     }
     private fun continueChannelMetadata(){
-        if(!catalogWanted && channelRecords.containsKey(currentChannelId))return
+        if(!foreground || (!catalogWanted && channelRecords.containsKey(currentChannelId)))return
         val session=socket
+        val identified=channelRecords.containsKey(currentChannelId)
         monitorWork.schedule({
-            if(socket===session && verified)work.execute{
-                if(socket===session && verified)try{requestNextChannelPage()}catch(_:Exception){}
+            if(socket===session && verified && foreground)work.execute{
+                if(socket!==session || !verified || !foreground)return@execute
+                if(videoBuffering && channelRecords.containsKey(currentChannelId)){
+                    continueChannelMetadata()
+                }else try{requestNextChannelPage()}catch(_:Exception){}
             }
-        },220,TimeUnit.MILLISECONDS)
+        },if(identified)1400L else 400L,TimeUnit.MILLISECONDS)
     }
     private fun rows(text:String):List<JSONObject> = try {
         when(val value=JSONTokener(text).nextValue()){
@@ -507,7 +513,8 @@ class MainActivity : Activity() {
             }
             sat=key(satRecord,"SatelliteName","SatName","Name","Satellite")
         }
-        val pol=key(tp,"Polarization","Pol","POL") ?: key(rec,"Polarization","Pol","POL")
+        val rawPol=key(tp,"Polarization","Pol","POL") ?: key(rec,"Polarization","Pol","POL")
+        val pol=when(rawPol){"0"->"H";"1"->"V";else->rawPol}
         val sr=key(tp,"SymbolRate","SR") ?: key(rec,"SymbolRate","SR")
         val tpText=listOfNotNull(frequency?.let{it+" MHz"},pol?.let{"Pol "+it},
             sr?.let{"SR "+it}).joinToString(" • ").ifBlank{"TP non identifié par le firmware"}
@@ -517,6 +524,7 @@ class MainActivity : Activity() {
         val id=currentChannelId
         if(id.isBlank())return
         val rec=channelRecords[id]
+        screen.setCurrentChannel(id)
         showField("Chaîne actuelle",channelNames[id] ?:
             "Chaîne en identification (ID "+id.take(16)+")")
         showField("Numéro de chaîne",receiverChannelNumber(id,rec))
@@ -835,7 +843,8 @@ class MainActivity : Activity() {
     override fun onResume(){
         super.onResume()
         foreground=true
-        if(::screen.isInitialized && selectedTab==2)setSignalMonitoring(true)
+        if(::screen.isInitialized && selectedTab<=1)setSignalMonitoring(true)
+        if(verified && catalogWanted)continueChannelMetadata()
         if(verified)activeStreamUrl?.let{url->
             runOnUiThread{inlinePlayer?.start(url)}
         }

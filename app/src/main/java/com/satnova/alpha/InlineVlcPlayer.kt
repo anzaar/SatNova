@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 /** Native network/decoder shutdown must never block the Android event loop. */
 class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayout,
-                      private val status:(String)->Unit) {
+                      private val status:(String)->Unit,private val buffering:(Boolean)->Unit={}) {
     private val worker=Executors.newSingleThreadExecutor()
     private val main=Handler(Looper.getMainLooper())
     private val generation=AtomicLong()
@@ -44,26 +44,40 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
             if(ticket!=generation.get())return@execute
             try {
                 val vlc=LibVLC(context.applicationContext,arrayListOf(
-                    "--network-caching=550","--live-caching=550","--no-video-title-show"))
+                    "--network-caching=1800","--live-caching=1800","--no-video-title-show","--http-reconnect"))
                 engine=vlc
                 val mp=MediaPlayer(vlc)
                 player=mp
                 currentUrl=url
                 onMain{mp.attachViews(view,null,false,false)}
+                var lastMessage=""
+                var lastBufferState:Boolean?=null
+                var lastNoticeAt=0L
                 mp.setEventListener { event ->
+                    val progress=if(event.type==MediaPlayer.Event.Buffering)event.buffering else 100f
+                    val waiting=event.type==MediaPlayer.Event.Buffering && progress<100f
                     val message=when(event.type){
                         MediaPlayer.Event.Playing->"LIVE • lecture du flux récepteur"
-                        MediaPlayer.Event.Buffering->"LIVE • mémoire tampon…"
-                        MediaPlayer.Event.EncounteredError->"Flux indisponible • vérifier la chaîne"
-                        MediaPlayer.Event.EndReached->"Diffusion terminée"
+                        MediaPlayer.Event.Buffering->if(waiting)"Chargement vidéo • "+progress.toInt().coerceIn(0,100)+" %"
+                            else "LIVE • lecture du flux récepteur"
+                        MediaPlayer.Event.EncounteredError->"Flux interrompu • toucher la vidéo pour relancer"
+                        MediaPlayer.Event.EndReached->"Diffusion terminée • toucher pour relancer"
                         else->null
                     }
-                    if(message!=null)main.post{if(ticket==generation.get())status(message)}
+                    if(message!=null){
+                        val now=android.os.SystemClock.elapsedRealtime()
+                        val bufferChanged=lastBufferState!=waiting
+                        if(bufferChanged || (message!=lastMessage && (!waiting || now-lastNoticeAt>400L))){
+                            lastMessage=message;lastNoticeAt=now;lastBufferState=waiting
+                            main.post{if(ticket==generation.get()){buffering(waiting);status(message)}}
+                        }
+                    }
                 }
                 val media=Media(vlc,Uri.parse(url))
                 try {
-                    media.addOption(":network-caching=550")
-                    media.addOption(":live-caching=550")
+                    media.addOption(":network-caching=1800")
+                    media.addOption(":live-caching=1800")
+                    media.addOption(":http-reconnect")
                     mp.media=media
                 } finally {media.release()}
                 mp.volume=100
