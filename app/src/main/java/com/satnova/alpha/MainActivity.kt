@@ -442,7 +442,7 @@ class MainActivity : Activity() {
         var frequency=key(rec,"Frequency","Freq","TPFreq","FrequencyMHz")
         val directSat=key(rec,"SatIndex","SatelliteIndex","SatelliteId","SatID")
         val tpIndex=key(rec,"TPIndex","TpIndex","TPID","TransponderId")
-            ?: key(rec,"ServiceID")?.takeIf{it.length>=9}?.substring(4,9)
+            ?: key(rec,"ServiceID","ProgramId","ProgramID")?.takeIf{it.length>=9}?.substring(4,9)
         val tp=transponderRecords.firstOrNull{item->
             val index=key(item,"TPIndex","TpIndex","TPId","TransponderId")
             index!=null && tpIndex!=null && index.toIntOrNull()==tpIndex.toIntOrNull()
@@ -687,7 +687,11 @@ class MainActivity : Activity() {
                 showCurrent()
                 screen.updateChannels(currentChannelsOrdered(),totalChannelCount>0&&channelRecords.size>=totalChannelCount)
                 if(recs.isNotEmpty()&&nextChannelIndex<totalChannelCount&&nextChannelIndex<3000)
-                    work.execute{try{requestNextChannelPage()}catch(_:Exception){}}
+                    monitorWork.schedule({
+                        if(verified)work.execute{
+                            try{requestNextChannelPage()}catch(_:Exception){}
+                        }
+                    },420,TimeUnit.MILLISECONDS)
             }
         }
     }
