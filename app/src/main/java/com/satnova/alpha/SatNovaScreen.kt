@@ -478,4 +478,8 @@ class SatNovaScreen(
         activity.runOnUiThread{catalog.updateSignal(message)}
     }
 
+    fun updateZapStatus(message:String){
+        activity.runOnUiThread{catalog.updateZapStatus(message)}
+    }
+
 }
