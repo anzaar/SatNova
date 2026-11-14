@@ -24,5 +24,5 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:${media3Version}")
     implementation("androidx.media3:media3-exoplayer-rtsp:${media3Version}")
     implementation("androidx.media3:media3-ui:${media3Version}")
-    implementation("org.videolan.android:libvlc-all:3.7.7")
+    implementation("org.videolan.android:libvlc-all:3.6.5")
 }

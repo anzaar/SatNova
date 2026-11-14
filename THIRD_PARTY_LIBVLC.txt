@@ -1,6 +1,6 @@
 SatNova uses LibVLC for MPEG Layer II / MP2 decoding.
 
-Embedded native library: org.videolan.android:libvlc-all:3.7.7
+Embedded native library: org.videolan.android:libvlc-all:3.6.5
 LibVLC project: https://code.videolan.org/videolan/vlc-android
 License: LGPL-2.1-or-later (for LibVLC components).
 
