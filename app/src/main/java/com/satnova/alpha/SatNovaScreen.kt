@@ -301,9 +301,13 @@ class SatNovaScreen(
         branding.addView(mark,margin(width=44,height=44,right=10))
         val brandTexts=stack()
         brandTexts.addView(text("SATNOVA  •  LIVE TV",21f,textColor,true))
-        brandTexts.addView(text("CONTROL YOUR UNIVERSE",9f,lavender,true),margin(top=4))
+        val actualModel=text("Récepteur : identification…",11f,lavender,true).apply{
+            maxLines=2
+        }
+        brandTexts.addView(actualModel,margin(top=4))
+        fields["Modèle du récepteur"]=actualModel
         branding.addView(brandTexts,LinearLayout.LayoutParams(0,-2,1f))
-        val version=text("α 1.3.1",10f,lavender,true).apply{
+        val version=text("α 1.4",10f,lavender,true).apply{
             gravity=Gravity.CENTER
             setPadding(9.dp,7.dp,9.dp,7.dp)
             background=shape(tileColor,24,hairline)
@@ -587,7 +591,7 @@ class SatNovaScreen(
 
         // Capability-aware receiver tools: display confirmed data, never fake server/network state.
         val tools = card(settingsPage, top = 14)
-        section(tools, "Récepteur & installation", "Satellites, transpondeurs, réseau, serveurs, signal et recherche")
+        section(tools, "Récepteur & installation", "Pointage parabole, satellites, transpondeurs, réseau et recherche")
         val toolsToggle = action("⌄   Ouvrir les outils", tileColor, lavender, 48, hairline) {}
         tools.addView(toolsToggle)
         val toolsBody = stack().apply { visibility = View.GONE }
@@ -661,6 +665,12 @@ class SatNovaScreen(
     }
     fun updateSignal(message:String){
         activity.runOnUiThread{catalog.updateSignal(message)}
+    }
+    fun updateSignalReading(level:Int?,quality:Int?,source:String){
+        activity.runOnUiThread{catalog.updateSignalReading(level,quality,source)}
+    }
+    fun updateSignalTracking(running:Boolean){
+        activity.runOnUiThread{catalog.updateTracking(running)}
     }
 
     fun updateZapStatus(message:String){
