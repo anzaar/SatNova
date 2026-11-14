@@ -319,7 +319,11 @@ class MainActivity : Activity() {
             if(kind in listOf(2001,2002,2003,2004)) work.execute {
                 try{
                     requestState(3);requestState(19)
-                    if(kind==2002){channelNames.clear();nextChannelIndex=0;requestNextChannelPage()}
+                    if(kind==2002){
+                        channelNames.clear();channelRecords.clear();nextChannelIndex=0
+                        screen.updateChannels(emptyList(),false)
+                        requestNextChannelPage()
+                    }
                 }catch(_:Exception){}
             }
             return
@@ -328,6 +332,9 @@ class MainActivity : Activity() {
         when(kind){
             22,23 -> {
                 if(kind==23 && recs.isEmpty())return
+                satelliteRecords.clear()
+                satelliteRecords.addAll(recs.map{JSONObject(it.toString())})
+                screen.updateSatellites(satelliteRecords.toList())
                 val output=recs.take(35).mapNotNull{ rec->
                     val name=pick(rec,"SatelliteName","SatName","Name","Satellite","SatNameValue")
                     val pos=pick(rec,"OrbitalPosition","Position","Angle")
@@ -337,6 +344,9 @@ class MainActivity : Activity() {
                     "Réponse reçue mais format inconnu (type "+kind+", "+body.size+" octets).")
             }
             24 -> {
+                transponderRecords.clear()
+                transponderRecords.addAll(recs.map{JSONObject(it.toString())})
+                screen.updateTransponders(transponderRecords.toList())
                 val output=recs.take(35).mapNotNull{ rec->
                     val freq=pick(rec,"Frequency","Freq","TPFreq","FrequencyMHz")
                     val sym=pick(rec,"SymbolRate","Symbol","SR","SymRate")
@@ -365,7 +375,9 @@ class MainActivity : Activity() {
                 val ber=pick(info,"BER","Ber")
                 if(lvl!=null||qual!=null||ber!=null) {
                     val pieces=listOfNotNull(lvl?.let{"Niveau: "+it},qual?.let{"Qualité: "+it},ber?.let{"BER: "+it})
-                    showField("Signal temps réel",pieces.joinToString(" · ")+" (récepteur, "+date+")")
+                    val signalMessage=pieces.joinToString(" · ")+" (récepteur, "+date+")"
+                    showField("Signal temps réel",signalMessage)
+                    screen.updateSignal(signalMessage)
                     lastSignalUpdate=System.currentTimeMillis()
                 }
 
@@ -376,6 +388,8 @@ class MainActivity : Activity() {
                     val count=n.toIntOrNull()
                     if(count!=null&&count>0&&count!=totalChannelCount){
                         totalChannelCount=count;nextChannelIndex=0;channelNames.clear()
+                        channelRecords.clear()
+                        screen.updateChannels(emptyList(),false)
                         work.execute{try{requestNextChannelPage()}catch(_:Exception){}}
                     }
                 }
@@ -388,6 +402,7 @@ class MainActivity : Activity() {
                     val id=pick(item,"ServiceID","ProgramId") ?: continue
                     val name=pick(item,"ServiceName","Name","ChannelName","ProgramName") ?: "Service "+id
                     channelNames[id]=name
+                    channelRecords[id]=JSONObject(item.toString())
                     if(id==currentChannelId){
                         pick(item,"Radio")?.toIntOrNull()?.let {currentTvState=if(it==1) 1 else 0}
                         pick(item,"EventName","EventTitle","CurrentEvent","NowPlaying")?.let{
@@ -398,6 +413,9 @@ class MainActivity : Activity() {
                     }
                 }
                 showCurrent()
+                screen.updateChannels(channelRecords.values.toList().sortedBy{
+                    it.optString("ServiceName",it.optString("Name",""))
+                },totalChannelCount>0&&channelRecords.size>=totalChannelCount)
                 if(recs.isNotEmpty()&&nextChannelIndex<totalChannelCount&&nextChannelIndex<3000)
                     work.execute{try{requestNextChannelPage()}catch(_:Exception){}}
             }
