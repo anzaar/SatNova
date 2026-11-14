@@ -243,6 +243,42 @@ class CatalogPanel(
         channelDetail.addView(txt(epg?:"EPG non communiqué dans les informations reçues.",14f,light,epg!=null))
         if(next!=null)channelDetail.addView(txt("Ensuite : "+next,12f,muted),lp(top=8))
         channelDetail.addView(tile("EPG du programme en cours sur la TV"){openEpg()},lp(top=13,bottom=8))
+        channelDetail.addView(tile("✎  Renommer localement") {
+            val editor=EditText(activity).apply{
+                setSingleLine(true)
+                setText(cname(ch))
+                setPadding(20.dp,18.dp,20.dp,18.dp)
+            }
+            AlertDialog.Builder(activity)
+                .setTitle("Nom affiché dans SatNova")
+                .setMessage("Cette modification ne change pas le récepteur.")
+                .setView(editor)
+                .setPositiveButton("Enregistrer"){_,_->
+                    val key=id(ch)
+                    if(key!=null){
+                        prefs.edit().putString("name_"+key,editor.text.toString().trim()).apply()
+                        renderChannels();showChannel(ch)
+                    }
+                }
+                .setNegativeButton("Annuler",null)
+                .show()
+        },lp(top=9,bottom=7))
+        channelDetail.addView(tile(if(favorite(ch))"★  Retirer des favoris SatNova"
+            else "☆  Ajouter aux favoris SatNova"){
+            val key=id(ch)
+            if(key!=null){
+                prefs.edit().putBoolean("fav_"+key,!favorite(ch)).apply()
+                renderChannels();showChannel(ch)
+            }
+        },lp(bottom=7))
+        val orderRow=LinearLayout(activity).apply{orientation=LinearLayout.HORIZONTAL}
+        for((label,delta) in listOf("↑ Monter" to -1,"↓ Descendre" to 1)){
+            orderRow.addView(tile(label){move(ch,delta)},LinearLayout.LayoutParams(0,-2,1f).apply{
+                setMargins(2.dp,0,2.dp,0)
+            })
+        }
+        channelDetail.addView(orderRow,lp(bottom=9))
+        channelDetail.addView(txt("Tri et modifications locaux à SatNova. Le récepteur reste inchangé.",11f,muted),lp(bottom=12))
         id(ch)?.let{programId->
             val radio=if(get(ch,"Radio","TvState")=="1")1 else 0
             channelDetail.addView(tile("▶  Zapper vers cette chaîne"){tune(programId,radio)})
@@ -286,6 +322,7 @@ class CatalogPanel(
             matches.take(30).forEach{ch->tpDetail.addView(tile(cname(ch)){showChannel(ch);openChannelTab()},lp(bottom=6))}
             if(matches.size>30)tpDetail.addView(txt("+"+(matches.size-30)+" autres",12f,muted))
         }
-        tpDetail.addView(txt("Signal : "+signalNotice.text.toString(),12f,green),lp(top=12))
+        tpDetail.addView(txt("Signal du tuner actuel, pas forcément ce transpondeur : "+
+            signalNotice.text.toString(),12f,green),lp(top=12))
     }
 }
