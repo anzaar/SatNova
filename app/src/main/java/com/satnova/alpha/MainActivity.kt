@@ -48,6 +48,12 @@ class MainActivity : Activity() {
     private val fieldViews = linkedMapOf<String,TextView>()
     private val channelNames = ConcurrentHashMap<String,String>()
     private val channelRecords = ConcurrentHashMap<String,JSONObject>()
+    private val channelOrder = CopyOnWriteArrayList<String>()
+    @Volatile private var targetTuneId = ""
+    @Volatile private var tuneMethod = 0
+    @Volatile private var tuneStartMillis = 0L
+    @Volatile private var tuneAckStatus = -1
+    private fun currentChannelsOrdered()=channelOrder.mapNotNull{channelRecords[it]}
     private val satelliteRecords = CopyOnWriteArrayList<JSONObject>()
     private val transponderRecords = CopyOnWriteArrayList<JSONObject>()
     private lateinit var screen: SatNovaScreen
@@ -162,7 +168,7 @@ class MainActivity : Activity() {
     private fun showField(key:String,value:String)=runOnUiThread { fieldViews[key]?.text=value }
     private fun refreshChannels(){
         if(!verified){report("Connecter le récepteur pour les chaînes");return}
-        screen.updateChannels(channelRecords.values.toList(), totalChannelCount>0 &&
+        screen.updateChannels(currentChannelsOrdered(), totalChannelCount>0 &&
             channelRecords.size>=totalChannelCount)
         work.execute{
             try{
@@ -331,7 +337,7 @@ class MainActivity : Activity() {
                 try{
                     requestState(3);requestState(19)
                     if(kind==2002){
-                        channelNames.clear();channelRecords.clear();nextChannelIndex=0
+                        channelNames.clear();channelRecords.clear();channelOrder.clear();nextChannelIndex=0
                         screen.updateChannels(emptyList(),false)
                         requestNextChannelPage()
                     }
@@ -399,7 +405,7 @@ class MainActivity : Activity() {
                     val count=n.toIntOrNull()
                     if(count!=null&&count>0&&count!=totalChannelCount){
                         totalChannelCount=count;nextChannelIndex=0;channelNames.clear()
-                        channelRecords.clear()
+                        channelRecords.clear();channelOrder.clear()
                         screen.updateChannels(emptyList(),false)
                         work.execute{try{requestNextChannelPage()}catch(_:Exception){}}
                     }
@@ -413,6 +419,7 @@ class MainActivity : Activity() {
                     val id=pick(item,"ServiceID","ProgramId") ?: continue
                     val name=pick(item,"ServiceName","Name","ChannelName","ProgramName") ?: "Service "+id
                     channelNames[id]=name
+                    if(!channelRecords.containsKey(id))channelOrder.add(id)
                     channelRecords[id]=JSONObject(item.toString())
                     if(id==currentChannelId){
                         pick(item,"Radio")?.toIntOrNull()?.let {currentTvState=if(it==1) 1 else 0}
@@ -424,9 +431,7 @@ class MainActivity : Activity() {
                     }
                 }
                 showCurrent()
-                screen.updateChannels(channelRecords.values.toList().sortedBy{
-                    it.optString("ServiceName",it.optString("Name",""))
-                },totalChannelCount>0&&channelRecords.size>=totalChannelCount)
+                screen.updateChannels(currentChannelsOrdered(),totalChannelCount>0&&channelRecords.size>=totalChannelCount)
                 if(recs.isNotEmpty()&&nextChannelIndex<totalChannelCount&&nextChannelIndex<3000)
                     work.execute{try{requestNextChannelPage()}catch(_:Exception){}}
             }
