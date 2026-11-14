@@ -186,6 +186,7 @@ class MainActivity : Activity() {
         tuneMethod=0
         tuneStartMillis=System.currentTimeMillis()
         tuneAckStatus=-1
+        screen.updateZapStatus("Demande 1000 vers le récepteur…")
         sendTune(id,tvState,false)
     }
     private fun sendTune(id:String,tvState:Int,flat:Boolean){
@@ -215,8 +216,10 @@ class MainActivity : Activity() {
                 }
                 val sock=socket ?: return@execute
                 sendFrame(sock,payload)
-                report(if(flat)"Test de zapping alternatif…"
-                    else "Zapping demandé au récepteur, vérification…")
+                val msg=if(flat)"Mode alternatif 1000 envoyé. Vérification du tuner…"
+                    else "Demande 1000 envoyée. Vérification du tuner…"
+                report(msg)
+                screen.updateZapStatus(msg)
                 showField("Dernière commande envoyée","1000 • "+programId+
                     " • mode "+(if(flat) "direct" else "array")+" • état non confirmé")
                 monitorWork.schedule({
@@ -227,14 +230,18 @@ class MainActivity : Activity() {
                     if(!verified||targetTuneId!=id)return@schedule
                     if(currentChannelId==id){
                         report("Chaîne confirmée : "+(channelNames[id]?:id))
+                        screen.updateZapStatus("Changement confirmé par le récepteur.")
                         targetTuneId=""
                     }else if(!flat){
-                        report("Récepteur sans changement confirmé, essai compatibilité…")
+                        report("Récepteur sans changement confirmé. Test alternatif…")
+                        screen.updateZapStatus("Pas de changement confirmé ; test d'une autre variante…")
                         sendTune(id,tvState,true)
                     }else {
-                        report("Zapping non confirmé. Réponse 1000 = "+
+                        val detail="Changement non confirmé. Réponse 1000 : "+
                             (if(tuneAckStatus<0)"aucun ACK" else "code "+tuneAckStatus)+
-                            ". Vérifier que MENU/EPG est fermé sur TV.")
+                            ". Fermer les menus TV ; essayer sans SAT Chef."
+                        report(detail)
+                        screen.updateZapStatus(detail)
                         targetTuneId=""
                     }
                 },2600,TimeUnit.MILLISECONDS)
@@ -400,8 +407,18 @@ class MainActivity : Activity() {
         }
         if(kind==1000){
             tuneAckStatus=statusCode
-            if(statusCode!=0)report("Récepteur refuse le zapping : code "+statusCode+
-                if(statusCode==17)" (menu ouvert)" else "")
+            val statusText=when(statusCode){
+                0 -> "Récepteur : demande acceptée (code 0) ; on vérifie le changement."
+                17 -> "Récepteur : menu/overlay ouvert (code 17). Appuyer sur Exit sur TV."
+                16 -> "Récepteur : enregistrement en cours (code 16)."
+                2 -> "Récepteur : format de demande refusé (code 2)."
+                else -> "Récepteur : zapping refusé (code "+statusCode+")."
+            }
+            screen.updateZapStatus(statusText)
+            if(statusCode!=0){
+                report(statusText)
+                if(statusCode==17 || statusCode==16) targetTuneId=""
+            }
             return
         }
         if(kind==1009){
@@ -508,6 +525,7 @@ class MainActivity : Activity() {
                     showCurrent()
                     if(targetTuneId==id){
                         report("Zapping confirmé : "+(channelNames[id]?:id))
+                        screen.updateZapStatus("Zapping confirmé sur la chaîne "+(channelNames[id]?:id))
                         targetTuneId=""
                     }
                 }
