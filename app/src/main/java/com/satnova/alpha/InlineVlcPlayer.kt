@@ -23,7 +23,7 @@ class InlineVlcPlayer(private val context:Context,private val view:VLCVideoLayou
         currentUrl=url
         try {
             val vlc=LibVLC(context,arrayListOf(
-                "--network-caching=1250", "--live-caching=1250",
+                "--network-caching=550", "--live-caching=550",
                 "--no-video-title-show"
             ))
             engine=vlc
@@ -39,8 +39,8 @@ class InlineVlcPlayer(private val context:Context,private val view:VLCVideoLayou
                 }
             }
             val media=Media(vlc,Uri.parse(url))
-            media.addOption(":network-caching=1250")
-            media.addOption(":live-caching=1250")
+            media.addOption(":network-caching=550")
+            media.addOption(":live-caching=550")
             mediaPlayer.media=media
             media.release()
             mediaPlayer.volume=100
