@@ -10,8 +10,8 @@ android {
         minSdk = 26
         targetSdk = 35
         ndk { abiFilters += listOf("arm64-v8a") }
-        versionCode = 22
-        versionName = "1.6.2-alpha"
+        versionCode = 23
+        versionName = "1.7-alpha"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -27,3 +27,4 @@ dependencies {
     implementation("androidx.media3:media3-ui:${media3Version}")
     implementation("org.videolan.android:libvlc-all:3.6.5")
 }
+

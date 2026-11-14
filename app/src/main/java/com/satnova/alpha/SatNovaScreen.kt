@@ -68,6 +68,7 @@ class SatNovaScreen(
     private lateinit var appScroller: ScrollView
     private lateinit var appNav: LinearLayout
     private lateinit var setupScroller: ScrollView
+    private lateinit var livePreview: LinearLayout
     private lateinit var discoveryResults: LinearLayout
     private val discoveredHosts=linkedSetOf<String>()
     lateinit var inlineVideo: VLCVideoLayout
@@ -318,7 +319,7 @@ class SatNovaScreen(
         brandTexts.addView(actualModel,margin(top=4))
         fields["Modèle du récepteur"]=actualModel
         branding.addView(brandTexts,LinearLayout.LayoutParams(0,-2,1f))
-        val version=text("α 1.6.2",10f,lavender,true).apply{
+        val version=text("α 1.7",10f,lavender,true).apply{
             gravity=Gravity.CENTER
             setPadding(9.dp,7.dp,9.dp,7.dp)
             background=shape(tileColor,24,hairline)
@@ -412,7 +413,15 @@ class SatNovaScreen(
             maxLines=2
         }
         header.addView(now,LinearLayout.LayoutParams(0,-2,1f))
-        hero.addView(header)
+        // Keep the native video surface attached and at a stable position.
+        // Changing tabs/scrolling must not hide or move a SurfaceView's window.
+        livePreview=stack().apply{
+            setPadding(12.dp,8.dp,12.dp,8.dp)
+            setBackgroundColor(panelColor)
+            visibility=View.GONE
+        }
+        root.addView(livePreview,0,LinearLayout.LayoutParams(-1,-2))
+        livePreview.addView(header)
         fields["Chaîne actuelle"]=now
 
         // A real 16:9 VLCVideoLayout is retained under this tappable poster.
@@ -442,7 +451,7 @@ class SatNovaScreen(
         videoFrame.addView(inlinePoster,FrameLayout.LayoutParams(-1,-1))
         val videoHeight=((activity.resources.displayMetrics.widthPixels-53.dp)*9/16)
             .coerceAtLeast(160.dp)
-        hero.addView(videoFrame,margin(height=videoHeight,top=10))
+        livePreview.addView(videoFrame,margin(height=videoHeight,top=6))
 
         val liveRow=row().apply{setPadding(2.dp,10.dp,2.dp,3.dp)}
         val inlineState=text("● LIVE • En attente du flux…",11f,lavender,true).apply{
@@ -458,7 +467,7 @@ class SatNovaScreen(
         }
         liveRow.addView(connectionBadge,margin(left=6))
         fields["État connexion"]=connectionBadge
-        hero.addView(liveRow)
+        livePreview.addView(liveRow)
 
         val info=row().apply{
             setPadding(8.dp,9.dp,8.dp,9.dp)
@@ -703,6 +712,7 @@ class SatNovaScreen(
 
     /** Sole entry view until a verified TCP login has completed. */
     fun setReceiverOnline(online:Boolean) = activity.runOnUiThread {
+        livePreview.visibility=if(online)View.VISIBLE else View.GONE
         appScroller.visibility=if(online)View.VISIBLE else View.GONE
         appNav.visibility=if(online)View.VISIBLE else View.GONE
         setupScroller.visibility=if(online)View.GONE else View.VISIBLE
@@ -734,3 +744,4 @@ class SatNovaScreen(
     }
 
 }
+

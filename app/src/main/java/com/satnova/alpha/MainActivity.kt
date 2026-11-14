@@ -70,6 +70,8 @@ class MainActivity : Activity() {
     @Volatile private var automaticVideoRetryCount=0
     @Volatile private var metadataLoadedAfterStream=false
     @Volatile private var liveScreenRequested=false
+    private var classicPlayback=false
+    @Volatile private var foreground=false
     @Volatile private var currentChannelId = ""
     @Volatile private var currentTvState = 0
     @Volatile private var streamPending = false
@@ -127,6 +129,8 @@ class MainActivity : Activity() {
     private fun setVerified(value: Boolean) {
         verified = value
         if(!value){
+            streamOpened=false
+            classicPlayback=false
             activeStreamUrl=null
             streamedChannel=""
             autoStreamRequestId=""
@@ -205,6 +209,7 @@ class MainActivity : Activity() {
         setContentView(screen.root)
         inlinePlayer=InlineVlcPlayer(this,screen.inlineVideo,screen.inlineExoVideo){ msg ->
             screen.showInlineState(msg)
+            showField("Diagnostic vidéo",msg)
             if(msg.startsWith("LIVE • Image"))screen.setVideoPlaying(true)
         }
         screen.setReceiverOnline(false)
@@ -579,18 +584,27 @@ class MainActivity : Activity() {
                 videoStatus("Adresse du flux refusée (hors réseau local).")
                 return
             }
-            streamOpened=false
+            streamOpened=true
             activeStreamUrl=link
             videoStatus("Flux "+Uri.parse(link).scheme+" reçu. Lecture intégrée…")
             runOnUiThread {
+                if(!foreground){
+                    work.execute{
+                        try{requestState(1012)}catch(_:Exception){}
+                        streamOpened=false
+                    }
+                    return@runOnUiThread
+                }
                 val intent=Intent(this,VlcLiveActivity::class.java)
                 intent.putExtra("stream_url",link)
                 intent.putExtra("channel_title",channelNames[currentChannelId] ?: "Canal "+currentChannelId)
                 if(liveScreenRequested){
                     liveScreenRequested=false
+                    classicPlayback=true
                     inlinePlayer?.stop()
                     startActivity(intent)
                 }else{
+                    if(!foreground)return@runOnUiThread
                     activeStreamUrl=link
                     // Remove the opaque placeholder before VLC/Android creates its surface.
                     // Otherwise a valid stream can play invisibly behind a black TextView.
@@ -764,20 +778,11 @@ class MainActivity : Activity() {
             report("Connecter Echolink avant de lancer le lecteur")
             return
         }
-        val url=activeStreamUrl
-        if(url.isNullOrBlank()){
-            report("Pas encore de lien vidéo du récepteur. Relancer le flux.")
-            return
-        }
-        // The receiver may allow only one streaming HTTP client.
-        // Pause keeps VLC's socket open; release the inline session completely
-        // before opening the original known-working 0.8 player.
-        inlinePlayer?.stop()
-        screen.showInlineState("Mode VLC classique : fermeture du lecteur intégré…")
-        startActivity(Intent(this,VlcLiveActivity::class.java).apply{
-            putExtra("stream_url",url)
-            putExtra("channel_title",channelNames[currentChannelId] ?: "Chaîne du récepteur")
-        })
+        if(streamPending){report("Attendez la réponse vidéo en cours.");return}
+        // 1009 URLs belong to a receiver stream session. A released HTTP reader
+        // cannot safely hand its old URL to a second player. Negotiate anew.
+        liveScreenRequested=true
+        retryInlineStream()
     }
     private fun retryInlineStream(){
         if(!verified){report("Connectez le récepteur.");return}
@@ -795,8 +800,8 @@ class MainActivity : Activity() {
             inlinePlayer?.stop()
             screen.resetVideoPlaceholder()
             screen.showInlineState("Relance du flux en cours…")
+            autostartInlineStream(id)
         }
-        autostartInlineStream(id)
     }
     private fun autostartInlineStream(id:String){
         if(!verified || id.isBlank())return
@@ -817,10 +822,11 @@ class MainActivity : Activity() {
             inlinePlayer?.stop()
             screen.resetVideoPlaceholder()
             screen.showInlineState("Initialisation Live TV pour la chaîne actuelle…")
+            startLiveTv()
         }
-        startLiveTv()
     }
     private fun startLiveTv(){
+        if(!foreground)return
         if(!verified){videoStatus("Connecter Echolink avant le streaming.");return}
         if(streamPending){report("Demande de vidéo déjà en cours…");return}
         val id=currentChannelId
@@ -837,6 +843,12 @@ class MainActivity : Activity() {
         work.execute {
             try {
                 val s=socket ?: throw IllegalStateException("Récepteur déconnecté")
+                // Restore the 0.8 receiver-side teardown, in the same serial
+                // command queue as 1009, after the local HTTP player is released.
+                if(streamOpened){
+                    requestState(1012)
+                    streamOpened=false
+                }
                 val payload=if(jsonMode){
                     JSONObject()
                         .put("request","1009")
@@ -882,12 +894,21 @@ class MainActivity : Activity() {
     }
     override fun onResume(){
         super.onResume()
-        if(verified)activeStreamUrl?.let{url->
-            runOnUiThread{inlinePlayer?.start(url)}
+        foreground=true
+        if(verified && !streamPending){
+            classicPlayback=false
+            retryInlineStream()
         }
     }
     override fun onStop(){
-        inlinePlayer?.pause()
+        foreground=false
+        // Pausing keeps the receiver's only HTTP stream client alive.
+        inlinePlayer?.stop()
+        if(!classicPlayback && verified)work.execute{
+            try{
+                if(streamOpened){requestState(1012);streamOpened=false}
+            }catch(_:Exception){}
+        }
         super.onStop()
     }
     private fun isPrivate(host: String): Boolean {
@@ -1007,7 +1028,7 @@ class MainActivity : Activity() {
     // Crucially, do not interleave follow-up state probes with rapid remote presses.
     private fun sendKey(value:Int){
         lastRemotePressAt=System.currentTimeMillis()
-        work.execute{
+        remoteWork.execute{
             val s=socket
             if(!verified||s==null){
                 report("Récepteur non connecté")
@@ -1172,3 +1193,4 @@ class MainActivity : Activity() {
         super.onDestroy()
     }
 }
+
