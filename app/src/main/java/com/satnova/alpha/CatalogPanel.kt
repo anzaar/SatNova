@@ -104,6 +104,7 @@ class CatalogPanel(
     private val channelDetail=col()
     private val tpDetail=col()
     private val channelCount=txt("Chaînes non chargées",12f,muted)
+    private val zapStatus=txt("Zapping : aucun test effectué",12f,muted)
     private val tpNotice=txt("Choisissez un satellite.",13f,muted)
     private val satNotice=txt("En attente des satellites.",13f,muted)
     private val signalNotice=txt("Signal non fourni.",13f,muted)
@@ -242,8 +243,12 @@ class CatalogPanel(
             12f,muted),lp(top=10,bottom=12))
         id(ch)?.let{programId->
             val radio=if(get(ch,"Radio","TvState")=="1")1 else 0
-            channelDetail.addView(tile("▶  Zapper vers cette chaîne"){tune(programId,radio)})
+            channelDetail.addView(tile("▶  Zapper sur le récepteur"){
+                zapStatus.text="Demande de zapping en cours…"
+                tune(programId,radio)
+            })
         } ?: channelDetail.addView(txt("Pas d'identifiant de programme : zapping impossible.",12f,muted))
+        channelDetail.addView(zapStatus,lp(top=9))
     }
     private fun renderTps(){
         tpList.removeAllViews()
@@ -286,4 +291,8 @@ class CatalogPanel(
         tpDetail.addView(txt("Signal du tuner actuel, pas forcément ce transpondeur : "+
             signalNotice.text.toString(),12f,green),lp(top=12))
     }
+    fun updateZapStatus(message:String) {
+        zapStatus.text=message
+    }
+
 }
