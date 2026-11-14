@@ -43,6 +43,7 @@ class SatNovaScreen(
     onChannelTune: (String, Int) -> Unit,
     onChannelRefresh: () -> Unit,
     onEpgRemote: () -> Unit,
+    onTabChanged: (Int) -> Unit,
     onKey: (Int) -> Unit
 ) {
     private val navy = Color.rgb(8, 12, 25)
@@ -73,6 +74,7 @@ class SatNovaScreen(
     lateinit var inlineVideo: VLCVideoLayout
         private set
     private lateinit var inlinePoster: TextView
+    private lateinit var pinnedPlayer: LinearLayout
     private var streamHasPlayed = false
     val status: TextView
     val ip: EditText
@@ -236,9 +238,8 @@ class SatNovaScreen(
         val page=pageBox()
         val channelsPage=pageBox()
         val satellitePage=pageBox()
-        val remotePage=pageBox()
         val settingsPage=pageBox()
-        val pages=listOf(page, channelsPage, satellitePage, remotePage, settingsPage)
+        val pages=listOf(page, channelsPage, satellitePage, settingsPage)
         pages.forEachIndexed { index,view ->
             view.visibility=if(index==0)View.VISIBLE else View.GONE
             content.addView(view)
@@ -252,7 +253,7 @@ class SatNovaScreen(
             setPadding(8.dp,7.dp,8.dp,7.dp)
             setBackgroundColor(panelColor)
         }
-        val titles=listOf("⌂\nAccueil","☷\nChaînes","◈\nSatellites","◎\nRemote","⚙\nOptions")
+        val titles=listOf("⌂\nAccueil","☷\nChaînes","◈\nSatellites","⚙\nOptions")
         val navButtons=mutableListOf<TextView>()
         fun showTab(tab:Int){
             catalog.showTab(tab)
@@ -264,10 +265,11 @@ class SatNovaScreen(
             scroller.scrollTo(0,0)
             if(tab==1)onChannelRefresh()
             if(tab==2)onReadSatellites()
+            onTabChanged(tab)
         }
         goToChannels={showTab(1)}
-        goToRemote={showTab(3)}
-        goToSettings={showTab(4)}
+        goToRemote={showTab(0)}
+        goToSettings={showTab(3)}
         goToHome={showTab(0)}
         titles.forEachIndexed {i,t->
             val item=text(t,11f,secondary,i==0).apply{
@@ -309,7 +311,7 @@ class SatNovaScreen(
         brandTexts.addView(receiverModel,margin(top=5))
         fields["Modèle du récepteur"]=receiverModel
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 1.9", 12f, lavender, true).apply {
+        val version = text("α 1.10", 12f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(11.dp, 9.dp, 11.dp, 9.dp)
             background = shape(tileColor, 50, hairline)
@@ -411,9 +413,13 @@ class SatNovaScreen(
         videoFrame.addView(inlinePoster,FrameLayout.LayoutParams(-1,-1))
         val videoHeight=((activity.resources.displayMetrics.widthPixels-68.dp)*9/16)
             .coerceAtLeast(170.dp)
-        hero.addView(videoFrame,margin(height=videoHeight,top=12))
+        // Keep the native video surface attached and visible when switching tabs.
+        // Hiding its page can synchronously wait for the decoder to release a surface.
+        pinnedPlayer=stack().apply{setPadding(16.dp,8.dp,16.dp,8.dp)}
+        pinnedPlayer.addView(videoFrame,margin(height=videoHeight.coerceAtMost(190.dp)))
+        root.addView(pinnedPlayer,0,margin())
         val inlineState=text("En attente du flux vidéo du récepteur…",12f,secondary)
-        hero.addView(inlineState,margin(top=8))
+        pinnedPlayer.addView(inlineState,margin(top=6))
         fields["Lecture intégrée"]=inlineState
 
         val channelNumber=text("Numéro en cours de lecture",13f,lavender,true)
@@ -440,7 +446,7 @@ class SatNovaScreen(
         // Mini remote on Accueil. Key codes 1/2 verified for navigation / channel selection
         // on G-MScreen firmware; previous 69/70 were not consistently supported.
         val mini = card(page, top = 14)
-        section(mini, "Mini télécommande", "CH • Volume • Navigation • Mute")
+        section(mini, "Télécommande", "CH • Volume • Navigation • Mute")
         remoteRow(mini,listOf("CH −" to 70, "MUTE" to 23, "CH +" to 69))
         remoteRow(mini,listOf("VOL −" to 36,"▲" to 1,"VOL +" to 35))
         remoteRow(mini,listOf("◀" to 3,"OK" to 5,"▶" to 4))
@@ -454,6 +460,8 @@ class SatNovaScreen(
             remoteRow(extraInline,digits.map { it.toString() to (it+12) })
         }
         remoteRow(extraInline,listOf("FAV" to 33,"0" to 12,"RECALL" to 29))
+        remoteRow(extraInline,listOf("TV / RADIO" to 22,"SUB" to 31,"TXT" to 34))
+        remoteRow(extraInline,listOf("ROUGE" to 8,"VERT" to 9,"JAUNE" to 10,"BLEU" to 11))
         mini.addView(extraInline)
         val expandRemote=action("⌄  Afficher plus de commandes",tileColor,lavender,46,
             onClick={
@@ -508,31 +516,6 @@ class SatNovaScreen(
         metrics.addView(refresh, margin(top = 12))
         page.removeView(metrics)
         settingsPage.addView(metrics, 1, margin(top = 14))
-
-        // Essentials first; all original keycodes preserved.
-        val control = card(remotePage, top = 14)
-        section(control, "Télécommande", "Commandes du récepteur connecté")
-        remoteRow(control, listOf("⏻ Power" to 42, "Mute" to 23, "EPG" to 32))
-        remoteRow(control, listOf("VOL −" to 36, "▲" to 1, "VOL +" to 35))
-        remoteRow(control, listOf("◀" to 3, "OK" to 5, "▶" to 4))
-        remoteRow(control, listOf("CH −" to 70, "▼" to 2, "CH +" to 69))
-        remoteRow(control, listOf("MENU" to 6, "EXIT" to 7, "INFO" to 57))
-
-        val extras = stack()
-        remoteRow(extras, listOf("FAV" to 33, "TV / RADIO" to 22, "RECALL" to 29))
-        listOf(listOf(1, 2, 3), listOf(4, 5, 6), listOf(7, 8, 9)).forEach { digits ->
-            remoteRow(extras, digits.map { it.toString() to (it + 12) })
-        }
-        remoteRow(extras, listOf("SUB" to 31, "0" to 12, "TXT" to 34))
-        remoteRow(extras, listOf("🔴" to 8, "🟢" to 9, "🟡" to 10, "🔵" to 11))
-        extras.visibility = View.GONE
-        val more = action("＋  Pavé numérique et touches supplémentaires",
-            tileColor, lavender, 46, hairline) {
-            extras.visibility = if (extras.visibility == View.VISIBLE) View.GONE else View.VISIBLE
-        }
-        control.addView(more, margin(top = 12))
-        control.addView(extras)
-
 
         // Capability-aware receiver tools: display confirmed data, never fake server/network state.
         val tools = card(settingsPage, top = 14)
@@ -612,6 +595,10 @@ class SatNovaScreen(
         activity.runOnUiThread{catalog.updateSignal(message)}
     }
 
+    fun setSignalMonitoring(active:Boolean)=activity.runOnUiThread{catalog.setSignalMonitoring(active)}
+    fun updateTunerSignal(value:ReceiverTelemetry.Signal,at:Long)=activity.runOnUiThread{catalog.updateTunerSignal(value,at)}
+    fun close(){catalog.close()}
+
     fun updateZapStatus(message:String){
         activity.runOnUiThread{catalog.updateZapStatus(message)}
     }
@@ -621,6 +608,7 @@ class SatNovaScreen(
         connectionState.text=if(online)"● Connecté" else "● Non connecté"
         connectionState.setTextColor(if(online)green else secondary)
         if(!online)setReceiverIdentity(null)
+        pinnedPlayer.visibility=if(online)View.VISIBLE else View.GONE
         appScroller.visibility=if(online)View.VISIBLE else View.GONE
         appNav.visibility=if(online)View.VISIBLE else View.GONE
         setupScroller.visibility=if(online)View.GONE else View.VISIBLE
@@ -677,5 +665,6 @@ class SatNovaScreen(
     }
 
 }
+
 
 

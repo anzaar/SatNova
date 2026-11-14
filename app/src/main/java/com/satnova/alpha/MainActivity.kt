@@ -75,6 +75,14 @@ class MainActivity : Activity() {
     @Volatile private var totalChannelCount = 0
     @Volatile private var nextChannelIndex = 0
     private var monitorTicks = 0
+    @Volatile private var signalMonitoring=false
+    @Volatile private var signalRequestAt=0L
+    @Volatile private var foreground=true
+    @Volatile private var selectedTab=0
+    @Volatile private var channelPageRequestAt=0L
+    @Volatile private var channelPageTo=0
+    @Volatile private var catalogWanted=false
+    private val signalWorkQueued=java.util.concurrent.atomic.AtomicBoolean(false)
     @Volatile private var socket: Socket? = null
     @Volatile private var verified = false
     @Volatile private var jsonMode = true
@@ -117,6 +125,7 @@ class MainActivity : Activity() {
     private fun setVerified(value: Boolean) {
         verified = value
         if(!value){
+            if(::screen.isInitialized)setSignalMonitoring(false)
             tunerMetadataRequested=false
             activeStreamUrl=null
             streamedChannel=""
@@ -168,6 +177,10 @@ class MainActivity : Activity() {
             onChannelTune = { id, tvState -> tuneChannel(id,tvState) },
             onChannelRefresh = { refreshChannels() },
             onEpgRemote = { sendKey(32) },
+            onTabChanged = { tab ->
+                selectedTab=tab
+                if(::screen.isInitialized)setSignalMonitoring(tab==2)
+            },
             onRefresh = {
                 if (!verified) report("Connecter le récepteur d'abord")
                 else work.execute {
@@ -218,10 +231,30 @@ class MainActivity : Activity() {
                     monitorTicks++
                     if(monitorTicks%5==0)requestState(15)
                     if(monitorTicks%7==0)requestState(14)
-                    if(monitorTicks%7==0)requestState(26)
+                    requestState(26)
+                    if(!channelRecords.containsKey(currentChannelId))requestNextChannelPage()
                 }catch(e:Exception){report("Synchronisation : "+e.message)}
             }
         }, 6, 12, TimeUnit.SECONDS)
+        monitorWork.scheduleWithFixedDelay({
+            if(signalMonitoring && verified && foreground){
+                val now=android.os.SystemClock.elapsedRealtime()
+                if(now-signalRequestAt>=3500L &&
+                    System.currentTimeMillis()-lastRemotePressAt>350L &&
+                    signalWorkQueued.compareAndSet(false,true)){
+                    val session=socket
+                    work.execute{
+                        try{
+                            if(signalMonitoring && foreground && verified && socket===session){
+                                signalRequestAt=android.os.SystemClock.elapsedRealtime()
+                                requestState(ReceiverTelemetry.SIGNAL_REQUEST)
+                            }
+                        }catch(e:Exception){screen.updateSignal("Lecture du signal : "+e.message)}
+                        finally{signalWorkQueued.set(false)}
+                    }
+                }
+            }
+        },1000,1200,TimeUnit.MILLISECONDS)
     }
     private fun showField(key:String,value:String)=runOnUiThread {
         fieldViews[key]?.let { view ->
@@ -233,12 +266,13 @@ class MainActivity : Activity() {
     }
     private fun refreshChannels(){
         if(!verified){report("Connecter le récepteur pour les chaînes");return}
+        catalogWanted=true
         screen.updateChannels(currentChannelsOrdered(), totalChannelCount>0 &&
             channelRecords.size>=totalChannelCount)
         work.execute{
             try{
                 requestState(15)
-                if(totalChannelCount>0 && channelRecords.isEmpty())requestNextChannelPage()
+                if(totalChannelCount>channelRecords.size)requestNextChannelPage()
             }catch(e:Exception){report("Chargement chaînes : "+e.message)}
         }
     }
@@ -317,36 +351,42 @@ class MainActivity : Activity() {
     private fun videoStatus(text:String) { showField("Diagnostic vidéo","VIDÉO : "+text); report(text) }
     private fun readSatellites(){
         if(!verified){report("Connecter le récepteur d'abord");return}
+        if(satelliteRecords.isNotEmpty()){
+            screen.updateSatellites(satelliteRecords.toList())
+            return
+        }
         showField("Satellites","Lecture de la liste des satellites…")
         work.execute{try{requestState(22)}catch(e:Exception){showField("Satellites","Échec : "+e.message)}}
     }
     private fun readTransponders(){
         if(!verified){report("Connecter le récepteur d'abord");return}
-        showField("Transpondeurs","Test de lecture 24 en cours (non garanti sur Zen 4)…")
+        if(transponderRecords.isNotEmpty()){
+            screen.updateTransponders(transponderRecords.toList())
+            return
+        }
+        showField("Transpondeurs","Lecture des transpondeurs du récepteur…")
         work.execute{try{
             lastRequest24=System.currentTimeMillis()
             requestState(24)
         }catch(e:Exception){showField("Transpondeurs","Échec : "+e.message)}}
     }
-    private fun readSignal(){
-        if(!verified){report("Connecter le récepteur d'abord");return}
+    private fun readSignal(){setSignalMonitoring(!signalMonitoring)}
+    private fun setSignalMonitoring(enabled:Boolean){
+        val active=enabled && verified && foreground
+        if(active==signalMonitoring)return
+        signalMonitoring=active
+        signalRequestAt=0L
         lastSignalUpdate=0L
-        val waiting="Mesure demandée • lecture de la télémétrie du tuner…"
-        showField("Signal temps réel",waiting)
-        screen.updateSignal(waiting)
-        work.execute{
-            try{requestState(14);requestState(15)}catch(e:Exception){
-                showField("Signal temps réel","Échec : "+e.message)
-            }
+        screen.setSignalMonitoring(active)
+        if(active){
+            screen.updateSignal("Lecture de la force et de la qualité de la chaîne actuelle…")
+            val session=socket
+            monitorWork.schedule({
+                if(signalMonitoring && socket===session && lastSignalUpdate==0L){
+                    screen.updateSignal("Aucune mesure reçue du tuner pour l'instant. La lecture continue ; aucune valeur n'est estimée.")
+                }
+            },8,TimeUnit.SECONDS)
         }
-        monitorWork.schedule({
-            if(lastSignalUpdate==0L && verified){
-                val unavailable="Firmware 1.48 : aucune valeur SNR/qualité/BER reçue " +
-                    "dans les réponses disponibles. Mesure réelle non accessible pour l'instant."
-                showField("Signal temps réel",unavailable)
-                screen.updateSignal(unavailable)
-            }
-        },6,TimeUnit.SECONDS)
     }
     private fun navigateSetting(section:String) {
         when(section){
@@ -382,11 +422,23 @@ class MainActivity : Activity() {
         sendFrame(active,payload)
     }
     private fun requestNextChannelPage() {
-        if(!verified||totalChannelCount<=0||nextChannelIndex>=totalChannelCount||nextChannelIndex>=3000)return
+        if(!verified || totalChannelCount<=0 || nextChannelIndex>=totalChannelCount || nextChannelIndex>=20000)return
+        val now=android.os.SystemClock.elapsedRealtime()
+        if(channelPageRequestAt>0 && now-channelPageRequestAt<6000L)return
         val from=nextChannelIndex
-        val to=minOf(from+99,totalChannelCount-1,2999)
+        val to=minOf(from+99,totalChannelCount-1,19999)
+        channelPageTo=to
+        channelPageRequestAt=now
         requestState(0,from,to)
-        nextChannelIndex=to+1
+    }
+    private fun continueChannelMetadata(){
+        if(!catalogWanted && channelRecords.containsKey(currentChannelId))return
+        val session=socket
+        monitorWork.schedule({
+            if(socket===session && verified)work.execute{
+                if(socket===session && verified)try{requestNextChannelPage()}catch(_:Exception){}
+            }
+        },220,TimeUnit.MILLISECONDS)
     }
     private fun rows(text:String):List<JSONObject> = try {
         when(val value=JSONTokener(text).nextValue()){
@@ -425,7 +477,7 @@ class MainActivity : Activity() {
         monitorWork.schedule({
             if(socket===session && verified)work.execute{
                 if(socket!==session || !verified)return@execute
-                try{requestState(22)}catch(e:Exception){report("Satellites : "+e.message)}
+                try{requestNextChannelPage();requestState(22)}catch(e:Exception){report("Métadonnées : "+e.message)}
             }
         },600,TimeUnit.MILLISECONDS)
         monitorWork.schedule({
@@ -455,7 +507,7 @@ class MainActivity : Activity() {
             }
             sat=key(satRecord,"SatelliteName","SatName","Name","Satellite")
         }
-        val pol=key(tp,"Polarization","Pol") ?: key(rec,"Polarization","Pol")
+        val pol=key(tp,"Polarization","Pol","POL") ?: key(rec,"Polarization","Pol","POL")
         val sr=key(tp,"SymbolRate","SR") ?: key(rec,"SymbolRate","SR")
         val tpText=listOfNotNull(frequency?.let{it+" MHz"},pol?.let{"Pol "+it},
             sr?.let{"SR "+it}).joinToString(" • ").ifBlank{"TP non identifié par le firmware"}
@@ -468,6 +520,8 @@ class MainActivity : Activity() {
         showField("Chaîne actuelle",channelNames[id] ?:
             "Chaîne en identification (ID "+id.take(16)+")")
         showField("Numéro de chaîne",receiverChannelNumber(id,rec))
+        showField("Programme en cours / EPG",key(rec,"EventName","EventTitle","CurrentEvent","NowPlaying","EpgTitle","EPGName")
+            ?:"Non communiqué par le récepteur")
         val (sat,tp)=currentSatelliteAndTp(rec)
         showField("Satellite actuel",sat)
         showField("Transpondeur actuel",tp)
@@ -479,6 +533,25 @@ class MainActivity : Activity() {
         val date=java.text.SimpleDateFormat("HH:mm:ss",java.util.Locale.US).format(java.util.Date())
         showField("Dernière réponse",date+" · type "+kind+" · code "+statusCode)
         showField("Données brutes reçues",if(text.isEmpty()) "(no body)" else text.take(900))
+        if(kind==ReceiverTelemetry.SIGNAL_REQUEST){
+            // A zero-body acknowledgement may precede the actual sample.
+            if(statusCode==0 && body.isEmpty())return
+            signalRequestAt=0L
+            if(statusCode!=0){
+                if(signalMonitoring)screen.updateSignal("Le récepteur refuse la mesure du tuner (code "+statusCode+").")
+                return
+            }
+            val sample=ReceiverTelemetry.signal(text)
+            if(sample!=null){
+                lastSignalUpdate=android.os.SystemClock.elapsedRealtime()
+                showField("Signal temps réel","Force : "+(sample.strength?.let{"$it %"}?:"—")+
+                    " • Qualité : "+(sample.quality?.let{"$it %"}?:"—"))
+                screen.updateTunerSignal(sample,lastSignalUpdate)
+            }else if(signalMonitoring){
+                screen.updateSignal("Réponse reçue sans valeurs de force/qualité reconnues.")
+            }
+            return
+        }
         if(kind==1040){
             showField("Retour télécommande",if(statusCode==0)
                 "Réponse 1040 : code 0 • effet à vérifier sur TV"
@@ -576,8 +649,7 @@ class MainActivity : Activity() {
         }
         val recs=rows(text)
         when(kind){
-            22,23 -> {
-                if(kind==23 && recs.isEmpty())return
+            22 -> {
                 satelliteRecords.clear()
                 satelliteRecords.addAll(recs.map{JSONObject(it.toString())})
                 screen.updateSatellites(satelliteRecords.toList())
@@ -613,6 +685,7 @@ class MainActivity : Activity() {
                     val changed=currentChannelId!=id
                     currentChannelId=id
                     showCurrent()
+                    if(changed && !channelRecords.containsKey(id))continueChannelMetadata()
                     if(changed || (activeStreamUrl==null && !streamPending &&
                         autoStreamRequestId!=id)){
                         autostartInlineStream(id)
@@ -639,7 +712,7 @@ class MainActivity : Activity() {
                     val signalMessage=pieces.joinToString(" · ")+" (récepteur, "+date+")"
                     showField("Signal temps réel",signalMessage)
                     screen.updateSignal(signalMessage)
-                    lastSignalUpdate=System.currentTimeMillis()
+
                 }
 
                 pick(info,"SoftwareVersion")?.let{showField("Firmware",it)}
@@ -654,7 +727,8 @@ class MainActivity : Activity() {
                         totalChannelCount=count;nextChannelIndex=0;channelNames.clear()
                         channelRecords.clear();channelOrder.clear()
                         screen.updateChannels(emptyList(),false)
-                        // Catalogue is fetched when the user opens Channels.
+                        channelPageRequestAt=0L
+                        if(activeStreamUrl!=null)continueChannelMetadata()
                     }
                 }
                 pick(info,"MuteState")?.let{showField("Mute",if(it=="1")"ON (rapporté)" else "OFF (rapporté)")}
@@ -662,11 +736,13 @@ class MainActivity : Activity() {
                 pick(info,"Signal","SignalLevel","SignalQuality")?.let{showField("Signal / fréquence",it+" (rapporté)")}
             }
             0 -> {
+                if(recs.isEmpty())return
+                val newIds=mutableListOf<String>()
                 for(item in recs){
-                    val id=pick(item,"ServiceID","ProgramId") ?: continue
+                    val id=pick(item,"ServiceID","ProgramId","ProgramID") ?: continue
                     val name=pick(item,"ServiceName","Name","ChannelName","ProgramName") ?: "Service "+id
                     channelNames[id]=name
-                    if(!channelRecords.containsKey(id))channelOrder.add(id)
+                    if(!channelRecords.containsKey(id))newIds.add(id)
                     channelRecords[id]=JSONObject(item.toString())
                     if(id==currentChannelId){
                         pick(item,"Radio")?.toIntOrNull()?.let {currentTvState=if(it==1) 1 else 0}
@@ -677,10 +753,12 @@ class MainActivity : Activity() {
                         if(freq.isNotEmpty())showField("Signal / fréquence",freq.joinToString(" • "))
                     }
                 }
+                channelOrder.addAll(newIds)
+                nextChannelIndex=maxOf(nextChannelIndex,channelPageTo+1)
+                channelPageRequestAt=0L
                 showCurrent()
                 screen.updateChannels(currentChannelsOrdered(),totalChannelCount>0&&channelRecords.size>=totalChannelCount)
-                if(recs.isNotEmpty()&&nextChannelIndex<totalChannelCount&&nextChannelIndex<3000)
-                    work.execute{try{requestNextChannelPage()}catch(_:Exception){}}
+                if(nextChannelIndex<totalChannelCount && nextChannelIndex<20000)continueChannelMetadata()
             }
         }
     }
@@ -756,11 +834,15 @@ class MainActivity : Activity() {
     }
     override fun onResume(){
         super.onResume()
+        foreground=true
+        if(::screen.isInitialized && selectedTab==2)setSignalMonitoring(true)
         if(verified)activeStreamUrl?.let{url->
             runOnUiThread{inlinePlayer?.start(url)}
         }
     }
     override fun onStop(){
+        foreground=false
+        if(::screen.isInitialized)setSignalMonitoring(false)
         inlinePlayer?.pause()
         super.onStop()
     }
@@ -809,6 +891,11 @@ class MainActivity : Activity() {
     private fun connect(host: String) = work.execute {
         if (!isPrivate(host)) { report("Saisissez l'adresse IP locale du récepteur."); return@execute }
         disconnect()
+        totalChannelCount=0;nextChannelIndex=0;channelPageRequestAt=0L;catalogWanted=false
+        channelNames.clear();channelRecords.clear();channelOrder.clear()
+        satelliteRecords.clear();transponderRecords.clear();currentChannelId=""
+        screen.updateChannels(emptyList(),false)
+        screen.updateSatellites(emptyList());screen.updateTransponders(emptyList())
         screen.showConnectionAttempt()
         report("Connexion à $host…")
         var candidate:Socket?=null
@@ -986,6 +1073,7 @@ class MainActivity : Activity() {
         else screen.discoveryMessage("Sous-réseau Wi-Fi inconnu. Saisir l'IP ou utiliser Recherche avancée.")
     }
     private fun disconnect() {
+        if(::screen.isInitialized)setSignalMonitoring(false)
         verified = false
         val s = socket; socket = null
         try { s?.close() } catch (_: Exception) { }
@@ -994,6 +1082,7 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         inlinePlayer?.close()
         disconnect()
+        screen.close()
         work.shutdownNow()
         discoveryWork.shutdownNow()
         monitorWork.shutdownNow()
