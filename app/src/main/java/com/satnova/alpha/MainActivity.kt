@@ -170,6 +170,7 @@ class MainActivity : Activity() {
                 else connect(ip.text.toString().trim())
             },
             onWatch = { retryInlineStream() },
+            onSwitchPlayer = { inlinePlayer?.tryAndroid() },
             onReadSatellites = { readSatellites() },
             onReadTransponders = { readTransponders() },
             onReadSignal = { toggleSignalTracking() },
