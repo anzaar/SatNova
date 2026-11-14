@@ -1,35 +1,20 @@
-# SatNova 1.14 — restore the working transport
+# SatNova 1.16 — full-height signal workspace
 
-Playback uses the original 1.2 direct receiver URL, Activity context, network/live
-caching of 550 ms and the same LibVLC view attachment/media options. The HTTP relay,
-forced control-session reconnections and automatic media restarts have been removed.
-Native cleanup still runs off the UI thread to retain the ANR fixes.
+Signal is the first mode button and is selected after a successful receiver login.
+Measurement waits for the native HTTP reader to close. The preview, home controls,
+channel list and bottom navigation are hidden while Signal uses the available
+height; Regarder and Redémarrer remain accessible above it. Regarder restores the
+same native preview, remote and ordered channel picker.
 
-The original 1040 key payload uses a dedicated serial writer with frame writes
-serialized against other control requests. Follow-up current-channel/mute reads
-are coalesced 900 ms after a press burst instead of interleaving each key with
-probes. The existing pending-URL/session guards remain.
+Two native gauges show actual request 403 quality/strength percentages, with no
+synthetic samples. Stale/missing values become a dash and silence the optional
+quality tone. The panel also shows the current channel/satellite/frequency and
+the verified receiver name, actual control-connection IP and SerialNumber from
+receiver info. Unknown serial numbers remain pending, rather than using the
+phone's or application's identity.
 
-Signal measurement is now an explicit tuning mode. Startup does not issue 403;
-only after the HTTP reader closes does tuning mode read 403 and permit catalogue
-requests. Tapping Return video stops measurement and reads the current channel
-before restarting direct playback. The sound shortcut also enters tuning mode.
-This tests a possible firmware interaction, rather than claiming that concurrent
-signal/video support is known to be unavailable on all receivers.
-
-Large channel/satellite/TP requests wait for an actual MediaPlayer.Playing event
-or explicit tuning mode. Buffering-complete UI notices alone do not unlock them.
-The current native UI, original icon, ordered list, satellite ranking, asynchronous
-catalogue index and real signal values remain.
-
-## Explicit modes and application reconnect (1.15)
-
-Connection starts with no video or signal mode selected. Regarder reads current
-channel state and requests playback; Signal closes the media reader before showing
-the global tuner gauges and enabling 403. Mode selection survives tab changes.
-The native video surface hides only after the reader has closed.
-
-Redémarrer is explicitly an application/connection restart, not a receiver reboot:
-it invalidates remote-feedback callbacks, closes the current socket/media readers,
-clears transient mode/session state, reconnects the known receiver and returns to
-the mode chooser. It does not send guessed reboot/power commands.
+The existing direct LibVLC transport (550 ms network/live cache), control payloads,
+session guards and application reconnect behavior are unchanged in this UI update.
+The video-buffering failure remains unresolved on the user's receiver. Copied
+video diagnostics retain credential-free stream/control hosts and the raw SAT>IP
+indicator for further investigation.

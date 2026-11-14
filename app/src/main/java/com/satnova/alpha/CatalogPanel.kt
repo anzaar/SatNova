@@ -224,6 +224,8 @@ class CatalogPanel(private val activity:Activity,private val tune:(String,Int)->
         }
         pager(satelliteList,rows.size,satellitePageNumber){satellitePageNumber=it;renderSatellites()}
     }
+    fun updateSignalContext(channel:String,sat:String,tp:String)=signal.setContext(channel,sat,tp)
+    fun updateSignalDevice(name:String,host:String,serial:String)=signal.setDevice(name,host,serial)
     fun updateSignal(message:String)=signal.message(message)
     fun setSignalMonitoring(active:Boolean)=signal.setActive(active)
     fun updateTunerSignal(value:ReceiverTelemetry.Signal,at:Long)=signal.update(value,at)

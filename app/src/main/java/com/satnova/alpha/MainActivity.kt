@@ -85,7 +85,7 @@ class MainActivity : Activity() {
     private val streamWatchdog=LiveStreamWatchdog()
     private val receiverMode=ReceiverWorkMode()
     private enum class UseMode { NONE, WATCH, SIGNAL }
-    @Volatile private var useMode=UseMode.NONE
+    @Volatile private var useMode=UseMode.SIGNAL
     @Volatile private var recoveringStream=false
     private var streamRecoveryAttempts=0
     private var resumeReceiverHost:String?=null
@@ -440,8 +440,8 @@ class MainActivity : Activity() {
         val host=socket?.inetAddress?.hostAddress ?: ip.text.toString().trim().takeIf{isPrivate(it)}
             ?:getSharedPreferences("satnova",Context.MODE_PRIVATE).getString("last_receiver_ip",null)
         remoteKeySequence.incrementAndGet()
-        useMode=UseMode.NONE
-        screen.setUseMode("none")
+        useMode=UseMode.SIGNAL
+        screen.setUseMode("signal")
         recoveringStream=false;streamRecoveryAttempts=0;videoRequestTimedOut=false
         disconnect()
         screen.showInlineState("Redémarrage de l'application et de la connexion…")
@@ -622,6 +622,7 @@ class MainActivity : Activity() {
         showField("Programme en cours / EPG",key(rec,"EventName","EventTitle","CurrentEvent","NowPlaying","EpgTitle","EPGName")
             ?:"Non communiqué par le récepteur")
         val (sat,tp)=currentSatelliteAndTp(rec)
+        screen.updateSignalContext(channelNames[id]?:"Chaîne actuelle",sat,tp)
         showField("Satellite actuel",sat)
         showField("Transpondeur actuel",tp)
         val radio=key(rec,"Radio","TvState")?.toIntOrNull()
@@ -807,6 +808,9 @@ class MainActivity : Activity() {
                 }
 
                 pick(info,"SoftwareVersion")?.let{showField("Firmware",it)}
+                pick(info,"SerialNumber","SerialNo","Serial")?.let{serial->
+                    screen.setReceiverDetails(source.inetAddress.hostAddress?:"",serial)
+                }
                 pick(info,"ProductName","ModelName")?.let{
                     if(verified)screen.setReceiverIdentity(it)
                     runOnUiThread {diagnostics.text="Récepteur confirmé: "+it}
@@ -1045,6 +1049,7 @@ class MainActivity : Activity() {
             screen.setUseMode(when(useMode){UseMode.WATCH->"watch";UseMode.SIGNAL->"signal";else->"none"})
             if(useMode==UseMode.SIGNAL)runOnUiThread{setSignalMonitoring(true)}
             screen.setReceiverIdentity(model)
+            screen.setReceiverDetails(host,resetSerial=true)
             report("LOGIN VERIFIED: $model · " + if(useJson) "JSON" else "XML")
             runOnUiThread { diagnostics.text = "Protocol login verified; test Volume+ while watching the TV. $model" }
             s.soTimeout = 0

@@ -74,9 +74,23 @@ class HomeNavigationTest {
             assertTrue(screen.inlineVideo.isShown)
             screen.showSignalReady()
             assertFalse(screen.inlineVideo.isShown)
-            assertTrue(text("Force  —").isShown)
-            text("◈\nSatellites").performClick()
-            assertTrue(text("Force  —").isShown)
+            assertFalse(text("CH +").isShown)
+            assertFalse(text("◈\nSatellites").isShown)
+            assertTrue(text("Regarder").isShown)
+            screen.setReceiverIdentity("ECHOLINK ZEN 4")
+            screen.setReceiverDetails("192.168.1.2","240117402977")
+            assertTrue(texts(screen.root).any{it.isShown && it.text.toString()=="ECHOLINK ZEN 4"})
+            assertTrue(texts(screen.root).any{it.isShown && it.text.toString().contains("IP : 192.168.1.2") && it.text.toString().contains("Série : 240117402977")})
+            activity.window.decorView.measure(
+                View.MeasureSpec.makeMeasureSpec(480,View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(800,View.MeasureSpec.EXACTLY))
+            activity.window.decorView.layout(0,0,480,800)
+            fun gauges(v:View):List<SignalGaugeView> =
+                (if(v is SignalGaugeView)listOf(v) else emptyList())+
+                (if(v is ViewGroup)(0 until v.childCount).flatMap{gauges(v.getChildAt(it))} else emptyList())
+            val meters=gauges(screen.root)
+            assertEquals(2,meters.size)
+            assertTrue(meters.all{it.isShown && it.height>100 && it.width>100})
             text("Regarder").performClick()
             assertTrue(screen.inlineVideo.isShown)
             text("⟳ Redémarrer").performClick()
