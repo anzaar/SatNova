@@ -38,6 +38,9 @@ class SatNovaScreen(
     onReadSatellites: () -> Unit,
     onReadTransponders: () -> Unit,
     onReadSignal: () -> Unit,
+    onWatchMode: () -> Unit,
+    onSignalMode: () -> Unit,
+    onRestart: () -> Unit,
     onServers: () -> Unit,
     onNetwork: () -> Unit,
     onScan: () -> Unit,
@@ -76,6 +79,11 @@ class SatNovaScreen(
         private set
     private lateinit var inlinePoster: TextView
     private lateinit var pinnedPlayer: LinearLayout
+    private lateinit var previewFrame:FrameLayout
+    private lateinit var watchModeButton:TextView
+    private lateinit var signalModeButton:TextView
+    private lateinit var modeHint:TextView
+    private var chosenMode="none"
     private var showHomeList:(()->Unit)?=null
     private var homeListSelected=false
     private var streamHasPlayed = false
@@ -313,7 +321,7 @@ class SatNovaScreen(
         brandTexts.addView(receiverModel,margin(top=5))
         fields["Modèle du récepteur"]=receiverModel
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 1.14", 10f, lavender, true).apply {
+        val version = text("α 1.15", 10f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(9.dp, 7.dp, 9.dp, 7.dp)
             background = shape(tileColor, 50, hairline)
@@ -403,6 +411,7 @@ class SatNovaScreen(
             contentDescription="Vidéo de la chaîne, toucher pour réessayer"
             setOnClickListener { onWatch() }
         }
+        previewFrame=videoFrame
         inlineVideo=VLCVideoLayout(activity).apply {
             setBackgroundColor(Color.BLACK)
             keepScreenOn=true
@@ -419,6 +428,18 @@ class SatNovaScreen(
         // Keep the native video surface attached and visible when switching tabs.
         // Hiding its page can synchronously wait for the decoder to release a surface.
         pinnedPlayer=stack().apply{setPadding(16.dp,8.dp,16.dp,8.dp)}
+        val useModes=row()
+        watchModeButton=action("Regarder",tileColor,lavender,44,onClick=onWatchMode)
+        signalModeButton=action("Signal",tileColor,lavender,44,onClick=onSignalMode)
+        val restart=action("⟳ Redémarrer",tileColor,lavender,44,onClick=onRestart)
+        restart.textSize=11f
+        restart.contentDescription="Redémarrer l'application et reconnecter le récepteur"
+        addWeighted(useModes,watchModeButton,right=3)
+        addWeighted(useModes,signalModeButton,left=3,right=3)
+        addWeighted(useModes,restart,left=3)
+        pinnedPlayer.addView(useModes,margin(bottom=8))
+        modeHint=text("Choisissez Regarder ou Signal",12f,lavender)
+        pinnedPlayer.addView(modeHint,margin(top=2,bottom=8))
         pinnedPlayer.addView(videoFrame,margin(height=videoHeight.coerceAtMost(190.dp)))
         root.addView(pinnedPlayer,0,margin())
         page.removeView(branding)
@@ -437,7 +458,8 @@ class SatNovaScreen(
         hero.addView(tpInfo,margin(top=4))
         fields["Transpondeur actuel"]=tpInfo
 
-        hero.addView(catalog.signalView,margin(top=2))
+        pinnedPlayer.addView(catalog.signalView,margin(top=2,bottom=8))
+        catalog.signalView.visibility=View.GONE
 
         val videoDiagnostic=text("",11f,secondary).apply { visibility=View.GONE }
 
@@ -587,7 +609,7 @@ class SatNovaScreen(
         diagBody.addView(diagnostics, margin(top = 7))
         diagBody.addView(videoDiagnostic,margin(top=6))
         diagBody.addView(action("Copier le diagnostic vidéo",tileColor,lavender,44,onClick={
-            val value="SatNova 1.14\n"+fields["Chaîne actuelle"]?.text+"\n"+
+            val value="SatNova 1.15\n"+fields["Chaîne actuelle"]?.text+"\n"+
                 fields["Lecture intégrée"]?.text+"\n"+videoDiagnostic.text
             val clipboard=activity.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
             clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Diagnostic SatNova",value))
@@ -611,6 +633,7 @@ class SatNovaScreen(
         advanced.addView(diagBody)
         settingsPage.addView(text("SATNOVA  •  ALPHA BUILD  •  LOCAL ONLY", 10f, secondary, true),
             margin(top = 24).apply { gravity = Gravity.CENTER_HORIZONTAL })
+        setUseMode("none")
     }
     fun updateChannels(rows:List<JSONObject>,complete:Boolean){
         activity.runOnUiThread{catalog.updateChannels(rows,complete)}
@@ -625,6 +648,32 @@ class SatNovaScreen(
         activity.runOnUiThread{catalog.updateSignal(message)}
     }
 
+    fun setUseMode(mode:String)=activity.runOnUiThread {
+        chosenMode=mode
+        watchModeButton.background=touch(if(mode=="watch")purple else tileColor,14)
+        signalModeButton.background=touch(if(mode=="signal")Color.rgb(35,97,79) else tileColor,14)
+        watchModeButton.setTextColor(if(mode=="watch")Color.WHITE else lavender)
+        signalModeButton.setTextColor(if(mode=="signal")green else lavender)
+        modeHint.text=when(mode){
+            "watch"->"Mode vidéo"
+            "signal"->"Réglage de la parabole • son disponible"
+            else->"Choisissez Regarder ou Signal"
+        }
+        if(mode=="watch"){
+            catalog.signalView.visibility=View.GONE
+            previewFrame.visibility=View.VISIBLE
+        }else if(mode=="none"){
+            catalog.signalView.visibility=View.GONE
+            previewFrame.visibility=View.GONE
+        }
+        // Signal mode hides the native surface only after the HTTP reader has closed.
+    }
+    fun showSignalReady()=activity.runOnUiThread{
+        if(chosenMode=="signal"){
+            previewFrame.visibility=View.GONE
+            catalog.signalView.visibility=View.VISIBLE
+        }
+    }
     fun setSignalMonitoring(active:Boolean)=activity.runOnUiThread{catalog.setSignalMonitoring(active)}
     fun updateTunerSignal(value:ReceiverTelemetry.Signal,at:Long)=activity.runOnUiThread{catalog.updateTunerSignal(value,at)}
     fun close(){catalog.close()}

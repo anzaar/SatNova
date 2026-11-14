@@ -84,6 +84,8 @@ class MainActivity : Activity() {
     private val streamGate=LiveStreamGate()
     private val streamWatchdog=LiveStreamWatchdog()
     private val receiverMode=ReceiverWorkMode()
+    private enum class UseMode { NONE, WATCH, SIGNAL }
+    @Volatile private var useMode=UseMode.NONE
     @Volatile private var recoveringStream=false
     private var streamRecoveryAttempts=0
     private var resumeReceiverHost:String?=null
@@ -189,6 +191,9 @@ class MainActivity : Activity() {
             onReadSatellites = { readSatellites() },
             onReadTransponders = { readTransponders() },
             onReadSignal = { readSignal() },
+            onWatchMode = { chooseWatchMode() },
+            onSignalMode = { chooseSignalMode() },
+            onRestart = { restartApplicationConnection() },
             onServers = { navigateSetting("servers") },
             onNetwork = { navigateSetting("network") },
             onScan = { navigateSetting("scan") },
@@ -197,7 +202,6 @@ class MainActivity : Activity() {
             onEpgRemote = { sendKey(32) },
             onTabChanged = { tab ->
                 selectedTab=tab
-                if(::screen.isInitialized && tab==2 && signalMonitoring)setSignalMonitoring(false)
             },
             onRefresh = {
                 if (!verified) report("Connecter le récepteur d'abord")
@@ -403,7 +407,41 @@ class MainActivity : Activity() {
             requestState(24)
         }catch(e:Exception){showField("Transpondeurs","Échec : "+e.message)}}
     }
-    private fun readSignal(){setSignalMonitoring(!signalMonitoring)}
+    private fun readSignal(){
+        if(signalMonitoring)chooseWatchMode() else chooseSignalMode()
+    }
+    private fun chooseSignalMode(){
+        if(!verified){report("Connectez le récepteur.");return}
+        useMode=UseMode.SIGNAL
+        screen.setUseMode("signal")
+        setSignalMonitoring(true)
+    }
+    private fun chooseWatchMode(){
+        if(!verified){report("Connectez le récepteur.");return}
+        val previous=useMode
+        useMode=UseMode.WATCH
+        screen.setUseMode("watch")
+        if(signalMonitoring)setSignalMonitoring(false)
+        else if(previous==UseMode.WATCH)retryInlineStream()
+        else {
+            currentChannelId="";autoStreamRequestId=""
+            work.execute{try{requestState(3)}catch(_:Exception){}}
+        }
+    }
+    private fun restartApplicationConnection(){
+        val host=socket?.inetAddress?.hostAddress ?: ip.text.toString().trim().takeIf{isPrivate(it)}
+            ?:getSharedPreferences("satnova",Context.MODE_PRIVATE).getString("last_receiver_ip",null)
+        remoteKeySequence.incrementAndGet()
+        useMode=UseMode.NONE
+        screen.setUseMode("none")
+        recoveringStream=false;streamRecoveryAttempts=0;videoRequestTimedOut=false
+        disconnect()
+        screen.showInlineState("Redémarrage de l'application et de la connexion…")
+        inlinePlayer?.stop{
+            if(host!=null && isPrivate(host))connect(host)
+            else report("Choisissez un récepteur pour vous reconnecter.")
+        }
+    }
     private fun setSignalMonitoring(enabled:Boolean){
         val active=enabled && verified && foreground
         if(active==signalMonitoring)return
@@ -421,12 +459,13 @@ class MainActivity : Activity() {
             inlinePlayer?.stop{
                 if(signalMonitoring && verified && foreground && socket===session){
                     receiverMode.readerClosed()
+                    screen.showSignalReady()
                     if(satelliteRecords.isEmpty() || transponderRecords.isEmpty())tunerMetadataRequested=false
                     loadTunerMetadata()
                     if(catalogWanted)continueChannelMetadata()
                 }
             }
-        }else if(verified && foreground){
+        }else if(verified && foreground && useMode==UseMode.WATCH){
             autoStreamRequestId="";streamedChannel="";currentChannelId=""
             val session=socket
             work.execute{if(socket===session && verified)try{requestState(3)}catch(_:Exception){}}
@@ -659,7 +698,7 @@ class MainActivity : Activity() {
                 return
             }
             runOnUiThread{
-                if(socket!==source || !verified || !foreground || !receiverMode.mayStartVideo() || recoveringStream ||
+                if(socket!==source || !verified || !foreground || useMode!=UseMode.WATCH || !receiverMode.mayStartVideo() || recoveringStream ||
                     currentChannelId!=ticket.channel || !streamGate.isActive(ticket))return@runOnUiThread
                 activeStreamUrl=link
                 streamedChannel=ticket.channel
@@ -808,6 +847,7 @@ class MainActivity : Activity() {
     }
 
     private fun retryInlineStream(){
+        if(useMode!=UseMode.WATCH){chooseWatchMode();return}
         if(!verified){report("Connectez le récepteur.");return}
         if(signalMonitoring){setSignalMonitoring(false);return}
         streamRecoveryAttempts=0
@@ -843,7 +883,7 @@ class MainActivity : Activity() {
         }
     }
     private fun autostartInlineStream(id:String){
-        if(!receiverMode.mayStartVideo())return
+        if(useMode!=UseMode.WATCH || !receiverMode.mayStartVideo())return
         if(!verified || !foreground || recoveringStream || videoRequestTimedOut || id.isBlank())return
         streamGate.desire(id)
         if(streamedChannel==id && activeStreamUrl!=null)return
@@ -862,7 +902,7 @@ class MainActivity : Activity() {
         }
     }
     private fun startLiveTv(id:String,source:Socket){
-        if(!receiverMode.mayStartVideo())return
+        if(useMode!=UseMode.WATCH || !receiverMode.mayStartVideo())return
         if(!verified || !foreground || socket!==source || currentChannelId!=id)return
         val ticket=streamGate.begin()?:return
         streamPending=true
@@ -905,6 +945,7 @@ class MainActivity : Activity() {
         }else if(returning && host!=null){
             streamRecoveryAttempts=0;connect(host)
         }
+        if(verified && useMode==UseMode.SIGNAL)setSignalMonitoring(true)
         if(verified && catalogWanted)continueChannelMetadata()
     }
     override fun onStop(){
@@ -993,6 +1034,8 @@ class MainActivity : Activity() {
             videoRequestTimedOut=false
             recoveringStream=false
             setVerified(true)
+            screen.setUseMode(when(useMode){UseMode.WATCH->"watch";UseMode.SIGNAL->"signal";else->"none"})
+            if(useMode==UseMode.SIGNAL)runOnUiThread{setSignalMonitoring(true)}
             screen.setReceiverIdentity(model)
             report("LOGIN VERIFIED: $model · " + if(useJson) "JSON" else "XML")
             runOnUiThread { diagnostics.text = "Protocol login verified; test Volume+ while watching the TV. $model" }

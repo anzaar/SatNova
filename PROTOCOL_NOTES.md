@@ -21,3 +21,15 @@ Large channel/satellite/TP requests wait for an actual MediaPlayer.Playing event
 or explicit tuning mode. Buffering-complete UI notices alone do not unlock them.
 The current native UI, original icon, ordered list, satellite ranking, asynchronous
 catalogue index and real signal values remain.
+
+## Explicit modes and application reconnect (1.15)
+
+Connection starts with no video or signal mode selected. Regarder reads current
+channel state and requests playback; Signal closes the media reader before showing
+the global tuner gauges and enabling 403. Mode selection survives tab changes.
+The native video surface hides only after the reader has closed.
+
+Redémarrer is explicitly an application/connection restart, not a receiver reboot:
+it invalidates remote-feedback callbacks, closes the current socket/media readers,
+clears transient mode/session state, reconnects the known receiver and returns to
+the mode chooser. It does not send guessed reboot/power commands.
