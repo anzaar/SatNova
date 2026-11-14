@@ -35,6 +35,7 @@ class SatNovaScreen(
     onConnect: () -> Unit,
     onWatch: () -> Unit,
     onSwitchPlayer: () -> Unit,
+    onClassicPlayer: () -> Unit,
     onRefresh: () -> Unit,
     onReadSatellites: () -> Unit,
     onReadTransponders: () -> Unit,
@@ -317,7 +318,7 @@ class SatNovaScreen(
         brandTexts.addView(actualModel,margin(top=4))
         fields["Modèle du récepteur"]=actualModel
         branding.addView(brandTexts,LinearLayout.LayoutParams(0,-2,1f))
-        val version=text("α 1.5.1",10f,lavender,true).apply{
+        val version=text("α 1.6",10f,lavender,true).apply{
             gravity=Gravity.CENTER
             setPadding(9.dp,7.dp,9.dp,7.dp)
             background=shape(tileColor,24,hairline)
@@ -497,6 +498,8 @@ class SatNovaScreen(
             leftMargin=4.dp
         })
         hero.addView(playbackActions,margin(top=8))
+        hero.addView(action("♬  VLC classique 0.8 • Test image et son MP2",
+            tileColor,lavender,42,onClick=onClassicPlayer),margin(top=7))
 
         // Purple remote card inspired by the supplied mockup, with a native hit-tested D-pad.
         val mini=card(page,top=12).apply{
