@@ -199,9 +199,9 @@ class MainActivity : Activity() {
         diagnostics = screen.diagnostics
         fieldViews.putAll(screen.fields)
         setContentView(screen.root)
-        inlinePlayer=InlineVlcPlayer(this,screen.inlineVideo){ msg ->
+        inlinePlayer=InlineVlcPlayer(this,screen.inlineVideo,screen.inlineExoVideo){ msg ->
             screen.showInlineState(msg)
-            if(msg.startsWith("LIVE • lecture"))screen.setVideoPlaying(true)
+            if(msg.startsWith("LIVE • Image"))screen.setVideoPlaying(true)
         }
         screen.setReceiverOnline(false)
         // Auto-connect only to an IP previously verified by SatNova.
@@ -590,8 +590,10 @@ class MainActivity : Activity() {
                     startActivity(intent)
                 }else{
                     activeStreamUrl=link
+                    // Remove the opaque placeholder before VLC/Android creates its surface.
+                    // Otherwise a valid stream can play invisibly behind a black TextView.
+                    screen.setVideoPlaying(true)
                     inlinePlayer?.start(link)
-                    screen.showInlineState("LIVE • Flux du récepteur en cours")
                 }
             }
             return
