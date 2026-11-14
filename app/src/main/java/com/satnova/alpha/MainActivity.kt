@@ -84,6 +84,7 @@ class MainActivity : Activity() {
     @Volatile private var recoveringStream=false
     private var streamRecoveryAttempts=0
     private var resumeReceiverHost:String?=null
+    @Volatile private var videoRequestTimedOut=false
     @Volatile private var selectedTab=0
     @Volatile private var channelPageRequestAt=0L
     @Volatile private var channelPageTo=0
@@ -225,7 +226,9 @@ class MainActivity : Activity() {
         },buffering={waiting->
             videoBuffering=waiting
             streamWatchdog.buffering(waiting,android.os.SystemClock.elapsedRealtime())
-        },failed={recoverFreshLive("Flux interrompu")})
+        },failed={recoverFreshLive("Flux interrompu")},diagnostic={info->
+            showField("Diagnostic vidéo",info)
+        })
         screen.setReceiverOnline(false)
         // Auto-connect only to an IP previously verified by SatNova.
         val rememberedIp=getSharedPreferences("satnova",Context.MODE_PRIVATE)
@@ -787,31 +790,35 @@ class MainActivity : Activity() {
     }
     private fun recoverFreshLive(reason:String)=runOnUiThread{
         if(!verified || !foreground || recoveringStream)return@runOnUiThread
+        if(videoRequestTimedOut){
+            screen.showInlineState("Lien vidéo absent • reconnecter le récepteur dans Options")
+            return@runOnUiThread
+        }
+        if(streamGate.pending()!=null)return@runOnUiThread
         if(streamRecoveryAttempts>=1){
-            screen.showInlineState("Flux interrompu • toucher la vidéo pour réessayer")
+            screen.showInlineState("Flux vidéo indisponible • diagnostic dans Options")
             return@runOnUiThread
         }
         val source=socket?:return@runOnUiThread
-        val host=source.inetAddress.hostAddress?:return@runOnUiThread
         streamRecoveryAttempts++
         recoveringStream=true
         streamGate.invalidatePlayback()
         activeStreamUrl=null
         screen.resetVideoPlaceholder()
-        screen.showInlineState(reason+" • nouvelle lecture depuis le récepteur…")
+        screen.showInlineState(reason+" • relance du lecteur vidéo…")
         inlinePlayer?.stop{
             if(socket===source && verified && foreground){
+                streamedChannel="";autoStreamRequestId="";currentChannelId=""
+                recoveringStream=false
                 work.executeRemote{
                     if(socket!==source || !verified || !foreground)return@executeRemote
-                    try{requestState(1012)}catch(_:Exception){}
-                    // New TCP login is necessary: late 1009 replies have no sequence number.
-                    connect(host)
+                    try{requestState(3)}catch(_:Exception){screen.showInlineState("Lecture de la chaîne impossible")}
                 }
             }else recoveringStream=false
         }
     }
     private fun autostartInlineStream(id:String){
-        if(!verified || !foreground || recoveringStream || id.isBlank())return
+        if(!verified || !foreground || recoveringStream || videoRequestTimedOut || id.isBlank())return
         streamGate.desire(id)
         if(streamedChannel==id && activeStreamUrl!=null)return
         if(streamGate.pending()?.channel==id)return
@@ -835,8 +842,7 @@ class MainActivity : Activity() {
         work.execute{
             if(socket!==source || !verified || !foreground){streamGate.fail(ticket);return@execute}
             try{
-                // The previous LibVLC HTTP reader has finished closing before this runs.
-                requestState(1012)
+                // The previous owned HTTP reader has closed; preserve the working control session.
                 val payload=if(jsonMode)JSONObject().put("request","1009")
                     .put("array",JSONArray().put(JSONObject().put("TvState",currentTvState.toString())
                         .put("ProgramId",ticket.channel))).toString()
@@ -846,7 +852,8 @@ class MainActivity : Activity() {
                 monitorWork.schedule({
                     if(socket===source && streamGate.fail(ticket)){
                         streamPending=false
-                        recoverFreshLive("Le récepteur n'a pas répondu au flux")
+                        videoRequestTimedOut=true
+                        screen.showInlineState("Le récepteur n'a pas renvoyé de lien vidéo • contrôle toujours connecté")
                     }
                 },12,TimeUnit.SECONDS)
             }catch(e:Exception){
@@ -863,21 +870,25 @@ class MainActivity : Activity() {
         foreground=true
         val host=resumeReceiverHost
         resumeReceiverHost=null
-        if(returning && host!=null){
-            streamRecoveryAttempts=0
-            connect(host)
+        if(returning && verified){
+            activeStreamUrl=null;streamedChannel="";autoStreamRequestId="";currentChannelId=""
+            streamGate.invalidatePlayback()
+            work.execute{try{requestState(3)}catch(_:Exception){}}
+        }else if(returning && host!=null){
+            streamRecoveryAttempts=0;connect(host)
         }
         if(::screen.isInitialized && selectedTab<=1)setSignalMonitoring(true)
         if(verified && catalogWanted)continueChannelMetadata()
-        // Never resume a paused HTTP URL: first read channel 3 from a fresh receiver login.
     }
     override fun onStop(){
         foreground=false
         resumeReceiverHost=if(verified)socket?.inetAddress?.hostAddress else null
         recoveringStream=false
+        streamWatchdog.reset();streamGate.invalidatePlayback()
+        activeStreamUrl=null
         if(::screen.isInitialized)setSignalMonitoring(false)
         inlinePlayer?.stop()
-        disconnect()
+        // Do not drop the receiver's working remote/signal connection to repair HTTP playback.
         super.onStop()
     }
     private fun isPrivate(host: String): Boolean {
@@ -952,6 +963,7 @@ class MainActivity : Activity() {
                 .putString("last_receiver_ip",host).apply()
             socket = s
             streamGate.reset()
+            videoRequestTimedOut=false
             recoveringStream=false
             setVerified(true)
             screen.setReceiverIdentity(model)

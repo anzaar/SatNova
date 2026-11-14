@@ -14,13 +14,14 @@ import java.util.concurrent.atomic.AtomicLong
 
 /** Native network/decoder shutdown must never block the Android event loop. */
 class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayout,
-                      private val status:(String)->Unit,private val buffering:(Boolean)->Unit={},private val failed:()->Unit={}) {
+                      private val status:(String)->Unit,private val buffering:(Boolean)->Unit={},private val failed:()->Unit={},private val diagnostic:(String)->Unit={}) {
     private val worker=Executors.newSingleThreadExecutor()
     private val main=Handler(Looper.getMainLooper())
     private val generation=AtomicLong()
     private var engine:LibVLC?=null
     private var player:MediaPlayer?=null
     private var currentUrl:String?=null
+    private var relay:ReceiverHttpRelay?=null
     private var closed=false
     private var requestedUrl:String?=null
 
@@ -44,7 +45,7 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
             if(ticket!=generation.get())return@execute
             try {
                 val vlc=LibVLC(context.applicationContext,arrayListOf(
-                    "--network-caching=1800","--live-caching=1800","--no-video-title-show","--http-reconnect"))
+                    "--network-caching=1800","--live-caching=1800","--no-video-title-show"))
                 engine=vlc
                 val mp=MediaPlayer(vlc)
                 player=mp
@@ -76,11 +77,14 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
                         }
                     }
                 }
-                val media=Media(vlc,Uri.parse(url))
+                val playbackUrl=if(url.startsWith("http://",true)){
+                    ReceiverHttpRelay(url){info->main.post{if(ticket==generation.get())diagnostic(info)}}
+                        .also{relay=it}.localUrl
+                }else url
+                val media=Media(vlc,Uri.parse(playbackUrl))
                 try {
                     media.addOption(":network-caching=1800")
                     media.addOption(":live-caching=1800")
-                    media.addOption(":http-reconnect")
                     mp.media=media
                 } finally {media.release()}
                 mp.volume=100
@@ -113,6 +117,8 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
         val old=player
         player=null
         currentUrl=null
+        // Close the owned HTTP sockets first so VLC stop cannot wait on a stalled upstream.
+        relay?.close();relay=null
         try{old?.setEventListener(null)}catch(_:Exception){}
         try{old?.stop()}catch(_:Exception){}
         try{onMain{old?.detachViews()}}catch(_:Exception){}
