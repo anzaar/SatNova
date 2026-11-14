@@ -215,7 +215,7 @@ class MainActivity : Activity() {
                 report(if(flat)"Test de zapping alternatif…"
                     else "Zapping demandé au récepteur, vérification…")
                 showField("Dernière commande envoyée","1000 • "+id+
-                    " • mode "+(if(flat)"direct":"array")+" • état non confirmé")
+                    " • mode "+(if(flat) "direct" else "array")+" • état non confirmé")
                 monitorWork.schedule({
                     if(!verified||targetTuneId!=id)return@schedule
                     work.execute{try{requestState(3)}catch(_:Exception){}}
