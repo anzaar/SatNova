@@ -10,6 +10,7 @@ import android.text.TextWatcher
 import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import org.json.JSONObject
 import java.util.Locale
@@ -117,6 +118,15 @@ class CatalogPanel(
     private var complete=false
     private var tpRead=false
     private var limit=50
+    private var satelliteLimit=45
+    private var tpLimit=45
+    private var tracking=false
+    private val strengthLabel=txt("Force : —",15f,light,true)
+    private val qualityLabel=txt("Qualité : —",15f,light,true)
+    private val strengthBar=ProgressBar(activity,null,android.R.attr.progressBarStyleHorizontal).apply{max=100;progress=0}
+    private val qualityBar=ProgressBar(activity,null,android.R.attr.progressBarStyleHorizontal).apply{max=100;progress=0}
+    private val signalSourceLabel=txt("Aucune mesure reçue. Le réglage doit être confirmé sur la TV.",12f,muted)
+    private val alignButton=tile("▶  Démarrer mesure continue"){measureSignal()}
     init {
         channelsPage.addView(txt("Chaînes TV & Radio",23f,light,true),lp(bottom=7))
         channelsPage.addView(txt("Touchez une chaîne pour voir ses informations et son EPG, avant de zapper.",13f,muted),lp(bottom=16))
@@ -156,7 +166,24 @@ class CatalogPanel(
             override fun onTextChanged(s:CharSequence?,start:Int,before:Int,count:Int){limit=50;renderChannels()}
             override fun afterTextChanged(s:Editable?){}
         })
-        satellitePage.addView(txt("Satellites",23f,light,true),lp(bottom=6))
+        satellitePage.addView(txt("Satellites et réglage de parabole",22f,light,true),lp(bottom=6))
+        val alignment=col().apply{
+            setPadding(14.dp,16.dp,14.dp,16.dp)
+            background=bg(Color.rgb(36,29,74))
+        }
+        alignment.addView(txt("◉  POINTAGE DE LA PARABOLE",16f,accent,true),lp(bottom=10))
+        alignment.addView(txt("Mesure du tuner actuellement actif sur le récepteur. Choisir un satellite "+
+            "dans la liste ne dirige pas automatiquement le tuner sur ce satellite.",12f,muted),lp(bottom=13))
+        alignment.addView(strengthLabel,lp(bottom=6))
+        alignment.addView(strengthBar,lp(bottom=11))
+        alignment.addView(qualityLabel,lp(bottom=6))
+        alignment.addView(qualityBar,lp(bottom=12))
+        alignment.addView(signalSourceLabel,lp(bottom=9))
+        alignment.addView(alignButton,lp(bottom=10))
+        alignment.addView(txt("Pour orienter l'antenne : sélectionner le satellite et un TP actif "+
+            "sur le récepteur, puis chercher le maximum de QUALITÉ. "+
+            "Aucune valeur n'est estimée depuis l'image vidéo.",12f,muted))
+        satellitePage.addView(alignment,lp(bottom=16))
         satellitePage.addView(txt("Sélectionnez un satellite pour afficher uniquement ses transpondeurs vérifiés.",13f,muted),lp(bottom=13))
         satellitePage.addView(satNotice,lp(bottom=9))
         satellitePage.addView(satelliteList,lp(bottom=15))
@@ -164,44 +191,64 @@ class CatalogPanel(
         satellitePage.addView(tpNotice,lp(bottom=9))
         satellitePage.addView(tpList)
         satellitePage.addView(tpDetail,lp(top=12))
-        satellitePage.addView(tile("◉  Mesurer le signal du récepteur"){measureSignal()},lp(top=13))
+        satellitePage.addView(txt("La mesure ci-dessus est spécifique au tuner actif.",12f,muted),lp(top=11))
         satellitePage.addView(signalNotice,lp(top=9))
     }
     fun updateChannels(rows:List<JSONObject>,fullyLoaded:Boolean){
         channels=rows.toList();complete=fullyLoaded;renderChannels()
-        if(satellites.isNotEmpty())renderSatelliteList()
-        if(selectedSatellite!=null)renderTps()
+        // Avoid O(satellites × channels) re-render on every 100-channel page.
+        // Transponder details are refreshed only on explicit user selection.
     }
     fun updateSatellites(rows:List<JSONObject>){
         satellites=rows.toList()
         renderSatelliteList()
     }
     private fun renderSatelliteList(){
-        satNotice.text=satellites.size.toString()+" satellites configurés • présence ≠ signal"
+        satNotice.text=satellites.size.toString()+" satellites configurés sur le récepteur "+
+            "• la présence dans la liste ne confirme pas le signal"
         satelliteList.removeAllViews()
-        satellites.forEach{sat->
+        val snapshot=satellites
+        snapshot.take(satelliteLimit).forEach{sat->
             val name=satLabel(sat)
-            val linked=channels.count{sameSatellite(it,sat)}
-            val status=when{
-                linked>0 -> "● "+linked+" chaîne(s) enregistrée(s)"
-                complete && tps.isNotEmpty() -> "○ 0 chaîne enregistrée"
-                else -> "◌ Chaînes non vérifiées"
-            }
-            satelliteList.addView(tile("🛰  "+name+"\n"+status+"  ·  Signal non mesuré"){
-                selectedSatellite=sat;selectedTp=null;tpRead=false
-                tpList.removeAllViews();tpDetail.removeAllViews()
-                tpNotice.text="Lecture des fréquences de "+name+"…"
-                refreshTp()
+            satelliteList.addView(tile("🛰  "+name+"\nToucher pour les transpondeurs"){
+                selectedSatellite=sat
+                selectedTp=null
+                tpLimit=45
+                tpList.removeAllViews()
+                tpDetail.removeAllViews()
+                tpNotice.text="Sélection : "+name+" • lecture des fréquences…"
+                if(tpRead && tps.isNotEmpty())renderTps()
+                else refreshTp()
             },lp(bottom=7))
+        }
+        if(snapshot.size>satelliteLimit){
+            satelliteList.addView(tile("Afficher "+minOf(45,snapshot.size-satelliteLimit)+
+                " satellites supplémentaires"){
+                satelliteLimit+=45
+                renderSatelliteList()
+            },lp(bottom=8))
         }
     }
     fun updateTps(rows:List<JSONObject>,received:Boolean=true){
-        tps=rows.toList();tpRead=received;renderTps()
-        if(satellites.isNotEmpty())renderSatelliteList()
+        tps=rows.toList();tpRead=received
+        if(selectedSatellite!=null)renderTps()
     }
     fun updateSignal(s:String){
         signalNotice.text=s
-        selectedTp?.let{showTp(it)}
+        signalSourceLabel.text=s
+    }
+    fun updateSignalReading(level:Int?,quality:Int?,message:String){
+        strengthBar.progress=level?:0
+        qualityBar.progress=quality?:0
+        strengthLabel.text="Force du signal : "+(level?.let{it.toString()+" %"}?:"—")
+        qualityLabel.text="Qualité du signal : "+(quality?.let{it.toString()+" %"}?:"—")
+        signalSourceLabel.text=message
+        signalNotice.text=message
+    }
+    fun updateTracking(running:Boolean){
+        tracking=running
+        alignButton.text=if(running)"■  Arrêter les mesures" else
+            "▶  Démarrer mesure continue"
     }
     private fun renderChannels(){
         channelList.removeAllViews()
@@ -254,23 +301,26 @@ class CatalogPanel(
         tpList.removeAllViews()
         val sat=selectedSatellite?:return
         if(!tpRead){tpNotice.text="Lecture des transpondeurs en cours…";return}
-        val linked=tps.filter{sameSatellite(it,sat)}
+        // A capped batch avoids constructing hundreds of nested Android Views on tap.
+        val linked=tps.asSequence().filter{sameSatellite(it,sat)}.toList()
         if(linked.isEmpty()){
             tpNotice.text=if(tps.isEmpty())"Aucun transpondeur reçu du récepteur." else
-                "Aucun lien satellite ↔ transpondeur identifiable dans la réponse. Aucun mélange entre satellites."
+                "Le récepteur n'a pas fourni de lien vérifiable entre ce satellite et ses transpondeurs."
             return
         }
-        tpNotice.text=linked.size.toString()+" transpondeur(s) associés à "+satLabel(sat)
-        linked.forEach{tp->
-            val matches=channels.filter{sameSatellite(it,sat)&&sameTp(it,tp)}
-            val known=complete&&tpIndex(tp)!=null&&satId(tp)!=null&&satId(sat)!=null
-            val status=when{
-                matches.isNotEmpty()->matches.size.toString()+" chaîne(s)"
-                known->"0 chaîne enregistrée sur ce TP"
-                else->"Chaînes non déterminées"
-            }
-            val line=listOfNotNull(freq(tp)?.let{it+" MHz"},pol(tp),sr(tp)?.let{"SR "+it}).joinToString(" · ")
-            tpList.addView(tile("◈  "+line+"\n"+status){selectedTp=tp;showTp(tp)},lp(bottom=8))
+        tpNotice.text=linked.size.toString()+" TP pour "+satLabel(sat)+" • affichage progressif"
+        linked.take(tpLimit).forEach{tp->
+            val f=freq(tp)?.let{it+" MHz"}?:"Fréquence non transmise"
+            val line=listOf(f,pol(tp),sr(tp)?.let{"SR "+it}).filterNotNull().joinToString(" · ")
+            tpList.addView(tile("◈  "+line+"\nAppuyer pour consulter les chaînes"){
+                selectedTp=tp;showTp(tp)
+            },lp(bottom=8))
+        }
+        if(linked.size>tpLimit){
+            tpList.addView(tile("Afficher "+minOf(45,linked.size-tpLimit)+
+                " transpondeurs supplémentaires"){
+                tpLimit+=45;renderTps()
+            },lp(bottom=8))
         }
     }
     private fun showTp(tp:JSONObject){
@@ -280,7 +330,7 @@ class CatalogPanel(
         tpDetail.background=bg(Color.rgb(37,30,83))
         tpDetail.addView(txt("DÉTAILS • "+satLabel(sat),12f,accent,true))
         tpDetail.addView(txt(listOfNotNull(freq(tp)?.let{it+" MHz"},pol(tp),sr(tp)?.let{"SR "+it}).joinToString(" · "),19f,light,true),lp(top=9,bottom=12))
-        val matches=channels.filter{sameSatellite(it,sat)&&sameTp(it,tp)}
+        val matches=channels.filter{sameTp(it,tp)&&sameSatellite(it,sat)}
         tpDetail.addView(txt("CHAÎNES DU TRANSPONDEUR",11f,accent,true),lp(bottom=8))
         if(matches.isEmpty()){
             tpDetail.addView(txt("Aucune association vérifiable. Ce transpondeur n'est pas nécessairement vide.",13f,muted))
