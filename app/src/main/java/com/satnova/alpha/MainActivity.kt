@@ -425,7 +425,7 @@ class MainActivity : Activity() {
     }
     private fun requestNextChannelPage() {
         if(!verified||totalChannelCount<=0||nextChannelIndex>=totalChannelCount||nextChannelIndex>=3000)return
-        if(streamPending && nextChannelIndex>0){
+        if(streamPending){
             monitorWork.schedule({
                 if(verified)work.execute{
                     try{requestNextChannelPage()}catch(_:Exception){}
