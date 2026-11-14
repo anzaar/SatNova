@@ -66,6 +66,7 @@ class MainActivity : Activity() {
     @Volatile private var autoStreamRequestId=""
     @Volatile private var lastStreamChannelId=""
     @Volatile private var streamAttemptStartedAt=0L
+    @Volatile private var automaticVideoRetryCount=0
     @Volatile private var metadataLoadedAfterStream=false
     @Volatile private var liveScreenRequested=false
     @Volatile private var currentChannelId = ""
@@ -128,6 +129,7 @@ class MainActivity : Activity() {
             autoStreamRequestId=""
             lastStreamChannelId=""
             metadataLoadedAfterStream=false
+            automaticVideoRetryCount=0
             streamPending=false
         }
         runOnUiThread {
@@ -419,7 +421,14 @@ class MainActivity : Activity() {
     }
     private fun requestNextChannelPage() {
         if(!verified||totalChannelCount<=0||nextChannelIndex>=totalChannelCount||nextChannelIndex>=3000)return
-        if(streamPending && nextChannelIndex>0)return
+        if(streamPending && nextChannelIndex>0){
+            monitorWork.schedule({
+                if(verified)work.execute{
+                    try{requestNextChannelPage()}catch(_:Exception){}
+                }
+            },3,TimeUnit.SECONDS)
+            return
+        }
         val from=nextChannelIndex
         val to=minOf(from+99,totalChannelCount-1,2999)
         requestState(0,from,to)
@@ -733,6 +742,7 @@ class MainActivity : Activity() {
         }
         autoStreamRequestId=""
         streamedChannel=""
+        automaticVideoRetryCount=0
         activeStreamUrl=null
         runOnUiThread{
             inlinePlayer?.stop()
@@ -765,6 +775,7 @@ class MainActivity : Activity() {
             return
         }
         streamPending=true
+        if(lastStreamChannelId!=id)automaticVideoRetryCount=0
         lastStreamChannelId=id
         streamAttemptStartedAt=System.currentTimeMillis()
         videoStatus("Demande vidéo prioritaire 1009 • "+(channelNames[id] ?: id)+"…")
@@ -786,8 +797,20 @@ class MainActivity : Activity() {
                 monitorWork.schedule({
                     if(streamPending && streamAttemptStartedAt==startedAt){
                         streamPending=false
-                        videoStatus("Le récepteur ne répond pas au flux 1009 après 18 s. "+
-                            "Touchez la vidéo pour réessayer. Vérifier DVB To IPTV dans Système.")
+                        if(verified && automaticVideoRetryCount==0 &&
+                           currentChannelId==lastStreamChannelId){
+                            automaticVideoRetryCount=1
+                            videoStatus("1009 sans réponse • nouvelle tentative automatique…")
+                            monitorWork.schedule({
+                                if(verified && activeStreamUrl==null && !streamPending &&
+                                   currentChannelId==lastStreamChannelId){
+                                    startLiveTv()
+                                }
+                            },2,TimeUnit.SECONDS)
+                        }else{
+                            videoStatus("Le récepteur ne répond pas au flux 1009 après deux essais. "+
+                                "Touchez la vidéo pour réessayer et vérifiez DVB To IPTV sur la TV.")
+                        }
                     }
                 },18,TimeUnit.SECONDS)
             }catch(e:Exception){
