@@ -45,6 +45,7 @@ class MainActivity : Activity() {
     private val work = Executors.newSingleThreadExecutor()
     private val remoteWork = Executors.newSingleThreadExecutor()
     private val writeLock = Any()
+    @Volatile private var lastRemotePressAt=0L
     private val discoveryWork = Executors.newSingleThreadExecutor()
     private val monitorWork = Executors.newSingleThreadScheduledExecutor()
     private val fieldViews = linkedMapOf<String,TextView>()
@@ -126,6 +127,7 @@ class MainActivity : Activity() {
                 screen.setReceiverOnline(value)
                 if(!value){
                     inlinePlayer?.stop()
+                    screen.resetVideoPlaceholder()
                     screen.showInlineState("Déconnecté")
                 }
             }
@@ -155,7 +157,7 @@ class MainActivity : Activity() {
                 if (verified) work.execute { disconnect(); report("Déconnecté") }
                 else connect(ip.text.toString().trim())
             },
-            onWatch = { openFullscreenPlayer() },
+            onWatch = { retryInlineStream() },
             onReadSatellites = { readSatellites() },
             onReadTransponders = { readTransponders() },
             onReadSignal = { readSignal() },
@@ -187,6 +189,7 @@ class MainActivity : Activity() {
         setContentView(screen.root)
         inlinePlayer=InlineVlcPlayer(this,screen.inlineVideo){ msg ->
             screen.showInlineState(msg)
+            if(msg.startsWith("LIVE • lecture"))screen.setVideoPlaying(true)
         }
         screen.setReceiverOnline(false)
         // Auto-connect only to an IP previously verified by SatNova.
@@ -201,17 +204,18 @@ class MainActivity : Activity() {
         }
 
         monitorWork.scheduleWithFixedDelay({
-            if (verified) work.execute {
-                try {
+            if(verified && System.currentTimeMillis()-lastRemotePressAt>4500L) work.execute{
+                if(!verified || System.currentTimeMillis()-lastRemotePressAt<=4500L)return@execute
+                try{
                     requestState(3)
                     requestState(19)
                     monitorTicks++
-                    if (monitorTicks % 6 == 0) requestState(15)
-                    if (monitorTicks % 3 == 0) requestState(14)
-                    if (monitorTicks % 3 == 0) requestState(26)
-                } catch (e: Exception) { report("Monitor : " + e.message) }
+                    if(monitorTicks%5==0)requestState(15)
+                    if(monitorTicks%7==0)requestState(14)
+                    if(monitorTicks%7==0)requestState(26)
+                }catch(e:Exception){report("Synchronisation : "+e.message)}
             }
-        }, 3, 4, TimeUnit.SECONDS)
+        }, 6, 12, TimeUnit.SECONDS)
     }
     private fun showField(key:String,value:String)=runOnUiThread {
         fieldViews[key]?.let { view ->
@@ -655,20 +659,23 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun openFullscreenPlayer(){
-        if(!verified){report("Connectez le récepteur pour regarder la TV.");return}
-        val url=activeStreamUrl
-        if(url==null){
-            liveScreenRequested=true
-            startLiveTv()
+    private fun retryInlineStream(){
+        if(!verified){report("Connectez le récepteur.");return}
+        if(streamPending){report("Demande vidéo déjà en cours.");return}
+        val id=currentChannelId
+        if(id.isBlank()){
+            work.execute{try{requestState(3)}catch(_:Exception){}}
             return
         }
-        inlinePlayer?.stop()
-        val intent=Intent(this,VlcLiveActivity::class.java).apply{
-            putExtra("stream_url",url)
-            putExtra("channel_title",channelNames[currentChannelId] ?: "Chaîne du récepteur")
+        autoStreamRequestId=""
+        streamedChannel=""
+        activeStreamUrl=null
+        runOnUiThread{
+            inlinePlayer?.stop()
+            screen.resetVideoPlaceholder()
+            screen.showInlineState("Relance du flux en cours…")
         }
-        startActivity(intent)
+        autostartInlineStream(id)
     }
     private fun autostartInlineStream(id:String){
         if(!verified || id.isBlank())return
@@ -679,6 +686,7 @@ class MainActivity : Activity() {
         autoStreamRequestId=id
         runOnUiThread{
             inlinePlayer?.stop()
+            screen.resetVideoPlaceholder()
             screen.showInlineState("Initialisation Live TV pour la chaîne actuelle…")
         }
         startLiveTv()
@@ -834,27 +842,29 @@ class MainActivity : Activity() {
             showField("État connexion","● Connexion échouée • Options réseau")
         }
     }
-    private fun sendKey(value: Int) = remoteWork.execute {
-        val s = socket
-        if (!verified || s == null) { report("Connect and verify receiver first"); return@execute }
-        try {
-            val payload = if (jsonMode) "{\"request\":\"1040\",\"array\":[{\"KeyValue\":\"$value\"}]}"
-                else "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1040\"><parm><KeyValue>$value</KeyValue></parm></Command>"
-            sendFrame(s,payload)
-            showField("Dernière commande envoyée","1040 • touche "+value+" • effet non confirmé")
-            showField("Retour télécommande","Touche "+value+" envoyée ; vérifier sur le téléviseur")
-            if(value in listOf(1,2,69,70,23,35,36)){
-                monitorWork.schedule({
-                    remoteWork.execute{
-                        try {
-                            requestState(3)
-                            requestState(19)
-                        }catch(_:Exception){}
-                    }
-                },800,TimeUnit.MILLISECONDS)
+    // Same 1040/KeyValue payload as the first working SatNova Alpha.
+    // Crucially, do not interleave follow-up state probes with rapid remote presses.
+    private fun sendKey(value:Int){
+        lastRemotePressAt=System.currentTimeMillis()
+        remoteWork.execute{
+            val s=socket
+            if(!verified||s==null){
+                report("Récepteur non connecté")
+                return@execute
             }
-            report("Touche "+value+" envoyée. Vérifier l'effet sur le récepteur.")
-        } catch (e: Exception) { disconnect(); report("Failed to send key: ${e.message}") }
+            try{
+                val payload=if(jsonMode)
+                    "{\"request\":\"1040\",\"array\":[{\"KeyValue\":\"$value\"}]}"
+                else
+                    "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1040\"><parm><KeyValue>$value</KeyValue></parm></Command>"
+                sendFrame(s,payload)
+                showField("Dernière commande envoyée","1040 • touche "+value+" • en attente")
+                showField("Retour télécommande","Touche "+value+" transmise • contrôle du résultat sur TV")
+            }catch(e:Exception){
+                report("Télécommande : "+(e.message?:"échec d'envoi"))
+                showField("Retour télécommande","Échec de l'envoi : "+(e.message?:"connexion"))
+            }
+        }
     }
     private fun wifiSubnet():String? {
         return try {
