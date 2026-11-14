@@ -311,24 +311,47 @@ class SatNovaScreen(
         branding.addView(version)
         page.addView(branding,margin(bottom=3))
 
-        // Receiver and LAN connection
-        setupPage.addView(text("SATNOVA • CONNEXION",25f,textColor,true),
-            margin(top=16,bottom=6))
-        setupPage.addView(text("Connecter un récepteur",23f,lavender,true),
-            margin(top=18,bottom=10))
-        setupPage.addView(text("Si aucun décodeur n'est connecté, la vidéo et les commandes sont masquées. "+
-            "Connectez par IP ou recherchez un récepteur réel sur votre Wi-Fi.",
-            13f,secondary),margin(bottom=18))
-        val connection = card(page, top = 0)
+        // Offline UI follows the approved connection design. No demo/fake receivers.
+        val setupHead=row().apply{setPadding(6.dp,11.dp,6.dp,14.dp)}
+        val setupLogo=text("◈",29f,lavender,true).apply{
+            gravity=Gravity.CENTER
+            background=shape(Color.rgb(42,25,73),16,Color.rgb(107,66,168))
+        }
+        setupHead.addView(setupLogo,margin(width=48,height=48,right=12))
+        setupHead.addView(text("SATNOVA  •  LIVE TV",21f,textColor,true),
+            LinearLayout.LayoutParams(0,-2,1f))
+        setupPage.addView(setupHead,margin(bottom=10))
+        setupPage.addView(text("Connecter un récepteur",22f,textColor,true),
+            margin(left=7,bottom=13))
+        val welcome=card(setupPage,top=0).apply{
+            background=shape(Color.rgb(26,20,51),24,Color.rgb(82,53,136),
+                colors=intArrayOf(Color.rgb(36,25,68),Color.rgb(17,20,45)))
+            setPadding(14.dp,22.dp,14.dp,20.dp)
+        }
+        val receiverIcon=text("⌁\n▣",45f,lavender,true).apply{
+            gravity=Gravity.CENTER
+            background=shape(Color.rgb(42,26,75),34,Color.rgb(100,65,167))
+        }
+        welcome.addView(receiverIcon,margin(width=120,height=120,top=7,bottom=16).apply{
+            gravity=Gravity.CENTER_HORIZONTAL
+        })
+        welcome.addView(text("Aucun récepteur connecté",20f,textColor,true).apply{
+            gravity=Gravity.CENTER
+        },margin(bottom=10))
+        welcome.addView(text(
+            "Connectez votre récepteur par son adresse IP ou recherchez-le sur le réseau local.",
+            12f,secondary).apply{gravity=Gravity.CENTER},margin(bottom=4))
+
+        val connection = card(setupPage, top = 0)
         val connectionHeading = row()
-        connectionHeading.addView(text("◉  ECHOLINK ZEN 4", 13f, lavender, true),
+        connectionHeading.addView(text("▣  Connexion manuelle (IP)", 13f, lavender, true),
             LinearLayout.LayoutParams(0, -2, 1f))
-        connectionHeading.addView(text("● LOCAL", 11f, green, true))
+        connectionHeading.addView(text("LOCAL", 11f, green, true))
         connection.addView(connectionHeading)
         status = text("Non connecté • Même réseau Wi-Fi requis", 13f, secondary)
         connection.addView(status, margin(top = 10))
         ip = EditText(activity).apply {
-            setText("192.168.1.2")
+            setText("")
             setSingleLine(true)
             setTextColor(textColor)
             setHintTextColor(secondary)
@@ -341,10 +364,10 @@ class SatNovaScreen(
         }
         connection.addView(ip, margin(height = 48, top = 14))
         val connectLine = row()
-        val discover = action("⌕  Recherche auto", height = 48, onClick = onDiscover)
+        val discover = action("⌕  Chercher", height = 48, onClick = onDiscover)
         addWeighted(connectLine, discover, right = 5)
         connectButton = Button(activity).apply {
-            text = "Connect"
+            text = "Connecter"
             isAllCaps = false
             textSize = 14f
             setTextColor(Color.WHITE)
@@ -493,7 +516,7 @@ class SatNovaScreen(
 
         // Move advanced connection settings away from the first screen.
         page.removeView(connection)
-        setupPage.addView(connection,margin(top=8))
+        setupPage.addView(connection,margin(top=14))
         setupPage.addView(action("⌕  Recherche automatique",tileColor,lavender,50,
             onClick=onDiscover),margin(top=12))
         setupPage.addView(action("⚙  Recherche avancée • plage IP",tileColor,lavender,50,
@@ -514,7 +537,7 @@ class SatNovaScreen(
                     }
                     .setNegativeButton("Annuler",null).show()
             }),margin(top=10))
-        setupPage.addView(text("RÉCEPTEURS DÉTECTÉS",12f,lavender,true),
+        setupPage.addView(text("RÉCEPTEURS DÉTECTÉS • RÉSULTATS RÉELS",12f,lavender,true),
             margin(top=22,bottom=10))
         discoveryResults=stack()
         discoveryResults.addView(text("Aucun récepteur détecté. Lancez une recherche.",13f,secondary))
