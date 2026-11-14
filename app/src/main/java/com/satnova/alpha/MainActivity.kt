@@ -71,6 +71,9 @@ class MainActivity : Activity() {
     @Volatile private var streamOpened = false
     @Volatile private var satIpFlag = -1
     @Volatile private var lastSignalUpdate = 0L
+    @Volatile private var trackingSignal = false
+    @Volatile private var signalTrackingStartedAt = 0L
+    @Volatile private var receiverModel = "Récepteur en détection"
     @Volatile private var lastRequest24 = 0L
     @Volatile private var totalChannelCount = 0
     @Volatile private var nextChannelIndex = 0
@@ -160,7 +163,7 @@ class MainActivity : Activity() {
             onWatch = { retryInlineStream() },
             onReadSatellites = { readSatellites() },
             onReadTransponders = { readTransponders() },
-            onReadSignal = { readSignal() },
+            onReadSignal = { toggleSignalTracking() },
             onServers = { navigateSetting("servers") },
             onNetwork = { navigateSetting("network") },
             onScan = { navigateSetting("scan") },
@@ -216,6 +219,26 @@ class MainActivity : Activity() {
                 }catch(e:Exception){report("Synchronisation : "+e.message)}
             }
         }, 6, 12, TimeUnit.SECONDS)
+        // Dish alignment: do not poll unless the user explicitly starts this mode.
+        monitorWork.scheduleWithFixedDelay({
+            if(trackingSignal && verified) work.execute{
+                if(!trackingSignal || !verified)return@execute
+                try{
+                    requestState(14)
+                    requestState(15)
+                }catch(e:Exception){
+                    screen.updateSignal("Mesure interrompue : "+(e.message?:"connexion"))
+                }
+            }
+        }, 2, 3, TimeUnit.SECONDS)
+        monitorWork.scheduleWithFixedDelay({
+            if(trackingSignal && verified && lastSignalUpdate==0L &&
+               System.currentTimeMillis()-signalTrackingStartedAt>7500L){
+                screen.updateSignalReading(null,null,
+                    "Firmware 1.48 : aucune valeur de force/qualité fournie par les réponses 14/15. "+
+                    "La position de la parabole doit être confirmée sur l'écran TV.")
+            }
+        }, 8, 9, TimeUnit.SECONDS)
     }
     private fun showField(key:String,value:String)=runOnUiThread {
         fieldViews[key]?.let { view ->
@@ -322,25 +345,27 @@ class MainActivity : Activity() {
             requestState(24)
         }catch(e:Exception){showField("Transpondeurs","Échec : "+e.message)}}
     }
-    private fun readSignal(){
-        if(!verified){report("Connecter le récepteur d'abord");return}
-        lastSignalUpdate=0L
-        val waiting="Mesure demandée • lecture de la télémétrie du tuner…"
-        showField("Signal temps réel",waiting)
-        screen.updateSignal(waiting)
-        work.execute{
-            try{requestState(14);requestState(15)}catch(e:Exception){
-                showField("Signal temps réel","Échec : "+e.message)
+    private fun toggleSignalTracking(){
+        if(!verified){report("Connecter le récepteur pour mesurer le signal");return}
+        trackingSignal=!trackingSignal
+        screen.updateSignalTracking(trackingSignal)
+        if(trackingSignal){
+            lastSignalUpdate=0L
+            signalTrackingStartedAt=System.currentTimeMillis()
+            screen.updateSignalReading(null,null,
+                "Mesure du tuner actif en cours • force et qualité réelles uniquement")
+            work.execute{
+                try{requestState(14);requestState(15)}
+                catch(e:Exception){screen.updateSignal("Erreur du tuner : "+(e.message?:"connexion"))}
             }
-        }
-        monitorWork.schedule({
-            if(lastSignalUpdate==0L && verified){
-                val unavailable="Firmware 1.48 : aucune valeur SNR/qualité/BER reçue " +
-                    "dans les réponses disponibles. Mesure réelle non accessible pour l'instant."
-                showField("Signal temps réel",unavailable)
-                screen.updateSignal(unavailable)
-            }
-        },6,TimeUnit.SECONDS)
+        }else screen.updateSignal("Mesure arrêtée par l'utilisateur. Dernière donnée conservée si reçue.")
+    }
+    private fun receiverPercent(record:JSONObject,vararg keys:String):Int?{
+        val value=pick(record,*keys)?:return null
+        val num=value.trim().removeSuffix("%").trim().toDoubleOrNull()?:return null
+        // Percentage is only displayed for fields explicitly meaning a percentage.
+        if(num<0.0 || num>100.0 || num.isNaN())return null
+        return num.toInt()
     }
     private fun navigateSetting(section:String) {
         when(section){
@@ -412,31 +437,30 @@ class MainActivity : Activity() {
             else "Numéro indisponible • ID "+id.take(16)
     }
     private fun currentSatelliteAndTp(rec:JSONObject?):Pair<String,String>{
-        if(rec==null)return Pair("Satellite non identifié","Fréquence inconnue")
+        if(rec==null)return Pair("Satellite en cours d'identification","TP en attente de lecture")
         var sat=key(rec,"SatelliteName","SatName","Satellite")
-        var frequency=key(rec,"Frequency","Freq","TPFreq")
+        var frequency=key(rec,"Frequency","Freq","TPFreq","FrequencyMHz")
+        val directSat=key(rec,"SatIndex","SatelliteIndex","SatelliteId","SatID")
         val tpIndex=key(rec,"TPIndex","TpIndex","TPID","TransponderId")
             ?: key(rec,"ServiceID")?.takeIf{it.length>=9}?.substring(4,9)
         val tp=transponderRecords.firstOrNull{item->
             val index=key(item,"TPIndex","TpIndex","TPId","TransponderId")
             index!=null && tpIndex!=null && index.toIntOrNull()==tpIndex.toIntOrNull()
         }
-        if(tp!=null){
-            frequency=frequency ?: key(tp,"Frequency","Freq","TPFreq")
-            val satIndex=key(tp,"SatIndex","SatelliteIndex","SatelliteId","SatID")
-            if(sat==null&&satIndex!=null){
-                val satRecord=satelliteRecords.firstOrNull{item->
-                    val idx=key(item,"SatIndex","SatelliteIndex","SatelliteId","SatID")
-                    idx!=null && idx.toIntOrNull()==satIndex.toIntOrNull()
-                }
-                sat=key(satRecord,"SatelliteName","SatName","Name","Satellite")
+        if(tp!=null)frequency=frequency ?: key(tp,"Frequency","Freq","TPFreq","FrequencyMHz")
+        val satIndex=directSat ?: key(tp,"SatIndex","SatelliteIndex","SatelliteId","SatID")
+        if(sat==null && satIndex!=null){
+            val satRecord=satelliteRecords.firstOrNull{item->
+                val index=key(item,"SatIndex","SatelliteIndex","SatelliteId","SatID")
+                index!=null && index.toIntOrNull()==satIndex.toIntOrNull()
             }
+            sat=key(satRecord,"SatelliteName","SatName","Name","Satellite")
         }
-        val p=key(tp,"Polarization","Pol") ?: key(rec,"Polarization","Pol")
+        val pol=key(tp,"Polarization","Pol") ?: key(rec,"Polarization","Pol")
         val sr=key(tp,"SymbolRate","SR") ?: key(rec,"SymbolRate","SR")
-        val tpText=listOfNotNull(frequency?.let{it+" MHz"},p?.let{"Pol "+it},
-            sr?.let{"SR "+it}).joinToString(" • ").ifBlank{"Fréquence non reçue"}
-        return Pair(sat?:"Satellite non identifié",tpText)
+        val tpText=listOfNotNull(frequency?.let{it+" MHz"},pol?.let{"Pol "+it},
+            sr?.let{"SR "+it}).joinToString(" • ").ifBlank{"TP non identifié par le firmware"}
+        return Pair(sat?:"Satellite non communiqué par le firmware",tpText)
     }
     private fun showCurrent(){
         val id=currentChannelId
@@ -608,18 +632,27 @@ class MainActivity : Activity() {
             }
             14,15 -> {
                 val info=recs.firstOrNull() ?: return
-                val lvl=pick(info,"SignalStrength","SignalLevel","Signal","Strength")
-                val qual=pick(info,"SignalQuality","Quality","QualityLevel","SNR")
-                val ber=pick(info,"BER","Ber")
-                if(lvl!=null||qual!=null||ber!=null) {
-                    val pieces=listOfNotNull(lvl?.let{"Niveau: "+it},qual?.let{"Qualité: "+it},ber?.let{"BER: "+it})
-                    val signalMessage=pieces.joinToString(" · ")+" (récepteur, "+date+")"
+                val level=receiverPercent(info,
+                    "SignalStrength","SignalLevel","SignalIntensity","StrengthPercent","SignalPercent")
+                val quality=receiverPercent(info,
+                    "SignalQuality","QualityLevel","Quality","QualityPercent","SignalQualityPercent")
+                val ber=pick(info,"BER","Ber","BitErrorRate")
+                if(level!=null||quality!=null||ber!=null){
+                    val pieces=listOfNotNull(level?.let{"Force "+it+" %"},
+                        quality?.let{"Qualité "+it+" %"},ber?.let{"BER "+it})
+                    val signalMessage=pieces.joinToString(" · ")+" • mesuré "+date
                     showField("Signal temps réel",signalMessage)
-                    screen.updateSignal(signalMessage)
+                    screen.updateSignalReading(level,quality,
+                        "Valeurs reçues du récepteur • "+date+
+                        if(ber!=null)" • BER "+ber else "")
                     lastSignalUpdate=System.currentTimeMillis()
                 }
 
                 pick(info,"SoftwareVersion")?.let{showField("Firmware",it)}
+                pick(info,"ProductName","ModelName")?.let{
+                    receiverModel=it.trim()
+                    showField("Modèle du récepteur",receiverModel.uppercase(java.util.Locale.ROOT))
+                }
                 pick(info,"ProductName","ModelName")?.let{runOnUiThread {diagnostics.text="Récepteur confirmé: "+it}}
                 pick(info,"ChannelNum")?.let{ n->
                     showField("Nombre de chaînes",n+" (confirmé)")
@@ -793,6 +826,8 @@ class MainActivity : Activity() {
             sendFrame(s,xml)
             val loginBlock=read(s.getInputStream(),108)
             val (model,useJson,full) = decode(loginBlock)
+            receiverModel=model
+            showField("Modèle du récepteur",receiverModel.uppercase(java.util.Locale.ROOT))
             satIpFlag=((loginBlock.reversedArray()[84].toInt() xor 0x5B) and 0x18) shr 3
             showField("Diagnostic vidéo","SAT>IP indicateur brut = "+satIpFlag+
                 " (firmware variable). Vérifier DVB To IPTV dans le menu Système.")
@@ -807,12 +842,20 @@ class MainActivity : Activity() {
             s.soTimeout = 0
             showField("Chaîne actuelle","Lecture en cours…")
             work.execute {
-                try {
+                try{
                     requestState(3)
                     requestState(15)
                     requestState(14)
                     requestState(19)
                 }catch(e:Exception){report("Initial state: "+e.message)}
+                // Satellite and TP metadata are separate; fetch them once after login,
+                // without blocking the first frame or recreating large lists repeatedly.
+                monitorWork.schedule({
+                    if(verified)work.execute{
+                        try{requestState(22);requestState(24)}
+                        catch(e:Exception){report("Tuner metadata: "+e.message)}
+                    }
+                },5,TimeUnit.SECONDS)
             }
             Thread {
                 try {
@@ -957,6 +1000,8 @@ class MainActivity : Activity() {
         else screen.discoveryMessage("Sous-réseau Wi-Fi inconnu. Saisir l'IP ou utiliser Recherche avancée.")
     }
     private fun disconnect() {
+        trackingSignal=false
+        if(::screen.isInitialized)screen.updateSignalTracking(false)
         verified = false
         val s = socket; socket = null
         try { s?.close() } catch (_: Exception) { }
