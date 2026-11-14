@@ -27,6 +27,12 @@ class SatNovaScreen(
     onConnect: () -> Unit,
     onWatch: () -> Unit,
     onRefresh: () -> Unit,
+    onReadSatellites: () -> Unit,
+    onReadTransponders: () -> Unit,
+    onReadSignal: () -> Unit,
+    onServers: () -> Unit,
+    onNetwork: () -> Unit,
+    onScan: () -> Unit,
     onKey: (Int) -> Unit
 ) {
     private val navy = Color.rgb(8, 12, 25)
@@ -151,7 +157,8 @@ class SatNovaScreen(
         setPadding(13.dp, 13.dp, 12.dp, 13.dp)
         addView(text(key.uppercase(), 10f, secondary, true))
         val value = text(initial, size, textColor, true).apply {
-            maxLines = if (key == "Données brutes reçues") 8 else 4
+            maxLines = if (key in listOf("Satellites", "Transpondeurs", "Signal temps réel")) 14
+                else if (key == "Données brutes reçues") 8 else 5
             setLineSpacing(2.dp.toFloat(), 1.04f)
         }
         addView(value, margin(top = 9))
@@ -205,7 +212,7 @@ class SatNovaScreen(
         brandTexts.addView(text("SATNOVA", 25f, Color.WHITE, true))
         brandTexts.addView(text("CONTROL YOUR UNIVERSE", 10f, lavender, true), margin(top = 5))
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 0.4", 12f, lavender, true).apply {
+        val version = text("α 0.5", 12f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(11.dp, 9.dp, 11.dp, 9.dp)
             background = shape(tileColor, 50, hairline)
@@ -274,8 +281,11 @@ class SatNovaScreen(
         hero.addView(action("▶   REGARDER EN DIRECT", purple, Color.WHITE, 58,
             onClick = onWatch), margin())
         hero.addView(text(
-            "La vidéo s'ouvre seulement si le récepteur fournit un flux RTSP.",
+            "Vérifier sur le démodulateur : Système → DVB To IPTV = Activé. Tester d'abord une chaîne gratuite (FTA).",
             11f, secondary), margin(top = 10))
+        val videoDiagnostic = text("VIDÉO : Aucun essai pour le moment", 12f, lavender)
+        hero.addView(videoDiagnostic, margin(top = 10))
+        fields["Diagnostic vidéo"] = videoDiagnostic
 
         val metrics = card(page, top = 14)
         section(metrics, "État du récepteur", "Actualisé à partir des réponses réelles")
@@ -312,6 +322,44 @@ class SatNovaScreen(
         }
         control.addView(more, margin(top = 12))
         control.addView(extras)
+
+
+        // Capability-aware receiver tools: display confirmed data, never fake server/network state.
+        val tools = card(page, top = 14)
+        section(tools, "Récepteur & installation", "Satellites, transpondeurs, réseau, serveurs, signal et recherche")
+        val toolsToggle = action("⌄   Ouvrir les outils", tileColor, lavender, 48, hairline) {}
+        tools.addView(toolsToggle)
+        val toolsBody = stack().apply { visibility = View.GONE }
+        val satButtons = row()
+        addWeighted(satButtons, action("🛰 Satellites", tileColor, lavender, 46, onClick=onReadSatellites), right=5)
+        addWeighted(satButtons, action("◈ Transpondeurs", tileColor, lavender, 46, onClick=onReadTransponders), left=5)
+        toolsBody.addView(satButtons, margin(top=12))
+        toolsBody.addView(metric("Satellites","Pas encore chargés",13f),margin(top=8))
+        toolsBody.addView(metric("Transpondeurs","Diagnostic expérimental uniquement",13f),margin(top=8))
+        toolsBody.addView(action("◉   Mesurer le signal", tileColor, green, 45,
+            onClick=onReadSignal),margin(top=12))
+        toolsBody.addView(metric("Signal temps réel","Lecture indisponible avant connexion",14f),
+            margin(top=8))
+        toolsBody.addView(text("Une valeur est affichée seulement si le récepteur la transmet. Sinon aucun % n'est inventé.",11f,secondary),
+            margin(top=7))
+        toolsBody.addView(action("☷   Serveurs / abonnements", tileColor, lavender, 45,
+            onClick=onServers),margin(top=14))
+        toolsBody.addView(metric("Serveurs","Statut non accessible via l'API documentée. Ouverture du Menu TV possible.",12f),
+            margin(top=8))
+        toolsBody.addView(action("⌁   Réseau / DHCP / IP statique", tileColor, lavender, 45,
+            onClick=onNetwork),margin(top=14))
+        toolsBody.addView(metric("Réseau","L'IP en haut est l'adresse de connexion SatNova, pas un réglage réseau du récepteur.",12f),
+            margin(top=8))
+        toolsBody.addView(action("⌕   Recherche de chaînes", tileColor, lavender, 45,
+            onClick=onScan),margin(top=14))
+        toolsBody.addView(metric("Recherche","Menu Installation sur la TV ; recherche automatique distante non vérifiée.",12f),
+            margin(top=8))
+        tools.addView(toolsBody)
+        toolsToggle.setOnClickListener {
+            val open=toolsBody.visibility!=View.VISIBLE
+            toolsBody.visibility=if(open) View.VISIBLE else View.GONE
+            toolsToggle.text=if(open)"⌃   Fermer les outils" else "⌄   Ouvrir les outils"
+        }
 
         // Diagnostics hidden from the primary UI but still kept live.
         val advanced = card(page, top = 14)

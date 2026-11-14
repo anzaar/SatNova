@@ -50,6 +50,9 @@ class MainActivity : Activity() {
     @Volatile private var currentTvState = 0
     @Volatile private var streamPending = false
     @Volatile private var streamOpened = false
+    @Volatile private var satIpFlag = -1
+    @Volatile private var lastSignalUpdate = 0L
+    @Volatile private var lastRequest24 = 0L
     @Volatile private var totalChannelCount = 0
     @Volatile private var nextChannelIndex = 0
     private var monitorTicks = 0
@@ -108,6 +111,12 @@ class MainActivity : Activity() {
                 else connect(ip.text.toString().trim())
             },
             onWatch = { startLiveTv() },
+            onReadSatellites = { readSatellites() },
+            onReadTransponders = { readTransponders() },
+            onReadSignal = { readSignal() },
+            onServers = { navigateSetting("servers") },
+            onNetwork = { navigateSetting("network") },
+            onScan = { navigateSetting("scan") },
             onRefresh = {
                 if (!verified) report("Connecter le récepteur d'abord")
                 else work.execute {
@@ -122,6 +131,8 @@ class MainActivity : Activity() {
         )
         status = screen.status
         ip = screen.ip
+        ip.setText(getSharedPreferences("satnova",Context.MODE_PRIVATE)
+            .getString("last_receiver_ip","192.168.1.2"))
         connectButton = screen.connectButton
         diagnostics = screen.diagnostics
         fieldViews.putAll(screen.fields)
@@ -134,12 +145,45 @@ class MainActivity : Activity() {
                     requestState(19)
                     monitorTicks++
                     if (monitorTicks % 6 == 0) requestState(15)
+                    if (monitorTicks % 3 == 0) requestState(14)
                     if (monitorTicks % 3 == 0) requestState(26)
                 } catch (e: Exception) { report("Monitor : " + e.message) }
             }
         }, 3, 4, TimeUnit.SECONDS)
     }
     private fun showField(key:String,value:String)=runOnUiThread { fieldViews[key]?.text=value }
+    private fun videoStatus(text:String) { showField("Diagnostic vidéo","VIDÉO : "+text); report(text) }
+    private fun readSatellites(){
+        if(!verified){report("Connecter le récepteur d'abord");return}
+        showField("Satellites","Lecture de la liste des satellites…")
+        work.execute{try{requestState(22)}catch(e:Exception){showField("Satellites","Échec : "+e.message)}}
+    }
+    private fun readTransponders(){
+        if(!verified){report("Connecter le récepteur d'abord");return}
+        showField("Transpondeurs","Test de lecture 24 en cours (non garanti sur Zen 4)…")
+        work.execute{try{
+            lastRequest24=System.currentTimeMillis()
+            requestState(24)
+        }catch(e:Exception){showField("Transpondeurs","Échec : "+e.message)}}
+    }
+    private fun readSignal(){
+        if(!verified){report("Connecter le récepteur d'abord");return}
+        showField("Signal temps réel","Mesure demandée. En attente de valeurs émises par le firmware.")
+        work.execute{try{requestState(14);requestState(15)}catch(e:Exception){showField("Signal temps réel","Échec : "+e.message)}}
+    }
+    private fun navigateSetting(section:String) {
+        when(section){
+            "servers"->showField("Serveurs",
+                "Forever / Apollo / autres: état et activation non exposés par le protocole connu. Ouverture du MENU sur TV. Utiliser Configuration de réseau → Configuration du Serveur. Ne pas saisir de mots de passe dans SatNova.")
+            "network"->showField("Réseau",
+                "L'IP de connexion SatNova est modifiable en haut. Pour DHCP / Statique: MENU sur TV → Configuration de réseau. Noter IP, masque, passerelle, DNS avant tout changement. Une nouvelle IP coupera la session SatNova.")
+            "scan"->showField("Recherche",
+                "MENU sur TV → Installation → sélection satellite / transpondeur → Recherche. Ne pas lancer de scan sans vérifier le tuner et la liste existante.")
+        }
+        if(!verified){report("Connecter pour ouvrir le MENU sur TV");return}
+        sendKey(6)
+    }
+
 
 
     private fun requestState(type:Int,from:Int=0,to:Int=0) {
@@ -198,23 +242,25 @@ class MainActivity : Activity() {
             if(!streamPending) return
             streamPending=false
             if(statusCode!=0){
-                report("Echolink a refusé le streaming (code "+statusCode+"). Vérifier SAT>IP.")
+                videoStatus("Refus du récepteur • réponse 1009 • code "+statusCode+
+                    ". Vérifier DVB To IPTV + abonnement SAT>IP / Apollo.")
                 return
             }
             val normalized=text.replace("\\/","/")
             val link=Regex("""rtsp://[^\s"'<>\\]+""", RegexOption.IGNORE_CASE)
                 .find(normalized)?.value?.trimEnd(',', '}', ']')
             if(link==null){
-                report("Réponse 1009 reçue, mais aucune URL RTSP. SAT>IP peut être désactivé.")
+                val detail=text.replace(Regex("[\\p{Cntrl}]")," ").take(220)
+                videoStatus("1009 accepté mais aucune URL RTSP détectée. Réponse: "+detail)
                 return
             }
             val streamHost=Uri.parse(link).host ?: ""
             if(!isPrivate(streamHost)){
-                report("Adresse du flux refusée (hors réseau local).")
+                videoStatus("Adresse du flux refusée (hors réseau local).")
                 return
             }
             streamOpened=true
-            report("URL RTSP reçue. Ouverture du lecteur vidéo…")
+            videoStatus("URL RTSP reçue. Test du lecteur en cours…")
             runOnUiThread {
                 val intent=Intent(this,LiveTvActivity::class.java)
                 intent.putExtra("stream_url",link)
@@ -238,6 +284,29 @@ class MainActivity : Activity() {
         }
         val recs=rows(text)
         when(kind){
+            22,23 -> {
+                if(kind==23 && recs.isEmpty())return
+                val output=recs.take(35).mapNotNull{ rec->
+                    val name=pick(rec,"SatelliteName","SatName","Name","Satellite","SatNameValue")
+                    val pos=pick(rec,"OrbitalPosition","Position","Angle")
+                    if(name!=null) "• "+name+(if(pos!=null)" · "+pos else "") else null
+                }
+                showField("Satellites", if(output.isNotEmpty()) output.joinToString("\n") else
+                    "Réponse reçue mais format inconnu (type "+kind+", "+body.size+" octets).")
+            }
+            24 -> {
+                val output=recs.take(35).mapNotNull{ rec->
+                    val freq=pick(rec,"Frequency","Freq","TPFreq","FrequencyMHz")
+                    val sym=pick(rec,"SymbolRate","Symbol","SR","SymRate")
+                    val pol=pick(rec,"Polarization","Pol","Polar")
+                    if(freq!=null) "• "+freq+" MHz"+(if(pol!=null)" / "+pol else "")+
+                        (if(sym!=null)" / "+sym else "") else null
+                }
+                showField("Transpondeurs",if(output.isNotEmpty())output.joinToString("\n")
+                    else "Le récepteur a répondu, mais aucune liste TP reconnue. "+
+                        "Statut "+statusCode+" · "+body.size+" octets. Opération lecture seule.")
+            }
+
             3 -> {
                 val id=recs.firstOrNull()?.let { pick(it,"Data","ProgramId","ServiceID") }
                 if(id!=null){currentChannelId=id;showCurrent()}
@@ -249,6 +318,15 @@ class MainActivity : Activity() {
             }
             14,15 -> {
                 val info=recs.firstOrNull() ?: return
+                val lvl=pick(info,"SignalStrength","SignalLevel","Signal","Strength")
+                val qual=pick(info,"SignalQuality","Quality","QualityLevel","SNR")
+                val ber=pick(info,"BER","Ber")
+                if(lvl!=null||qual!=null||ber!=null) {
+                    val pieces=listOfNotNull(lvl?.let{"Niveau: "+it},qual?.let{"Qualité: "+it},ber?.let{"BER: "+it})
+                    showField("Signal temps réel",pieces.joinToString(" · ")+" (récepteur, "+date+")")
+                    lastSignalUpdate=System.currentTimeMillis()
+                }
+
                 pick(info,"SoftwareVersion")?.let{showField("Firmware",it)}
                 pick(info,"ProductName","ModelName")?.let{runOnUiThread {diagnostics.text="Récepteur confirmé: "+it}}
                 pick(info,"ChannelNum")?.let{ n->
@@ -285,16 +363,16 @@ class MainActivity : Activity() {
     }
 
     private fun startLiveTv(){
-        if(!verified){report("Connecter Echolink avant le streaming.");return}
+        if(!verified){videoStatus("Connecter Echolink avant le streaming.");return}
         if(streamPending){report("Demande de vidéo déjà en cours…");return}
         val id=currentChannelId
         if(id.isBlank()){
-            report("Chaîne inconnue. Attendre la synchro, puis réessayer.")
+            videoStatus("Chaîne inconnue. Attendre la synchro, puis réessayer.")
             work.execute{try{requestState(3)}catch(_:Exception){}}
             return
         }
         streamPending=true
-        report("Demande du flux SAT>IP pour la chaîne "+(channelNames[id] ?: id)+"…")
+        videoStatus("Demande 1009 envoyée pour "+(channelNames[id] ?: id)+"…")
         work.execute {
             try {
                 val s=socket ?: throw IllegalStateException("Récepteur déconnecté")
@@ -313,12 +391,12 @@ class MainActivity : Activity() {
                 monitorWork.schedule({
                     if(streamPending){
                         streamPending=false
-                        report("Récepteur sans réponse pour vidéo (1009). SAT>IP à vérifier.")
+                        videoStatus("Pas de réponse 1009 en 12 s. Activer DVB To IPTV dans Système.")
                     }
                 },12,TimeUnit.SECONDS)
             }catch(e:Exception){
                 streamPending=false
-                report("Demande streaming impossible: "+(e.message ?: "erreur"))
+                videoStatus("Impossible d'interroger le flux : "+(e.message ?: "erreur"))
             }
         }
     }
@@ -377,9 +455,15 @@ class MainActivity : Activity() {
             val xml = "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"998\"><data>SatNova Alpha</data><uuid>$clientId</uuid></Command>"
             s.getOutputStream().write(frame(xml))
             s.getOutputStream().flush()
-            val (model,useJson,full) = decode(read(s.getInputStream(),108))
+            val loginBlock=read(s.getInputStream(),108)
+            val (model,useJson,full) = decode(loginBlock)
+            satIpFlag=((loginBlock.reversedArray()[84].toInt() xor 0x5B) and 0x18) shr 3
+            showField("Diagnostic vidéo","SAT>IP indicateur brut = "+satIpFlag+
+                " (firmware variable). Vérifier DVB To IPTV dans le menu Système.")
             if (full) throw IllegalStateException("Client slots full. Close SAT Chef first.")
             jsonMode = useJson
+            getSharedPreferences("satnova",Context.MODE_PRIVATE).edit()
+                .putString("last_receiver_ip",host).apply()
             socket = s
             setVerified(true)
             report("LOGIN VERIFIED: $model · " + if(useJson) "JSON" else "XML")
