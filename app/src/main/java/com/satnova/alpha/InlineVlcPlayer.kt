@@ -23,7 +23,7 @@ class InlineVlcPlayer(private val context:Context,private val view:VLCVideoLayou
         currentUrl=url
         try {
             val vlc=LibVLC(context,arrayListOf(
-                "--network-caching=550", "--live-caching=550",
+                "--network-caching=1250", "--live-caching=1250",
                 "--no-video-title-show"
             ))
             engine=vlc
@@ -33,14 +33,14 @@ class InlineVlcPlayer(private val context:Context,private val view:VLCVideoLayou
             mediaPlayer.setEventListener { event ->
                 when(event.type) {
                     MediaPlayer.Event.Playing -> status("LIVE • lecture du flux récepteur")
-                    MediaPlayer.Event.Buffering -> status("LIVE • mémoire tampon…")
+                    MediaPlayer.Event.Buffering -> status("LIVE • mise en mémoire tampon réseau…")
                     MediaPlayer.Event.EncounteredError -> status("Flux indisponible • vérifier la chaîne")
                     MediaPlayer.Event.EndReached -> status("Diffusion terminée")
                 }
             }
             val media=Media(vlc,Uri.parse(url))
-            media.addOption(":network-caching=550")
-            media.addOption(":live-caching=550")
+            media.addOption(":network-caching=1250")
+            media.addOption(":live-caching=1250")
             mediaPlayer.media=media
             media.release()
             mediaPlayer.volume=100
