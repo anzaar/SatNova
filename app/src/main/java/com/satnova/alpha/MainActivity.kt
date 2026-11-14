@@ -108,9 +108,15 @@ class MainActivity : Activity() {
     private fun report(value: String) = runOnUiThread {
         if (::status.isInitialized) status.text = value
     }
-    private fun setVerified(value: Boolean) = runOnUiThread {
+    private fun setVerified(value: Boolean) {
         verified = value
-        if (::connectButton.isInitialized) connectButton.text = if (value) "Disconnect" else "Connect"
+        runOnUiThread {
+            if (::connectButton.isInitialized) connectButton.text =
+                if (value) "Disconnect" else "Connect"
+            showField("État connexion", if (value)
+                "● Récepteur connecté • réseau dans Options"
+                else "● Hors ligne • toucher pour Options")
+        }
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -153,6 +159,16 @@ class MainActivity : Activity() {
         diagnostics = screen.diagnostics
         fieldViews.putAll(screen.fields)
         setContentView(screen.root)
+        // Auto-connect only to an IP previously verified by SatNova.
+        val rememberedIp=getSharedPreferences("satnova",Context.MODE_PRIVATE)
+            .getString("last_receiver_ip",null)
+        if(rememberedIp!=null && isPrivate(rememberedIp)){
+            showField("État connexion","● Reconnexion à "+rememberedIp+"…")
+            connect(rememberedIp)
+        }else{
+            showField("État connexion","● Non connecté • Options pour saisir l'IP")
+            showField("Chaîne actuelle","Connectez Echolink depuis Options")
+        }
 
         monitorWork.scheduleWithFixedDelay({
             if (verified) work.execute {
@@ -702,9 +718,9 @@ class MainActivity : Activity() {
             showField("Chaîne actuelle","Lecture en cours…")
             work.execute {
                 try {
+                    requestState(3)
                     requestState(15)
                     requestState(14)
-                    requestState(3)
                     requestState(19)
                 }catch(e:Exception){report("Initial state: "+e.message)}
             }
@@ -733,6 +749,7 @@ class MainActivity : Activity() {
         } catch (e: Exception) {
             disconnect()
             report("Connection/login failed: ${e.message}")
+            showField("État connexion","● Connexion échouée • Options réseau")
         }
     }
     private fun sendKey(value: Int) = remoteWork.execute {
