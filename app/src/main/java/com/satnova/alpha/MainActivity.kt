@@ -180,24 +180,65 @@ class MainActivity : Activity() {
     private fun tuneChannel(id:String,tvState:Int){
         if(!verified){report("Connectez le récepteur avant le zapping");return}
         if(!channelRecords.containsKey(id)){report("Chaîne inconnue");return}
+        targetTuneId=id
+        tuneMethod=0
+        tuneStartMillis=System.currentTimeMillis()
+        tuneAckStatus=-1
+        sendTune(id,tvState,false)
+    }
+    private fun sendTune(id:String,tvState:Int,flat:Boolean){
         work.execute{
             try{
+                if(!verified||socket==null)return@execute
+                if(targetTuneId!=id)return@execute
+                tuneMethod=if(flat)2 else 1
                 val payload=if(jsonMode){
-                    JSONObject().put("request","1000")
-                        .put("array",JSONArray().put(JSONObject()
-                            .put("TvState",tvState.toString()).put("ProgramId",id))).toString()
-                }else{
-                    "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1000\"><parm><TvState>"+
-                        tvState+"</TvState><ProgramId>"+id+"</ProgramId></parm></Command>"
+                    val req=JSONObject().put("request","1000")
+                    if(flat){
+                        req.put("TvState",tvState.toString()).put("ProgramId",id)
+                    }else{
+                        req.put("array",JSONArray().put(JSONObject()
+                            .put("TvState",tvState.toString()).put("ProgramId",id)))
+                    }
+                    req.toString()
+                }else {
+                    if(flat)
+                        "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1000\"><TvState>"+
+                            tvState+"</TvState><ProgramId>"+id+"</ProgramId></Command>"
+                    else
+                        "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1000\"><parm><TvState>"+
+                            tvState+"</TvState><ProgramId>"+id+"</ProgramId></parm></Command>"
                 }
                 val sock=socket ?: return@execute
                 sock.getOutputStream().write(frame(payload))
                 sock.getOutputStream().flush()
-                report("Zapping envoyé, en attente de confirmation…")
+                report(if(flat)"Test de zapping alternatif…"
+                    else "Zapping demandé au récepteur, vérification…")
+                showField("Dernière commande envoyée","1000 • "+id+
+                    " • mode "+(if(flat)"direct":"array")+" • état non confirmé")
                 monitorWork.schedule({
+                    if(!verified||targetTuneId!=id)return@schedule
                     work.execute{try{requestState(3)}catch(_:Exception){}}
-                },1200,TimeUnit.MILLISECONDS)
-            }catch(e:Exception){report("Échec du zapping : "+e.message)}
+                },1300,TimeUnit.MILLISECONDS)
+                monitorWork.schedule({
+                    if(!verified||targetTuneId!=id)return@schedule
+                    if(currentChannelId==id){
+                        report("Chaîne confirmée : "+(channelNames[id]?:id))
+                        targetTuneId=""
+                    }else if(!flat){
+                        report("Récepteur sans changement confirmé, essai compatibilité…")
+                        sendTune(id,tvState,true)
+                    }else {
+                        report("Zapping non confirmé. Réponse 1000 = "+
+                            (if(tuneAckStatus<0)"aucun ACK" else "code "+tuneAckStatus)+
+                            ". Vérifier que MENU/EPG est fermé sur TV.")
+                        targetTuneId=""
+                    }
+                },2600,TimeUnit.MILLISECONDS)
+            }catch(e:Exception){
+                report("Échec du zapping : "+(e.message?:"erreur"))
+                targetTuneId=""
+            }
         }
     }
     private fun videoStatus(text:String) { showField("Diagnostic vidéo","VIDÉO : "+text); report(text) }
@@ -286,6 +327,12 @@ class MainActivity : Activity() {
         val date=java.text.SimpleDateFormat("HH:mm:ss",java.util.Locale.US).format(java.util.Date())
         showField("Dernière réponse",date+" · type "+kind+" · code "+statusCode)
         showField("Données brutes reçues",if(text.isEmpty()) "(no body)" else text.take(900))
+        if(kind==1000){
+            tuneAckStatus=statusCode
+            if(statusCode!=0)report("Récepteur refuse le zapping : code "+statusCode+
+                if(statusCode==17)" (menu ouvert)" else "")
+            return
+        }
         if(kind==1009){
             if(!streamPending) return
             streamPending=false
@@ -378,7 +425,14 @@ class MainActivity : Activity() {
 
             3 -> {
                 val id=recs.firstOrNull()?.let { pick(it,"Data","ProgramId","ServiceID") }
-                if(id!=null){currentChannelId=id;showCurrent()}
+                if(id!=null){
+                    currentChannelId=id
+                    showCurrent()
+                    if(targetTuneId==id){
+                        report("Zapping confirmé : "+(channelNames[id]?:id))
+                        targetTuneId=""
+                    }
+                }
             }
             19 -> {
                 val value=recs.firstOrNull()?.let { pick(it,"Data","MuteState") }
