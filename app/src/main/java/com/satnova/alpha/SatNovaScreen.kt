@@ -313,7 +313,7 @@ class SatNovaScreen(
         brandTexts.addView(actualModel,margin(top=4))
         fields["Modèle du récepteur"]=actualModel
         branding.addView(brandTexts,LinearLayout.LayoutParams(0,-2,1f))
-        val version=text("α 1.4",10f,lavender,true).apply{
+        val version=text("α 1.4.2",10f,lavender,true).apply{
             gravity=Gravity.CENTER
             setPadding(9.dp,7.dp,9.dp,7.dp)
             background=shape(tileColor,24,hairline)
@@ -485,37 +485,42 @@ class SatNovaScreen(
         val padRow=row()
         val leftButtons=stack()
         fun remoteSide(parent:LinearLayout, label:String, code:Int){
-            val b=action(label,tileColor,textColor,40,Color.rgb(102,81,151),
-                onClick={remote(code)}).apply{textSize=12f}
-            parent.addView(b,margin(height=40,top=4,bottom=4))
+            val b=action(label,tileColor,textColor,48,Color.rgb(102,81,151),
+                onClick={remote(code)}).apply{
+                textSize=10f
+                contentDescription=label.replace("\n"," : ")
+            }
+            parent.addView(b,margin(height=48,top=3,bottom=3))
         }
-        remoteSide(leftButtons,"CH −",70)
-        remoteSide(leftButtons,"CH +",69)
-        remoteSide(leftButtons,"VOL −",36)
-        remoteSide(leftButtons,"VOL +",35)
+        remoteSide(leftButtons,"CH −\nPRÉCÉDENTE",70)
+        remoteSide(leftButtons,"CH +\nSUIVANTE",69)
+        remoteSide(leftButtons,"VOL −\nBAISSER",36)
+        remoteSide(leftButtons,"VOL +\nMONTER",35)
         padRow.addView(leftButtons,LinearLayout.LayoutParams(0,-2,0.90f))
         val wheel=SatNovaRemoteWheel(activity,remote).apply{
             contentDescription="Haut, bas, gauche, droite et OK"
         }
-        padRow.addView(wheel,LinearLayout.LayoutParams(0,204.dp,1.68f).apply{
+        padRow.addView(wheel,LinearLayout.LayoutParams(0,232.dp,1.68f).apply{
             setMargins(5.dp,0,5.dp,0)
         })
         val rightButtons=stack()
-        remoteSide(rightButtons,"MUTE",23)
-        remoteSide(rightButtons,"MENU",6)
-        remoteSide(rightButtons,"EXIT",7)
+        remoteSide(rightButtons,"MUTE\nCOUPER SON",23)
+        remoteSide(rightButtons,"MENU\nMENU TV",6)
+        remoteSide(rightButtons,"EXIT\nRETOUR",7)
         padRow.addView(rightButtons,LinearLayout.LayoutParams(0,-2,0.90f))
         mini.addView(padRow,margin(top=2))
+        mini.addView(text("Flèches : naviguer dans les menus TV  •  OK : confirmer la sélection",
+            10f,lavender),margin(top=6))
 
         val remoteFeedback=text("Télécommande connectée au récepteur",10f,secondary)
         fields["Retour télécommande"]=remoteFeedback
         mini.addView(remoteFeedback,margin(top=5))
         val extraInline=stack().apply{visibility=View.GONE}
-        remoteRow(extraInline,listOf("POWER" to 42,"EPG" to 32,"INFO" to 57))
+        remoteRow(extraInline,listOf("⏻ Allumer" to 42,"EPG • Guide" to 32,"INFO" to 57))
         listOf(listOf(1,2,3),listOf(4,5,6),listOf(7,8,9)).forEach{digits->
             remoteRow(extraInline,digits.map{it.toString() to (it+12)})
         }
-        remoteRow(extraInline,listOf("FAV" to 33,"0" to 12,"RECALL" to 29))
+        remoteRow(extraInline,listOf("★ Favoris" to 33,"0" to 12,"↶ Dernière" to 29))
         mini.addView(extraInline)
         val expandRemote=action("⌄  Afficher plus de commandes",tileColor,lavender,43,
             Color.rgb(106,78,163),onClick={
@@ -572,20 +577,20 @@ class SatNovaScreen(
 
         // Essentials first; all original keycodes preserved.
         val control = card(remotePage, top = 14)
-        section(control, "Télécommande", "Contrôle direct • Echolink")
-        remoteRow(control, listOf("⏻ Power" to 42, "Mute" to 23, "EPG" to 32))
-        remoteRow(control, listOf("VOL −" to 36, "▲" to 1, "VOL +" to 35))
-        remoteRow(control, listOf("◀" to 3, "OK" to 5, "▶" to 4))
-        remoteRow(control, listOf("CH −" to 70, "▼" to 2, "CH +" to 69))
-        remoteRow(control, listOf("MENU" to 6, "EXIT" to 7, "INFO" to 57))
+        section(control, "Télécommande", "Les libellés indiquent l'action envoyée au récepteur")
+        remoteRow(control, listOf("⏻ Marche" to 42, "Mute • Son" to 23, "EPG • Guide" to 32))
+        remoteRow(control, listOf("Vol −" to 36, "▲ Haut" to 1, "Vol +" to 35))
+        remoteRow(control, listOf("◀ Gauche" to 3, "OK • Valider" to 5, "▶ Droite" to 4))
+        remoteRow(control, listOf("CH −" to 70, "▼ Bas" to 2, "CH +" to 69))
+        remoteRow(control, listOf("Menu TV" to 6, "Exit • Retour" to 7, "Info" to 57))
 
         val extras = stack()
-        remoteRow(extras, listOf("FAV" to 33, "TV / RADIO" to 22, "RECALL" to 29))
+        remoteRow(extras, listOf("★ Favoris" to 33, "TV / RADIO" to 22, "↶ Dernière" to 29))
         listOf(listOf(1, 2, 3), listOf(4, 5, 6), listOf(7, 8, 9)).forEach { digits ->
             remoteRow(extras, digits.map { it.toString() to (it + 12) })
         }
-        remoteRow(extras, listOf("SUB" to 31, "0" to 12, "TXT" to 34))
-        remoteRow(extras, listOf("🔴" to 8, "🟢" to 9, "🟡" to 10, "🔵" to 11))
+        remoteRow(extras, listOf("Sous-titres" to 31, "0" to 12, "Télétexte" to 34))
+        remoteRow(extras, listOf("🔴 Rouge" to 8, "🟢 Vert" to 9, "🟡 Jaune" to 10, "🔵 Bleu" to 11))
         extras.visibility = View.GONE
         val more = action("＋  Pavé numérique et touches supplémentaires",
             tileColor, lavender, 46, hairline) {
