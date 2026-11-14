@@ -82,6 +82,8 @@ class MainActivity : Activity() {
     @Volatile private var lastRequest24 = 0L
     @Volatile private var totalChannelCount = 0
     @Volatile private var nextChannelIndex = 0
+    @Volatile private var fullCatalogRequested=false
+    @Volatile private var bootstrapCatalogPending=false
     private var monitorTicks = 0
     @Volatile private var socket: Socket? = null
     @Volatile private var verified = false
@@ -217,21 +219,18 @@ class MainActivity : Activity() {
             showField("Chaîne actuelle","Connectez Echolink depuis Options")
         }
 
+        // Lean receiver monitoring. Large catalogue and tuner probes are on-demand,
+        // not interleaved with live video or key presses on the one TCP session.
         monitorWork.scheduleWithFixedDelay({
             if(verified && !streamPending &&
-               System.currentTimeMillis()-lastRemotePressAt>4500L) work.execute{
-                if(!verified || streamPending ||
-                   System.currentTimeMillis()-lastRemotePressAt<=4500L)return@execute
-                try{
-                    requestState(3)
-                    requestState(19)
-                    monitorTicks++
-                    if(monitorTicks%5==0)requestState(15)
-                    if(monitorTicks%7==0)requestState(14)
-                    if(monitorTicks%7==0)requestState(26)
-                }catch(e:Exception){report("Synchronisation : "+e.message)}
+               System.currentTimeMillis()-lastRemotePressAt>5000L){
+                work.execute{
+                    if(verified && !streamPending){
+                        try{requestState(3)}catch(_:Exception){}
+                    }
+                }
             }
-        }, 6, 12, TimeUnit.SECONDS)
+        }, 15, 25, TimeUnit.SECONDS)
         // Dish alignment: do not poll unless the user explicitly starts this mode.
         monitorWork.scheduleWithFixedDelay({
             if(trackingSignal && verified) work.execute{
@@ -265,10 +264,11 @@ class MainActivity : Activity() {
         if(!verified){report("Connecter le récepteur pour les chaînes");return}
         screen.updateChannels(currentChannelsOrdered(), totalChannelCount>0 &&
             channelRecords.size>=totalChannelCount)
+        fullCatalogRequested=true
         work.execute{
             try{
-                requestState(15)
-                if(totalChannelCount>0 && channelRecords.isEmpty())requestNextChannelPage()
+                if(totalChannelCount<=0)requestState(14)
+                else if(nextChannelIndex<totalChannelCount)requestNextChannelPage()
             }catch(e:Exception){report("Chargement chaînes : "+e.message)}
         }
     }
@@ -705,10 +705,18 @@ class MainActivity : Activity() {
                     showField("Nombre de chaînes",n+" (confirmé)")
                     val count=n.toIntOrNull()
                     if(count!=null&&count>0&&count!=totalChannelCount){
-                        totalChannelCount=count;nextChannelIndex=0;channelNames.clear()
-                        channelRecords.clear();channelOrder.clear()
+                        totalChannelCount=count;nextChannelIndex=0
+                        channelNames.clear();channelRecords.clear();channelOrder.clear()
                         screen.updateChannels(emptyList(),false)
-                        work.execute{try{requestNextChannelPage()}catch(_:Exception){}}
+                        bootstrapCatalogPending=true
+                        monitorWork.schedule({
+                            if(verified && bootstrapCatalogPending){
+                                bootstrapCatalogPending=false
+                                work.execute{
+                                    try{requestNextChannelPage()}catch(_:Exception){}
+                                }
+                            }
+                        },2500,TimeUnit.MILLISECONDS)
                     }
                 }
                 pick(info,"MuteState")?.let{showField("Mute",if(it=="1")"ON (rapporté)" else "OFF (rapporté)")}
@@ -733,7 +741,8 @@ class MainActivity : Activity() {
                 }
                 showCurrent()
                 screen.updateChannels(currentChannelsOrdered(),totalChannelCount>0&&channelRecords.size>=totalChannelCount)
-                if(recs.isNotEmpty()&&nextChannelIndex<totalChannelCount&&nextChannelIndex<3000)
+                if(fullCatalogRequested && recs.isNotEmpty() &&
+                   nextChannelIndex<totalChannelCount && nextChannelIndex<3000)
                     monitorWork.schedule({
                         if(verified)work.execute{
                             if(streamPending){
@@ -949,24 +958,14 @@ class MainActivity : Activity() {
             showField("Chaîne actuelle","Lecture en cours…")
             work.execute {
                 try{
+                    // Order matters on single-session G-MScreen devices:
+                    // tune state, receiver info, then one initial channel page.
                     requestState(3)
-                    requestState(15)
                     requestState(14)
                     requestState(19)
                 }catch(e:Exception){report("Initial state: "+e.message)}
-                // Preserve startup video priority. Metadata requests (22 and the
-                // firmware-specific 24) must not overtake the live stream URL (1009).
-                monitorWork.schedule({
-                    if(verified)work.execute{
-                        try{
-                            if(streamPending){
-                                monitorWork.schedule({
-                                    if(verified)work.execute{loadTunerMetadata()}
-                                },12,TimeUnit.SECONDS)
-                            }else loadTunerMetadata()
-                        }catch(e:Exception){report("Tuner metadata: "+e.message)}
-                    }
-                },19,TimeUnit.SECONDS)
+                // Satellite/TP lists are fetched when the user opens Satellites.
+                // No background request 24 or full-channel sweep on startup.
             }
             Thread {
                 try {
@@ -987,7 +986,11 @@ class MainActivity : Activity() {
                         handleReply(kind,statusCode,decoded)
                     }
                 } catch (e: Exception) {
-                    if (socket === s) { socket = null; setVerified(false); report("Connection lost: ${e.message}") }
+                    if(socket===s){
+                        disconnect()
+                        report("Connexion fermée par le récepteur : "+(e.message?:"session interrompue")+
+                            ". Fermez SAT Chef/G-MScreen puis reconnectez-vous à SatNova.")
+                    }
                 } finally { try { s.close() } catch (_: Exception) { } }
             }.apply { isDaemon = true; start() }
         } catch (e: Exception) {
@@ -1131,9 +1134,28 @@ class MainActivity : Activity() {
     private fun disconnect() {
         trackingSignal=false
         if(::screen.isInitialized)screen.updateSignalTracking(false)
-        verified = false
-        val s = socket; socket = null
-        try { s?.close() } catch (_: Exception) { }
+        verified=false
+        val old=socket;socket=null
+        try{old?.close()}catch(_:Exception){}
+        // Never carry a previous receiver's channel metadata or pending streams
+        // into a re-established session (it can refer to another tuner state).
+        currentChannelId=""
+        currentTvState=0
+        totalChannelCount=0
+        nextChannelIndex=0
+        fullCatalogRequested=false
+        bootstrapCatalogPending=false
+        channelNames.clear()
+        channelRecords.clear()
+        channelOrder.clear()
+        satelliteRecords.clear()
+        transponderRecords.clear()
+        targetTuneId=""
+        if(::screen.isInitialized){
+            screen.updateChannels(emptyList(),false)
+            screen.updateSatellites(emptyList())
+            screen.updateTransponders(emptyList())
+        }
         setVerified(false)
     }
     override fun onDestroy() {
