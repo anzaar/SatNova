@@ -171,6 +171,7 @@ class MainActivity : Activity() {
             },
             onWatch = { retryInlineStream() },
             onSwitchPlayer = { inlinePlayer?.tryAndroid() },
+            onClassicPlayer = { openClassicVlc() },
             onReadSatellites = { readSatellites() },
             onReadTransponders = { readTransponders() },
             onReadSignal = { toggleSignalTracking() },
@@ -748,6 +749,23 @@ class MainActivity : Activity() {
         }
     }
 
+    /** Recovery path: use the exact original 0.8 VLC Activity, not a new player. */
+    private fun openClassicVlc(){
+        if(!verified){
+            report("Connecter Echolink avant de lancer le lecteur")
+            return
+        }
+        val url=activeStreamUrl
+        if(url.isNullOrBlank()){
+            report("Pas encore de lien vidéo du récepteur. Relancer le flux.")
+            return
+        }
+        inlinePlayer?.pause()
+        startActivity(Intent(this,VlcLiveActivity::class.java).apply{
+            putExtra("stream_url",url)
+            putExtra("channel_title",channelNames[currentChannelId] ?: "Chaîne du récepteur")
+        })
+    }
     private fun retryInlineStream(){
         if(!verified){report("Connectez le récepteur.");return}
         if(streamPending){report("Demande vidéo déjà en cours.");return}
@@ -993,11 +1011,29 @@ class MainActivity : Activity() {
                     "{\"request\":\"1040\",\"array\":[{\"KeyValue\":\"$value\"}]}"
                 else
                     "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1040\"><parm><KeyValue>$value</KeyValue></parm></Command>"
-                // Same serial command queue as SatNova 0.1–0.3.
-                // Do not send from a competing executor while receiver state pages load.
+                // SatNova 0.2/0.3 sent 1040 and then asked for receiver states 3/19
+                // on CH/Volume/Mute. Restore that real feedback without blocking keys.
                 sendFrame(s,payload)
                 showField("Dernière commande envoyée","1040 • touche "+value+" • en attente")
                 showField("Retour télécommande","Touche "+value+" transmise • contrôle du résultat sur TV")
+                if(value in listOf(69,70,35,36,23)){
+                    val pressAt=lastRemotePressAt
+                    monitorWork.schedule({
+                        if(verified && !streamPending && lastRemotePressAt==pressAt){
+                            work.execute{
+                                if(verified && !streamPending){
+                                    try{
+                                        requestState(3)
+                                        requestState(19)
+                                    }catch(e:Exception){
+                                        showField("Retour télécommande",
+                                            "Retour de vérification indisponible : "+e.message)
+                                    }
+                                }
+                            }
+                        }
+                    },420,TimeUnit.MILLISECONDS)
+                }
             }catch(e:Exception){
                 report("Télécommande : "+(e.message?:"échec d'envoi"))
                 showField("Retour télécommande","Échec de l'envoi : "+(e.message?:"connexion"))
