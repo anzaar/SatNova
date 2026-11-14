@@ -303,7 +303,7 @@ class SatNovaScreen(
         brandTexts.addView(text("SATNOVA  •  LIVE TV",21f,textColor,true))
         brandTexts.addView(text("CONTROL YOUR UNIVERSE",9f,lavender,true),margin(top=4))
         branding.addView(brandTexts,LinearLayout.LayoutParams(0,-2,1f))
-        val version=text("α 1.3",10f,lavender,true).apply{
+        val version=text("α 1.3.1",10f,lavender,true).apply{
             gravity=Gravity.CENTER
             setPadding(9.dp,7.dp,9.dp,7.dp)
             background=shape(tileColor,24,hairline)
