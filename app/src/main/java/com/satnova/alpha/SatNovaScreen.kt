@@ -208,6 +208,7 @@ class SatNovaScreen(
     }
 
     private val remote: (Int) -> Unit = onKey
+    private val connectDiscovered: (String) -> Unit = onSelectReceiver
 
     init {
         root.apply {
@@ -604,7 +605,7 @@ class SatNovaScreen(
         if(!discoveredHosts.add(host))return@runOnUiThread
         if(discoveredHosts.size==1)discoveryResults.removeAllViews()
         val item=action((model?:"Appareil possible")+" • "+host+"   → Connecter",
-            tileColor,lavender,52,onClick={onSelectReceiver(host)})
+            tileColor,lavender,52,onClick={connectDiscovered(host)})
         discoveryResults.addView(item,margin(bottom=8))
     }
     fun discoveryMessage(message:String)=activity.runOnUiThread {
