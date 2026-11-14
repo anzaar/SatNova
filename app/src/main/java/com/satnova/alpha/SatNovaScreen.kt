@@ -19,6 +19,7 @@ import android.widget.ScrollView
 import android.widget.Space
 import android.widget.TextView
 import org.videolan.libvlc.util.VLCVideoLayout
+import androidx.media3.ui.PlayerView
 import org.json.JSONObject
 
 /**
@@ -68,6 +69,8 @@ class SatNovaScreen(
     private lateinit var discoveryResults: LinearLayout
     private val discoveredHosts=linkedSetOf<String>()
     lateinit var inlineVideo: VLCVideoLayout
+        private set
+    lateinit var inlineExoVideo: PlayerView
         private set
     private lateinit var inlinePoster: TextView
     private var streamHasPlayed = false
@@ -313,7 +316,7 @@ class SatNovaScreen(
         brandTexts.addView(actualModel,margin(top=4))
         fields["Modèle du récepteur"]=actualModel
         branding.addView(brandTexts,LinearLayout.LayoutParams(0,-2,1f))
-        val version=text("α 1.4.2",10f,lavender,true).apply{
+        val version=text("α 1.5",10f,lavender,true).apply{
             gravity=Gravity.CENTER
             setPadding(9.dp,7.dp,9.dp,7.dp)
             background=shape(tileColor,24,hairline)
@@ -418,6 +421,13 @@ class SatNovaScreen(
             contentDescription="Vidéo du récepteur • toucher pour relancer"
             setOnClickListener{onWatch()}
         }
+        inlineExoVideo=PlayerView(activity).apply{
+            setBackgroundColor(Color.BLACK)
+            useController=false
+            keepScreenOn=true
+            visibility=View.GONE
+        }
+        videoFrame.addView(inlineExoVideo,FrameLayout.LayoutParams(-1,-1))
         inlineVideo=VLCVideoLayout(activity).apply{
             setBackgroundColor(Color.BLACK)
             keepScreenOn=true
@@ -475,6 +485,8 @@ class SatNovaScreen(
         val videoDiagnostic=text("",10f,secondary).apply{visibility=View.GONE}
         hero.addView(videoDiagnostic,margin(top=5))
         fields["Diagnostic vidéo"]=videoDiagnostic
+        hero.addView(action("↻  Réessayer le flux de la chaîne",tileColor,lavender,42,
+            onClick=onWatch),margin(top=8))
 
         // Purple remote card inspired by the supplied mockup, with a native hit-tested D-pad.
         val mini=card(page,top=12).apply{
@@ -482,35 +494,23 @@ class SatNovaScreen(
             background=shape(Color.rgb(21,19,46),24,Color.rgb(86,55,142),
                 colors=intArrayOf(Color.rgb(37,29,68),Color.rgb(19,18,41)))
         }
-        val padRow=row()
-        val leftButtons=stack()
-        fun remoteSide(parent:LinearLayout, label:String, code:Int){
-            val b=action(label,tileColor,textColor,48,Color.rgb(102,81,151),
-                onClick={remote(code)}).apply{
-                textSize=10f
-                contentDescription=label.replace("\n"," : ")
-            }
-            parent.addView(b,margin(height=48,top=3,bottom=3))
-        }
-        remoteSide(leftButtons,"CH −\nPRÉCÉDENTE",70)
-        remoteSide(leftButtons,"CH +\nSUIVANTE",69)
-        remoteSide(leftButtons,"VOL −\nBAISSER",36)
-        remoteSide(leftButtons,"VOL +\nMONTER",35)
-        padRow.addView(leftButtons,LinearLayout.LayoutParams(0,-2,0.90f))
+        // Readable full-width controls replace the formerly clipped blank side capsules.
+        // The native circular directional pad remains interactive and keeps original codes.
         val wheel=SatNovaRemoteWheel(activity,remote).apply{
-            contentDescription="Haut, bas, gauche, droite et OK"
+            contentDescription="Navigation : HAUT, BAS, GAUCHE, DROITE, OK pour valider"
         }
-        padRow.addView(wheel,LinearLayout.LayoutParams(0,232.dp,1.68f).apply{
-            setMargins(5.dp,0,5.dp,0)
-        })
-        val rightButtons=stack()
-        remoteSide(rightButtons,"MUTE\nCOUPER SON",23)
-        remoteSide(rightButtons,"MENU\nMENU TV",6)
-        remoteSide(rightButtons,"EXIT\nRETOUR",7)
-        padRow.addView(rightButtons,LinearLayout.LayoutParams(0,-2,0.90f))
-        mini.addView(padRow,margin(top=2))
-        mini.addView(text("Flèches : naviguer dans les menus TV  •  OK : confirmer la sélection",
-            10f,lavender),margin(top=6))
+        val wheelRow=row()
+        wheelRow.addView(Space(activity),LinearLayout.LayoutParams(0,1,1f))
+        wheelRow.addView(wheel,LinearLayout.LayoutParams(198.dp,198.dp))
+        wheelRow.addView(Space(activity),LinearLayout.LayoutParams(0,1,1f))
+        mini.addView(wheelRow,margin(top=2))
+        mini.addView(text("Flèches : naviguer  •  OK : valider",11f,lavender).apply{
+            gravity=Gravity.CENTER
+        },margin(top=1,bottom=6))
+        remoteRow(mini,listOf("CH − • Précédente" to 70,"CH + • Suivante" to 69))
+        remoteRow(mini,listOf("VOL − • Baisser" to 36,"VOL + • Monter" to 35))
+        remoteRow(mini,listOf("MUTE • Couper son" to 23,"MENU • Menu TV" to 6))
+        remoteRow(mini,listOf("EXIT • Retour" to 7,"INFO • Détails" to 57))
 
         val remoteFeedback=text("Télécommande connectée au récepteur",10f,secondary)
         fields["Retour télécommande"]=remoteFeedback
