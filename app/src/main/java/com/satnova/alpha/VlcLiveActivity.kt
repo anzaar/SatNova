@@ -25,6 +25,7 @@ class VlcLiveActivity : Activity() {
     private var engine: LibVLC?=null
     private var player: MediaPlayer?=null
     private var url=""
+    private var videoStarted=false
     private val navy=Color.rgb(9,15,29)
     private val accent=Color.rgb(180,174,255)
     private val Int.dp get()=(this*resources.displayMetrics.density+0.5f).toInt()
@@ -109,8 +110,8 @@ class VlcLiveActivity : Activity() {
             mp.setEventListener{event->
                 runOnUiThread{
                     status.text=when(event.type){
-                        MediaPlayer.Event.Playing -> "LIVE • Lecture vidéo + décodage audio VLC"
-                        MediaPlayer.Event.Buffering -> "Chargement du flux local…"
+                        MediaPlayer.Event.Playing -> { videoStarted=true; "LIVE • Vidéo décodée par VLC • son à vérifier" }
+                        MediaPlayer.Event.Buffering -> if(videoStarted) "LIVE • Flux en cours, mémoire tampon…" else "Chargement du flux local…"
                         MediaPlayer.Event.EncounteredError -> "Erreur de lecture VLC. Vérifier le flux et la chaîne."
                         MediaPlayer.Event.EndReached -> "Flux terminé par le récepteur."
                         else -> status.text.toString()
