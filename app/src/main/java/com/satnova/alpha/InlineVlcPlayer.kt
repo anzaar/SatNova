@@ -14,14 +14,13 @@ import java.util.concurrent.atomic.AtomicLong
 
 /** Native network/decoder shutdown must never block the Android event loop. */
 class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayout,
-                      private val status:(String)->Unit,private val buffering:(Boolean)->Unit={},private val failed:()->Unit={},private val diagnostic:(String)->Unit={}) {
+                      private val status:(String)->Unit,private val buffering:(Boolean)->Unit={},private val failed:()->Unit={},private val diagnostic:(String)->Unit={},private val playing:()->Unit={}) {
     private val worker=Executors.newSingleThreadExecutor()
     private val main=Handler(Looper.getMainLooper())
     private val generation=AtomicLong()
     private var engine:LibVLC?=null
     private var player:MediaPlayer?=null
     private var currentUrl:String?=null
-    private var relay:ReceiverHttpRelay?=null
     private var closed=false
     private var requestedUrl:String?=null
 
@@ -44,8 +43,8 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
             releasePlayer()
             if(ticket!=generation.get())return@execute
             try {
-                val vlc=LibVLC(context.applicationContext,arrayListOf(
-                    "--network-caching=1800","--live-caching=1800","--no-video-title-show"))
+                val vlc=LibVLC(context,arrayListOf(
+                    "--network-caching=550","--live-caching=550","--no-video-title-show"))
                 engine=vlc
                 val mp=MediaPlayer(vlc)
                 player=mp
@@ -55,6 +54,8 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
                 var lastBufferState:Boolean?=null
                 var lastNoticeAt=0L
                 mp.setEventListener { event ->
+                    if(event.type==MediaPlayer.Event.Playing)
+                        main.post{if(ticket==generation.get())playing()}
                     val progress=if(event.type==MediaPlayer.Event.Buffering)event.buffering else 100f
                     val waiting=event.type==MediaPlayer.Event.Buffering && progress<100f
                     val message=when(event.type){
@@ -77,14 +78,11 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
                         }
                     }
                 }
-                val playbackUrl=if(url.startsWith("http://",true)){
-                    ReceiverHttpRelay(url){info->main.post{if(ticket==generation.get())diagnostic(info)}}
-                        .also{relay=it}.localUrl
-                }else url
-                val media=Media(vlc,Uri.parse(playbackUrl))
+                main.post{if(ticket==generation.get())diagnostic("Lecture directe • configuration vidéo 1.2")}
+                val media=Media(vlc,Uri.parse(url))
                 try {
-                    media.addOption(":network-caching=1800")
-                    media.addOption(":live-caching=1800")
+                    media.addOption(":network-caching=550")
+                    media.addOption(":live-caching=550")
                     mp.media=media
                 } finally {media.release()}
                 mp.volume=100
@@ -117,8 +115,6 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
         val old=player
         player=null
         currentUrl=null
-        // Close the owned HTTP sockets first so VLC stop cannot wait on a stalled upstream.
-        relay?.close();relay=null
         try{old?.setEventListener(null)}catch(_:Exception){}
         try{old?.stop()}catch(_:Exception){}
         try{onMain{old?.detachViews()}}catch(_:Exception){}

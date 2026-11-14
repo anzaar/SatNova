@@ -25,7 +25,7 @@ class SignalPanel(private val activity:Activity,private val onToggle:()->Unit) {
     private fun label(s:String,size:Float=13f)=TextView(activity).apply{
         text=s;textSize=size;setTextColor(Color.rgb(224,224,245));includeFontPadding=false
     }
-    private val heading=label("SIGNAL • EN ATTENTE",10f)
+    private val heading=label("▶ MESURER LE SIGNAL",10f)
     private val strengthText=label("Force  —",13f)
     private val qualityText=label("Qualité  —",13f)
     private val strengthBar=ProgressBar(activity,null,android.R.attr.progressBarStyleHorizontal).apply{
@@ -34,7 +34,7 @@ class SignalPanel(private val activity:Activity,private val onToggle:()->Unit) {
     private val qualityBar=ProgressBar(activity,null,android.R.attr.progressBarStyleHorizontal).apply{
         max=100;progressTintList=ColorStateList.valueOf(green)
     }
-    private val state=label("Lecture du tuner…",11f)
+    private val state=label("Toucher pour régler la parabole",11f)
     private val sound=label("♫  Son",12f)
     private val handler=Handler(Looper.getMainLooper())
     private var active=false
@@ -49,7 +49,8 @@ class SignalPanel(private val activity:Activity,private val onToggle:()->Unit) {
             val fresh=sampledAt>0 && SystemClock.elapsedRealtime()-sampledAt<=4500
             if(!fresh){
                 clearBars()
-                heading.text="SIGNAL • EN ATTENTE"
+                heading.text="■ RÉGLAGE • RETOUR VIDÉO"
+                heading.setTextColor(purple)
                 if(sampledAt>0){state.text="Actualisation de la mesure…";state.visibility=View.VISIBLE}
                 tone?.stopTone()
             }
@@ -66,6 +67,10 @@ class SignalPanel(private val activity:Activity,private val onToggle:()->Unit) {
     init {
         val top=LinearLayout(activity).apply{gravity=Gravity.CENTER_VERTICAL}
         heading.setTextColor(purple)
+        heading.isClickable=true;heading.isFocusable=true
+        heading.setPadding(0,10.dp,8.dp,10.dp)
+        heading.setOnClickListener{onToggle()}
+        heading.contentDescription="Basculer entre lecture vidéo et réglage du signal"
         top.addView(heading,LinearLayout.LayoutParams(0,-2,1f))
         sound.gravity=Gravity.CENTER
         sound.setPadding(12.dp,10.dp,12.dp,10.dp)
@@ -104,15 +109,15 @@ class SignalPanel(private val activity:Activity,private val onToggle:()->Unit) {
         active=value;root.keepScreenOn=value
         handler.removeCallbacks(pulse)
         sampledAt=0L;sample=null;clearBars()
-        heading.text=if(value)"SIGNAL • CONNEXION…" else "SIGNAL • EN PAUSE"
-        state.text=if(value)"Lecture du tuner…" else ""
-        state.visibility=if(value)View.VISIBLE else View.GONE
+        heading.text=if(value)"■ RÉGLAGE • RETOUR VIDÉO" else "▶ MESURER LE SIGNAL"
+        state.text=if(value)"Vidéo en pause pendant la mesure" else "Toucher pour régler la parabole"
+        state.visibility=View.VISIBLE
         if(value)handler.post(pulse) else tone?.stopTone()
     }
     fun update(value:ReceiverTelemetry.Signal,at:Long){
         if(!active || closed)return
         sample=value;sampledAt=at
-        heading.text="● SIGNAL EN DIRECT"
+        heading.text="■ RÉGLAGE • RETOUR VIDÉO"
         heading.setTextColor(green)
         strengthText.text="Force  "+(value.strength?.let{"$it %"}?:"—")
         qualityText.text="Qualité  "+(value.quality?.let{"$it %"}?:"—")
