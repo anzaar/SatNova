@@ -185,16 +185,25 @@ class CatalogPanel(
     }
     fun updateChannels(rows:List<JSONObject>,fullyLoaded:Boolean){
         channels=rows.toList();complete=fullyLoaded;renderChannels()
+        if(satellites.isNotEmpty())renderSatelliteList()
         if(selectedSatellite!=null)renderTps()
     }
     fun updateSatellites(rows:List<JSONObject>){
         satellites=rows.toList()
-        satNotice.text=rows.size.toString()+" satellite(s) reçu(s)"
+        renderSatelliteList()
+    }
+    private fun renderSatelliteList(){
+        satNotice.text=satellites.size.toString()+" satellites configurés • présence ≠ signal"
         satelliteList.removeAllViews()
-        rows.forEach{sat->
+        satellites.forEach{sat->
             val name=satLabel(sat)
-            val channelCount=channels.count{sameSatellite(it,sat)}
-            satelliteList.addView(tile("🛰  "+name+(if(channelCount>0)" · "+channelCount+" chaînes" else "")){
+            val linked=channels.count{sameSatellite(it,sat)}
+            val status=when{
+                linked>0 -> "● "+linked+" chaîne(s) enregistrée(s)"
+                complete && tps.isNotEmpty() -> "○ 0 chaîne enregistrée"
+                else -> "◌ Chaînes non vérifiées"
+            }
+            satelliteList.addView(tile("🛰  "+name+"\n"+status+"  ·  Signal non mesuré"){
                 selectedSatellite=sat;selectedTp=null;tpRead=false
                 tpList.removeAllViews();tpDetail.removeAllViews()
                 tpNotice.text="Lecture des fréquences de "+name+"…"
@@ -204,6 +213,7 @@ class CatalogPanel(
     }
     fun updateTps(rows:List<JSONObject>,received:Boolean=true){
         tps=rows.toList();tpRead=received;renderTps()
+        if(satellites.isNotEmpty())renderSatelliteList()
     }
     fun updateSignal(s:String){
         signalNotice.text=s
@@ -297,10 +307,10 @@ class CatalogPanel(
         tpNotice.text=linked.size.toString()+" transpondeur(s) associés à "+satLabel(sat)
         linked.forEach{tp->
             val matches=channels.filter{sameSatellite(it,sat)&&sameTp(it,tp)}
-            val known=channels.any{sameSatellite(it,sat)&&freq(it)!=null}&&freq(tp)!=null
+            val known=complete&&tpIndex(tp)!=null&&satId(tp)!=null&&satId(sat)!=null
             val status=when{
                 matches.isNotEmpty()->matches.size.toString()+" chaîne(s)"
-                complete&&known->"0 chaîne associée (dans la liste reçue)"
+                known->"0 chaîne enregistrée sur ce TP"
                 else->"Chaînes non déterminées"
             }
             val line=listOfNotNull(freq(tp)?.let{it+" MHz"},pol(tp),sr(tp)?.let{"SR "+it}).joinToString(" · ")
