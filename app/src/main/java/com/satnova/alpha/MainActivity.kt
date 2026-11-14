@@ -846,7 +846,7 @@ class MainActivity : Activity() {
     // Crucially, do not interleave follow-up state probes with rapid remote presses.
     private fun sendKey(value:Int){
         lastRemotePressAt=System.currentTimeMillis()
-        remoteWork.execute{
+        work.execute{
             val s=socket
             if(!verified||s==null){
                 report("Récepteur non connecté")
@@ -857,6 +857,8 @@ class MainActivity : Activity() {
                     "{\"request\":\"1040\",\"array\":[{\"KeyValue\":\"$value\"}]}"
                 else
                     "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1040\"><parm><KeyValue>$value</KeyValue></parm></Command>"
+                // Same serial command queue as SatNova 0.1–0.3.
+                // Do not send from a competing executor while receiver state pages load.
                 sendFrame(s,payload)
                 showField("Dernière commande envoyée","1040 • touche "+value+" • en attente")
                 showField("Retour télécommande","Touche "+value+" transmise • contrôle du résultat sur TV")
