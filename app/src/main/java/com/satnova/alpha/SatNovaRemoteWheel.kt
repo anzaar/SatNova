@@ -78,13 +78,27 @@ class SatNovaRemoteWheel(
         canvas.drawCircle(cx,cy,inside-2f,outline)
         labelPaint.textSize=21f*resources.displayMetrics.scaledDensity
         canvas.drawText("OK",cx,cy-(labelPaint.ascent()+labelPaint.descent())/2f,labelPaint)
-        labelPaint.textSize=32f*resources.displayMetrics.scaledDensity
-        val d=radius*0.7f
-        for((text,x,y) in listOf(
-            Triple("⌃",cx,cy-d),Triple("›",cx+d,cy),
-            Triple("⌄",cx,cy+d),Triple("‹",cx-d,cy))){
-            canvas.drawText(text,x,y-(labelPaint.ascent()+labelPaint.descent())/2f,labelPaint)
+        val d=radius*0.70f
+        val density=resources.displayMetrics.density
+        labelPaint.textSize=27f*resources.displayMetrics.scaledDensity
+        for((symbol,x,y) in listOf(
+            Triple("⌃",cx,cy-d-7*density),
+            Triple("›",cx+d,cy-8*density),
+            Triple("⌄",cx,cy+d-8*density),
+            Triple("‹",cx-d,cy-8*density))){
+            canvas.drawText(symbol,x,y-(labelPaint.ascent()+labelPaint.descent())/2f,labelPaint)
         }
+        // Fully named directions: accessible for users unfamiliar with icons.
+        labelPaint.textSize=8f*resources.displayMetrics.scaledDensity
+        labelPaint.color=lavender
+        for((name,x,y) in listOf(
+            Triple("HAUT",cx,cy-d+14*density),
+            Triple("DROITE",cx+d,cy+19*density),
+            Triple("BAS",cx,cy+d+19*density),
+            Triple("GAUCHE",cx-d,cy+19*density))){
+            canvas.drawText(name,x,y,labelPaint)
+        }
+        labelPaint.color=Color.WHITE
     }
     private fun zone(x:Float,y:Float):Int{
         val dx=x-width/2f;val dy=y-height/2f
