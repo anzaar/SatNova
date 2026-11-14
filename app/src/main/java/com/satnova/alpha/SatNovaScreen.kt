@@ -318,7 +318,7 @@ class SatNovaScreen(
         brandTexts.addView(actualModel,margin(top=4))
         fields["Modèle du récepteur"]=actualModel
         branding.addView(brandTexts,LinearLayout.LayoutParams(0,-2,1f))
-        val version=text("α 1.6",10f,lavender,true).apply{
+        val version=text("α 1.6.1",10f,lavender,true).apply{
             gravity=Gravity.CENTER
             setPadding(9.dp,7.dp,9.dp,7.dp)
             background=shape(tileColor,24,hairline)
