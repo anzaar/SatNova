@@ -46,6 +46,11 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
+          LATEST_SHA="$(gh api "repos/${GH_REPO}/commits/main" --jq '.sha')"
+          if [ "$LATEST_SHA" != "$GITHUB_SHA" ]; then
+            echo "Skipping outdated APK publication: $GITHUB_SHA (latest $LATEST_SHA)"
+            exit 0
+          fi
           cp app/build/outputs/apk/debug/app-debug.apk SatNova-Latest.apk
           if ! gh release view alpha-latest >/dev/null 2>&1; then
             gh release create alpha-latest \
