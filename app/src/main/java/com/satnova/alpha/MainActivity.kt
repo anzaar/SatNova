@@ -80,6 +80,7 @@ class MainActivity : Activity() {
     @Volatile private var foreground=true
     @Volatile private var videoBuffering=false
     private val streamGate=LiveStreamGate()
+    private val streamWatchdog=LiveStreamWatchdog()
     @Volatile private var recoveringStream=false
     private var streamRecoveryAttempts=0
     private var resumeReceiverHost:String?=null
@@ -137,6 +138,8 @@ class MainActivity : Activity() {
             autoStreamRequestId=""
             streamPending=false
             streamGate.reset()
+            streamWatchdog.reset()
+            videoBuffering=false
             currentChannelId=""
         }
         runOnUiThread {
@@ -219,7 +222,10 @@ class MainActivity : Activity() {
                 screen.setVideoPlaying(true)
                 loadTunerMetadata()
             }
-        },buffering={waiting->videoBuffering=waiting},failed={recoverFreshLive("Flux interrompu")})
+        },buffering={waiting->
+            videoBuffering=waiting
+            streamWatchdog.buffering(waiting,android.os.SystemClock.elapsedRealtime())
+        },failed={recoverFreshLive("Flux interrompu")})
         screen.setReceiverOnline(false)
         // Auto-connect only to an IP previously verified by SatNova.
         val rememberedIp=getSharedPreferences("satnova",Context.MODE_PRIVATE)
@@ -248,6 +254,8 @@ class MainActivity : Activity() {
             }
         }, 6, 12, TimeUnit.SECONDS)
         monitorWork.scheduleWithFixedDelay({
+            if(verified && foreground && streamWatchdog.takeStall(android.os.SystemClock.elapsedRealtime()))
+                recoverFreshLive("Le chargement vidéo est bloqué")
             if(signalMonitoring && verified && foreground){
                 val now=android.os.SystemClock.elapsedRealtime()
                 if(now-signalRequestAt>=3500L &&

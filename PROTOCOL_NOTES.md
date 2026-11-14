@@ -51,3 +51,8 @@ Backgrounding closes playback and the control session. Returning logs in again
 and reads request 3 before requesting video; it never plays the previous URL.
 A media failure or URL timeout permits one fresh-session recovery, with further
 retries initiated by touching the player rather than an endless reconnect loop.
+
+A buffering watchdog handles the observed black-screen/0-percent state: fifteen
+seconds without leaving buffering triggers the same bounded fresh-session recovery,
+even when LibVLC does not raise an error/end event. Successful playback, backgrounding
+and session changes cancel that deadline. Repeated buffering notices do not reset it.
