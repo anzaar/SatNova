@@ -16,6 +16,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Space
 import android.widget.TextView
+import org.json.JSONObject
 
 /**
  * SatNova 0.4 visual refresh. UI only: network/protocol logic stays in MainActivity.
@@ -33,6 +34,9 @@ class SatNovaScreen(
     onServers: () -> Unit,
     onNetwork: () -> Unit,
     onScan: () -> Unit,
+    onChannelTune: (String, Int) -> Unit,
+    onChannelRefresh: () -> Unit,
+    onEpgRemote: () -> Unit,
     onKey: (Int) -> Unit
 ) {
     private val navy = Color.rgb(8, 12, 25)
@@ -46,7 +50,8 @@ class SatNovaScreen(
     private val green = Color.rgb(80, 230, 170)
     private val hairline = Color.rgb(53, 63, 91)
 
-    val root: ScrollView = ScrollView(activity)
+    val root: LinearLayout = LinearLayout(activity)
+    private lateinit var catalog: CatalogPanel
     val status: TextView
     val ip: EditText
     val connectButton: Button
@@ -190,16 +195,64 @@ class SatNovaScreen(
 
     init {
         root.apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(navy)
+            fitsSystemWindows = true
+        }
+        val scroller = ScrollView(activity).apply {
             setBackgroundColor(navy)
             isFillViewport = true
-            fitsSystemWindows = true
-            clipToPadding = false
             overScrollMode = View.OVER_SCROLL_NEVER
+            clipToPadding = true
         }
-        val page = stack().apply {
-            setPadding(16.dp, 20.dp, 16.dp, 36.dp)
+        root.addView(scroller, LinearLayout.LayoutParams(-1, 0, 1f))
+        val content=stack()
+        scroller.addView(content, ViewGroup.LayoutParams(-1,-2))
+        fun pageBox()=stack().apply{setPadding(16.dp,20.dp,16.dp,36.dp)}
+        val page=pageBox()
+        val channelsPage=pageBox()
+        val satellitePage=pageBox()
+        val remotePage=pageBox()
+        val settingsPage=pageBox()
+        val pages=listOf(page, channelsPage, satellitePage, remotePage, settingsPage)
+        pages.forEachIndexed { index,view ->
+            view.visibility=if(index==0)View.VISIBLE else View.GONE
+            content.addView(view)
         }
-        root.addView(page, ViewGroup.LayoutParams(-1, -2))
+        catalog = CatalogPanel(activity, onChannelTune, onReadTransponders, onReadSignal, onEpgRemote)
+        channelsPage.addView(catalog.channelsPage,margin())
+        satellitePage.addView(catalog.satellitePage,margin())
+        satellitePage.addView(action("⟳  Actualiser les satellites", tileColor, lavender, 46,
+            onClick=onReadSatellites),margin(top=12))
+        val nav=row().apply{
+            setPadding(8.dp,7.dp,8.dp,7.dp)
+            setBackgroundColor(panelColor)
+        }
+        val titles=listOf("⌂\nAccueil","☷\nChaînes","◈\nSatellites","◎\nRemote","⚙\nOptions")
+        val navButtons=mutableListOf<TextView>()
+        fun showTab(tab:Int){
+            pages.forEachIndexed{i,p->p.visibility=if(i==tab)View.VISIBLE else View.GONE}
+            navButtons.forEachIndexed{i,b->
+                b.setTextColor(if(i==tab)lavender else secondary)
+                b.background=shape(if(i==tab)tileColor else panelColor,13)
+            }
+            scroller.scrollTo(0,0)
+            if(tab==1)onChannelRefresh()
+            if(tab==2)onReadSatellites()
+        }
+        titles.forEachIndexed {i,t->
+            val item=text(t,11f,secondary,i==0).apply{
+                gravity=Gravity.CENTER
+                setPadding(3.dp,7.dp,3.dp,7.dp)
+                minHeight=48.dp
+                isClickable=true
+                setOnClickListener{showTab(i)}
+            }
+            navButtons.add(item)
+            nav.addView(item,LinearLayout.LayoutParams(0,-2,1f))
+        }
+        root.addView(nav,LinearLayout.LayoutParams(-1,-2))
+        showTab(0)
 
         // Identity
         val branding = row()
@@ -212,7 +265,7 @@ class SatNovaScreen(
         brandTexts.addView(text("SATNOVA", 25f, Color.WHITE, true))
         brandTexts.addView(text("CONTROL YOUR UNIVERSE", 10f, lavender, true), margin(top = 5))
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 0.5", 12f, lavender, true).apply {
+        val version = text("α 0.6", 12f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(11.dp, 9.dp, 11.dp, 9.dp)
             background = shape(tileColor, 50, hairline)
@@ -300,7 +353,7 @@ class SatNovaScreen(
         metrics.addView(refresh, margin(top = 12))
 
         // Essentials first; all original keycodes preserved.
-        val control = card(page, top = 14)
+        val control = card(remotePage, top = 14)
         section(control, "Télécommande", "Contrôle direct • Echolink")
         remoteRow(control, listOf("⏻ Power" to 42, "Mute" to 23, "EPG" to 32))
         remoteRow(control, listOf("VOL −" to 36, "▲" to 1, "VOL +" to 35))
@@ -325,7 +378,7 @@ class SatNovaScreen(
 
 
         // Capability-aware receiver tools: display confirmed data, never fake server/network state.
-        val tools = card(page, top = 14)
+        val tools = card(settingsPage, top = 14)
         section(tools, "Récepteur & installation", "Satellites, transpondeurs, réseau, serveurs, signal et recherche")
         val toolsToggle = action("⌄   Ouvrir les outils", tileColor, lavender, 48, hairline) {}
         tools.addView(toolsToggle)
@@ -362,7 +415,7 @@ class SatNovaScreen(
         }
 
         // Diagnostics hidden from the primary UI but still kept live.
-        val advanced = card(page, top = 14)
+        val advanced = card(settingsPage, top = 14)
         val diagTitle = action("⌄   Informations techniques", panelColor, secondary, 44,
             onClick = {})
         advanced.addView(diagTitle)
@@ -386,7 +439,20 @@ class SatNovaScreen(
                 "⌄   Informations techniques"
         }
         advanced.addView(diagBody)
-        page.addView(text("SATNOVA  •  ALPHA BUILD  •  LOCAL ONLY", 10f, secondary, true),
+        settingsPage.addView(text("SATNOVA  •  ALPHA BUILD  •  LOCAL ONLY", 10f, secondary, true),
             margin(top = 24).apply { gravity = Gravity.CENTER_HORIZONTAL })
     }
+    fun updateChannels(rows:List<JSONObject>,complete:Boolean){
+        activity.runOnUiThread{catalog.updateChannels(rows,complete)}
+    }
+    fun updateSatellites(rows:List<JSONObject>){
+        activity.runOnUiThread{catalog.updateSatellites(rows)}
+    }
+    fun updateTransponders(rows:List<JSONObject>){
+        activity.runOnUiThread{catalog.updateTps(rows)}
+    }
+    fun updateSignal(message:String){
+        activity.runOnUiThread{catalog.updateSignal(message)}
+    }
+
 }
