@@ -52,6 +52,7 @@ class SatNovaScreen(
 
     val root: LinearLayout = LinearLayout(activity)
     private lateinit var catalog: CatalogPanel
+    private var goToChannels: (() -> Unit)? = null
     val status: TextView
     val ip: EditText
     val connectButton: Button
@@ -219,7 +220,7 @@ class SatNovaScreen(
             view.visibility=if(index==0)View.VISIBLE else View.GONE
             content.addView(view)
         }
-        catalog = CatalogPanel(activity, onChannelTune, onReadTransponders, onReadSignal, onEpgRemote)
+        catalog = CatalogPanel(activity, onChannelTune, onReadTransponders, onReadSignal, onEpgRemote, {goToChannels?.invoke()})
         channelsPage.addView(catalog.channelsPage,margin())
         satellitePage.addView(catalog.satellitePage,margin())
         satellitePage.addView(action("⟳  Actualiser les satellites", tileColor, lavender, 46,
@@ -240,6 +241,7 @@ class SatNovaScreen(
             if(tab==1)onChannelRefresh()
             if(tab==2)onReadSatellites()
         }
+        goToChannels={showTab(1)}
         titles.forEachIndexed {i,t->
             val item=text(t,11f,secondary,i==0).apply{
                 gravity=Gravity.CENTER
