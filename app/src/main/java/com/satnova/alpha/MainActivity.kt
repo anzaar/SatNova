@@ -79,6 +79,10 @@ class MainActivity : Activity() {
     @Volatile private var signalRequestAt=0L
     @Volatile private var foreground=true
     @Volatile private var videoBuffering=false
+    private val streamGate=LiveStreamGate()
+    @Volatile private var recoveringStream=false
+    private var streamRecoveryAttempts=0
+    private var resumeReceiverHost:String?=null
     @Volatile private var selectedTab=0
     @Volatile private var channelPageRequestAt=0L
     @Volatile private var channelPageTo=0
@@ -132,14 +136,19 @@ class MainActivity : Activity() {
             streamedChannel=""
             autoStreamRequestId=""
             streamPending=false
+            streamGate.reset()
+            currentChannelId=""
         }
         runOnUiThread {
             if(::screen.isInitialized) {
-                screen.setReceiverOnline(value)
-                if(!value){
-                    inlinePlayer?.stop()
+                if(value)screen.setReceiverOnline(true)
+                else {
                     screen.resetVideoPlaceholder()
-                    screen.showInlineState("Déconnecté")
+                    screen.showInlineState("En attente d'un flux actuel du récepteur")
+                    showField("Chaîne actuelle","Lecture de la chaîne actuelle…")
+                    inlinePlayer?.stop{
+                        if(!verified)screen.setReceiverOnline(false)
+                    }
                 }
             }
             if (::connectButton.isInitialized) connectButton.text =
@@ -210,7 +219,7 @@ class MainActivity : Activity() {
                 screen.setVideoPlaying(true)
                 loadTunerMetadata()
             }
-        },buffering={waiting->videoBuffering=waiting})
+        },buffering={waiting->videoBuffering=waiting},failed={recoverFreshLive("Flux interrompu")})
         screen.setReceiverOnline(false)
         // Auto-connect only to an IP previously verified by SatNova.
         val rememberedIp=getSharedPreferences("satnova",Context.MODE_PRIVATE)
@@ -536,7 +545,8 @@ class MainActivity : Activity() {
         val radio=key(rec,"Radio","TvState")?.toIntOrNull()
         if(radio!=null)currentTvState=if(radio==1)1 else 0
     }
-    private fun handleReply(kind:Int,statusCode:Int,body:ByteArray) {
+    private fun handleReply(kind:Int,statusCode:Int,body:ByteArray,source:Socket) {
+        if(socket!==source || !verified)return
         val text=body.toString(StandardCharsets.UTF_8).trim()
         val date=java.text.SimpleDateFormat("HH:mm:ss",java.util.Locale.US).format(java.util.Date())
         showField("Dernière réponse",date+" · type "+kind+" · code "+statusCode)
@@ -583,53 +593,43 @@ class MainActivity : Activity() {
             return
         }
         if(kind==1009){
-            if(!streamPending) return
+            val ticket=streamGate.pending()?:return
+            // Some receivers ACK first, and send the actual URL in a second frame.
+            if(statusCode==0 && body.isEmpty())return
             streamPending=false
             if(statusCode!=0){
-                videoStatus("Refus du récepteur • réponse 1009 • code "+statusCode+
-                    ". Vérifier DVB To IPTV + abonnement SAT>IP / Apollo.")
+                streamGate.fail(ticket)
+                videoStatus("Le récepteur a refusé le flux (code "+statusCode+").")
+                return
+            }
+            if(!streamGate.complete(ticket)){
+                // A channel change overtook this reply; drain it and ask for the latest one.
+                autoStreamRequestId=""
+                if(foreground)autostartInlineStream(currentChannelId)
                 return
             }
             val normalized=text.replace("\\/","/")
-            val row=rows(normalized).firstOrNull()
-            val success=row?.optString("success","1") ?: "1"
-            if(success=="0"){
-                videoStatus("Le récepteur a indiqué success=0 pour le flux HTTP.")
+            val record=rows(normalized).firstOrNull()
+            if(record?.optString("success","1")=="0"){
+                videoStatus("Le récepteur n'a pas ouvert le flux demandé.")
                 return
             }
-            val structured=row?.optString("url","") ?: ""
-            val link=if(structured.startsWith("http://",true) ||
-                structured.startsWith("https://",true) || structured.startsWith("rtsp://",true)){
-                structured.trim()
-            }else{
-                Regex("""(?:rtsp|https?)://[^\s"'<>\\]+""",RegexOption.IGNORE_CASE)
+            val structured=record?.optString("url","")?:""
+            val link=if(structured.startsWith("http://",true) || structured.startsWith("https://",true) ||
+                structured.startsWith("rtsp://",true))structured.trim()
+                else Regex("""(?:rtsp|https?)://[^\s"'<>\\]+""",RegexOption.IGNORE_CASE)
                     .find(normalized)?.value?.trimEnd(',', '}', ']')
-            }
-            if(link==null){
-                videoStatus("1009 sans URL exploitable. Réponse : "+text.take(160))
+            if(link==null || !isPrivate(Uri.parse(link).host?:"")){
+                videoStatus("Le récepteur n'a pas renvoyé un lien vidéo local valide.")
                 return
             }
-            val streamHost=Uri.parse(link).host ?: ""
-            if(!isPrivate(streamHost)){
-                videoStatus("Adresse du flux refusée (hors réseau local).")
-                return
-            }
-            streamOpened=false
-            activeStreamUrl=link
-            videoStatus("Flux "+Uri.parse(link).scheme+" reçu. Lecture intégrée…")
-            runOnUiThread {
-                val intent=Intent(this,VlcLiveActivity::class.java)
-                intent.putExtra("stream_url",link)
-                intent.putExtra("channel_title",channelNames[currentChannelId] ?: "Canal "+currentChannelId)
-                if(liveScreenRequested){
-                    liveScreenRequested=false
-                    inlinePlayer?.stop()
-                    startActivity(intent)
-                }else{
-                    activeStreamUrl=link
-                    inlinePlayer?.start(link)
-                    screen.showInlineState("LIVE • Flux du récepteur en cours")
-                }
+            runOnUiThread{
+                if(socket!==source || !verified || !foreground || recoveringStream ||
+                    currentChannelId!=ticket.channel || !streamGate.isActive(ticket))return@runOnUiThread
+                activeStreamUrl=link
+                streamedChannel=ticket.channel
+                inlinePlayer?.start(link)
+                screen.showInlineState("Ouverture du direct actuel…")
             }
             return
         }
@@ -692,6 +692,7 @@ class MainActivity : Activity() {
                 if(id!=null){
                     val changed=currentChannelId!=id
                     currentChannelId=id
+                    streamGate.desire(id)
                     showCurrent()
                     if(changed && !channelRecords.containsKey(id))continueChannelMetadata()
                     if(changed || (activeStreamUrl==null && !streamPending &&
@@ -773,86 +774,102 @@ class MainActivity : Activity() {
 
     private fun retryInlineStream(){
         if(!verified){report("Connectez le récepteur.");return}
-        if(streamPending){report("Demande vidéo déjà en cours.");return}
-        val id=currentChannelId
-        if(id.isBlank()){
-            work.execute{try{requestState(3)}catch(_:Exception){}}
-            return
+        streamRecoveryAttempts=0
+        recoverFreshLive("Actualisation du direct")
+    }
+    private fun recoverFreshLive(reason:String)=runOnUiThread{
+        if(!verified || !foreground || recoveringStream)return@runOnUiThread
+        if(streamRecoveryAttempts>=1){
+            screen.showInlineState("Flux interrompu • toucher la vidéo pour réessayer")
+            return@runOnUiThread
         }
-        autoStreamRequestId=""
-        streamedChannel=""
+        val source=socket?:return@runOnUiThread
+        val host=source.inetAddress.hostAddress?:return@runOnUiThread
+        streamRecoveryAttempts++
+        recoveringStream=true
+        streamGate.invalidatePlayback()
         activeStreamUrl=null
-        runOnUiThread{
-            inlinePlayer?.stop()
-            screen.resetVideoPlaceholder()
-            screen.showInlineState("Relance du flux en cours…")
+        screen.resetVideoPlaceholder()
+        screen.showInlineState(reason+" • nouvelle lecture depuis le récepteur…")
+        inlinePlayer?.stop{
+            if(socket===source && verified && foreground){
+                work.executeRemote{
+                    if(socket!==source || !verified || !foreground)return@executeRemote
+                    try{requestState(1012)}catch(_:Exception){}
+                    // New TCP login is necessary: late 1009 replies have no sequence number.
+                    connect(host)
+                }
+            }else recoveringStream=false
         }
-        autostartInlineStream(id)
     }
     private fun autostartInlineStream(id:String){
-        if(!verified || id.isBlank())return
+        if(!verified || !foreground || recoveringStream || id.isBlank())return
+        streamGate.desire(id)
         if(streamedChannel==id && activeStreamUrl!=null)return
-        if(autoStreamRequestId==id && streamPending)return
-        streamedChannel=id
+        if(streamGate.pending()?.channel==id)return
+        val source=socket?:return
         activeStreamUrl=null
-        autoStreamRequestId=id
         runOnUiThread{
-            inlinePlayer?.stop()
+            if(socket!==source || !verified || !foreground || currentChannelId!=id)return@runOnUiThread
             screen.resetVideoPlaceholder()
-            screen.showInlineState("Initialisation Live TV pour la chaîne actuelle…")
+            screen.showInlineState("Préparation du direct actuel…")
+            inlinePlayer?.stop{
+                if(socket===source && verified && foreground && !recoveringStream && currentChannelId==id)
+                    startLiveTv(id,source)
+            }
         }
-        startLiveTv()
     }
-    private fun startLiveTv(){
-        if(!verified){videoStatus("Connecter un récepteur avant le streaming.");return}
-        if(streamPending){report("Demande de vidéo déjà en cours…");return}
-        val id=currentChannelId
-        if(id.isBlank()){
-            videoStatus("Chaîne inconnue. Attendre la synchro, puis réessayer.")
-            work.execute{try{requestState(3)}catch(_:Exception){}}
-            return
-        }
+    private fun startLiveTv(id:String,source:Socket){
+        if(!verified || !foreground || socket!==source || currentChannelId!=id)return
+        val ticket=streamGate.begin()?:return
         streamPending=true
-        videoStatus("Demande 1009 envoyée pour "+(channelNames[id] ?: id)+"…")
-        work.execute {
-            try {
-                val s=socket ?: throw IllegalStateException("Récepteur déconnecté")
-                val payload=if(jsonMode){
-                    JSONObject()
-                        .put("request","1009")
-                        .put("array",JSONArray().put(
-                            JSONObject().put("TvState",currentTvState.toString())
-                                .put("ProgramId",id)
-                        )).toString()
-                }else{
-                    "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1009\"><parm><TvState>"+currentTvState+"</TvState><ProgramId>"+id+"</ProgramId></parm></Command>"
-                }
-                sendFrame(s,payload)
+        autoStreamRequestId=ticket.channel
+        work.execute{
+            if(socket!==source || !verified || !foreground){streamGate.fail(ticket);return@execute}
+            try{
+                // The previous LibVLC HTTP reader has finished closing before this runs.
+                requestState(1012)
+                val payload=if(jsonMode)JSONObject().put("request","1009")
+                    .put("array",JSONArray().put(JSONObject().put("TvState",currentTvState.toString())
+                        .put("ProgramId",ticket.channel))).toString()
+                else "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1009\"><parm><TvState>"+
+                    currentTvState+"</TvState><ProgramId>"+ticket.channel+"</ProgramId></parm></Command>"
+                sendFrame(source,payload)
                 monitorWork.schedule({
-                    if(streamPending){
+                    if(socket===source && streamGate.fail(ticket)){
                         streamPending=false
-                        videoStatus("Pas de réponse 1009 en 12 s. Activer DVB To IPTV dans Système.")
+                        recoverFreshLive("Le récepteur n'a pas répondu au flux")
                     }
                 },12,TimeUnit.SECONDS)
             }catch(e:Exception){
-                streamPending=false
-                videoStatus("Impossible d'interroger le flux : "+(e.message ?: "erreur"))
+                if(streamGate.fail(ticket)){
+                    streamPending=false
+                    recoverFreshLive("Connexion vidéo interrompue")
+                }
             }
         }
     }
     override fun onResume(){
         super.onResume()
+        val returning=!foreground
         foreground=true
+        val host=resumeReceiverHost
+        resumeReceiverHost=null
+        if(returning && host!=null){
+            streamRecoveryAttempts=0
+            connect(host)
+        }
         if(::screen.isInitialized && selectedTab<=1)setSignalMonitoring(true)
         if(verified && catalogWanted)continueChannelMetadata()
-        if(verified)activeStreamUrl?.let{url->
-            runOnUiThread{inlinePlayer?.start(url)}
-        }
+        // Never resume a paused HTTP URL: first read channel 3 from a fresh receiver login.
     }
     override fun onStop(){
         foreground=false
+        resumeReceiverHost=if(verified)socket?.inetAddress?.hostAddress else null
+        recoveringStream=false
         if(::screen.isInitialized)setSignalMonitoring(false)
-        inlinePlayer?.pause()
+        inlinePlayer?.stop()
+        disconnect()
         super.onStop()
     }
     private fun isPrivate(host: String): Boolean {
@@ -902,7 +919,7 @@ class MainActivity : Activity() {
         disconnect()
         totalChannelCount=0;nextChannelIndex=0;channelPageRequestAt=0L;catalogWanted=false
         channelNames.clear();channelRecords.clear();channelOrder.clear()
-        satelliteRecords.clear();transponderRecords.clear();currentChannelId=""
+        satelliteRecords.clear();transponderRecords.clear();currentChannelId="";currentTvState=0
         screen.updateChannels(emptyList(),false)
         screen.updateSatellites(emptyList());screen.updateTransponders(emptyList())
         screen.showConnectionAttempt()
@@ -926,6 +943,8 @@ class MainActivity : Activity() {
             getSharedPreferences("satnova",Context.MODE_PRIVATE).edit()
                 .putString("last_receiver_ip",host).apply()
             socket = s
+            streamGate.reset()
+            recoveringStream=false
             setVerified(true)
             screen.setReceiverIdentity(model)
             report("LOGIN VERIFIED: $model · " + if(useJson) "JSON" else "XML")
@@ -956,7 +975,7 @@ class MainActivity : Activity() {
                         val decoded=if(raw.isNotEmpty())try{
                             InflaterInputStream(ByteArrayInputStream(raw)).use{it.readBytes()}
                         }catch(_:Exception){raw}else raw
-                        handleReply(kind,statusCode,decoded)
+                        handleReply(kind,statusCode,decoded,s)
                     }
                 } catch (e: Exception) {
                     if (socket === s) { socket = null; setVerified(false); report("Connection lost: ${e.message}") }
@@ -965,6 +984,7 @@ class MainActivity : Activity() {
         } catch (e: Exception) {
             try{candidate?.close()}catch(_:Exception){}
             disconnect()
+            recoveringStream=false
             screen.markDiscoveryFailed(host)
             report("Identification non validée : ${e.message}")
             showField("État connexion","● Connexion échouée • Options réseau")

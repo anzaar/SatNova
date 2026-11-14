@@ -37,3 +37,17 @@ LibVLC keeps the same decoding setup with a 1800 ms network/live cache and HTTP
 reconnect. A Buffering event at 100 percent reports playback, not perpetual
 buffering; progress notices are throttled. Catalogue paging is paced and deferred
 while the player buffers once the current channel is identified.
+
+## SatNova 1.12 — fresh live sessions
+
+Video is not stored on disk. Only the last verified receiver IP, client UUID and
+home control preference persist. A URL must now belong to a single pending 1009
+request, the current channel and the active TCP session. Empty ACKs keep waiting
+for the URL; channel changes drain obsolete replies; old timeouts cannot cancel
+new requests. Queued UI playback checks the same session/channel ticket again.
+
+The native HTTP reader finishes closing before request 1012 and a fresh 1009.
+Backgrounding closes playback and the control session. Returning logs in again
+and reads request 3 before requesting video; it never plays the previous URL.
+A media failure or URL timeout permits one fresh-session recovery, with further
+retries initiated by touching the player rather than an endless reconnect loop.

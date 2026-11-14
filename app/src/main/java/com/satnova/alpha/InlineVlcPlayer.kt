@@ -14,7 +14,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 /** Native network/decoder shutdown must never block the Android event loop. */
 class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayout,
-                      private val status:(String)->Unit,private val buffering:(Boolean)->Unit={}) {
+                      private val status:(String)->Unit,private val buffering:(Boolean)->Unit={},private val failed:()->Unit={}) {
     private val worker=Executors.newSingleThreadExecutor()
     private val main=Handler(Looper.getMainLooper())
     private val generation=AtomicLong()
@@ -69,7 +69,10 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
                         val bufferChanged=lastBufferState!=waiting
                         if(bufferChanged || (message!=lastMessage && (!waiting || now-lastNoticeAt>400L))){
                             lastMessage=message;lastNoticeAt=now;lastBufferState=waiting
-                            main.post{if(ticket==generation.get()){buffering(waiting);status(message)}}
+                            main.post{if(ticket==generation.get()){
+                                buffering(waiting);status(message)
+                                if(event.type==MediaPlayer.Event.EncounteredError || event.type==MediaPlayer.Event.EndReached)failed()
+                            }}
                         }
                     }
                 }
@@ -93,11 +96,11 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
     }
     fun pause(){if(!closed)worker.execute{try{player?.pause()}catch(_:Exception){}}}
     fun resume(){if(!closed)worker.execute{try{player?.play()}catch(_:Exception){}}}
-    fun stop(){
+    fun stop(onStopped:()->Unit={}){
         if(closed)return
         generation.incrementAndGet()
         requestedUrl=null
-        worker.execute{releasePlayer()}
+        worker.execute{releasePlayer();main.post{if(!closed)onStopped()}}
     }
     fun close(){
         if(closed)return
