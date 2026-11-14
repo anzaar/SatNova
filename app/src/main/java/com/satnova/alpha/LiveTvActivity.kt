@@ -77,7 +77,7 @@ class LiveTvActivity : Activity() {
             setOnClickListener { finish() }
         })
         root.addView(TextView(this).apply {
-            text = "Preview is LAN-only. MPEG-TS over RTSP or unsupported video codecs may need VLC."
+            text = "Preview LAN : HTTP MPEG-TS ou RTSP. Si le flux ne démarre pas, tester VLC."
             textSize = 12f
             setTextColor(Color.rgb(162, 175, 197))
         })
@@ -88,8 +88,9 @@ class LiveTvActivity : Activity() {
 
     override fun onStart() {
         super.onStart()
-        if (!sourceUrl.startsWith("rtsp://", ignoreCase = true)) {
-            info.text = "Unsupported / missing RTSP stream URL"
+        if (!sourceUrl.startsWith("rtsp://", true) &&
+            !sourceUrl.startsWith("http://", true) && !sourceUrl.startsWith("https://", true)) {
+            info.text = "Unsupported / missing stream URL"
             return
         }
         val player = ExoPlayer.Builder(this).build()
@@ -106,7 +107,7 @@ class LiveTvActivity : Activity() {
             }
             override fun onPlayerError(error: PlaybackException) {
                 info.text = "Playback error: " + error.errorCodeName +
-                    "\nIf the stream is MPEG-TS/unsupported RTSP, use the VLC button."
+                    "\nCodec ou conteneur non compatible ? Utiliser VLC."
             }
         })
         player.setMediaItem(MediaItem.fromUri(Uri.parse(sourceUrl)))
