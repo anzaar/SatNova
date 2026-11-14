@@ -194,28 +194,30 @@ class MainActivity : Activity() {
                 if(!verified||socket==null)return@execute
                 if(targetTuneId!=id)return@execute
                 tuneMethod=if(flat)2 else 1
+                val requestedRecord=channelRecords[id]
+                val programId=key(requestedRecord,"ProgramId","ProgramID","ServiceID") ?: id
                 val payload=if(jsonMode){
                     val req=JSONObject().put("request","1000")
                     if(flat){
-                        req.put("TvState",tvState.toString()).put("ProgramId",id)
+                        req.put("TvState",tvState.toString()).put("ProgramId",programId)
                     }else{
                         req.put("array",JSONArray().put(JSONObject()
-                            .put("TvState",tvState.toString()).put("ProgramId",id)))
+                            .put("TvState",tvState.toString()).put("ProgramId",programId)))
                     }
                     req.toString()
                 }else {
                     if(flat)
                         "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1000\"><TvState>"+
-                            tvState+"</TvState><ProgramId>"+id+"</ProgramId></Command>"
+                            tvState+"</TvState><ProgramId>"+programId+"</ProgramId></Command>"
                     else
                         "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1000\"><parm><TvState>"+
-                            tvState+"</TvState><ProgramId>"+id+"</ProgramId></parm></Command>"
+                            tvState+"</TvState><ProgramId>"+programId+"</ProgramId></parm></Command>"
                 }
                 val sock=socket ?: return@execute
                 sendFrame(sock,payload)
                 report(if(flat)"Test de zapping alternatif…"
                     else "Zapping demandé au récepteur, vérification…")
-                showField("Dernière commande envoyée","1000 • "+id+
+                showField("Dernière commande envoyée","1000 • "+programId+
                     " • mode "+(if(flat) "direct" else "array")+" • état non confirmé")
                 monitorWork.schedule({
                     if(!verified||targetTuneId!=id)return@schedule
@@ -390,6 +392,12 @@ class MainActivity : Activity() {
         val date=java.text.SimpleDateFormat("HH:mm:ss",java.util.Locale.US).format(java.util.Date())
         showField("Dernière réponse",date+" · type "+kind+" · code "+statusCode)
         showField("Données brutes reçues",if(text.isEmpty()) "(no body)" else text.take(900))
+        if(kind==1040){
+            showField("Retour télécommande",if(statusCode==0)
+                "Réponse 1040 : code 0 • effet à vérifier sur TV"
+                else "Commande télécommande rejetée • code "+statusCode)
+            return
+        }
         if(kind==1000){
             tuneAckStatus=statusCode
             if(statusCode!=0)report("Récepteur refuse le zapping : code "+statusCode+
@@ -443,6 +451,11 @@ class MainActivity : Activity() {
             return
         }
         if(kind in 2000..2999){
+            if(kind==2015){
+                showField("Retour télécommande","Récepteur : session maître annoncée")
+                report("Le récepteur annonce un contrôle maître")
+                return
+            }
             if(kind in listOf(2001,2002,2003,2004)) work.execute {
                 try{
                     requestState(3);requestState(19)
@@ -711,12 +724,19 @@ class MainActivity : Activity() {
             val payload = if (jsonMode) "{\"request\":\"1040\",\"array\":[{\"KeyValue\":\"$value\"}]}"
                 else "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1040\"><parm><KeyValue>$value</KeyValue></parm></Command>"
             sendFrame(s,payload)
-            showField("Dernière commande envoyée","Key "+value+" envoyé · effet non confirmé")
-            if(value in listOf(69,70,35,36,23)) {
-                requestState(3)
-                requestState(19)
+            showField("Dernière commande envoyée","1040 • touche "+value+" • effet non confirmé")
+            showField("Retour télécommande","Touche "+value+" envoyée ; vérifier sur le téléviseur")
+            if(value in listOf(1,2,69,70,23,35,36)){
+                monitorWork.schedule({
+                    remoteWork.execute{
+                        try {
+                            requestState(3)
+                            requestState(19)
+                        }catch(_:Exception){}
+                    }
+                },800,TimeUnit.MILLISECONDS)
             }
-            report("Commande "+value+" envoyée. État récepteur en cours de vérification.")
+            report("Touche "+value+" envoyée. Vérifier l'effet sur le récepteur.")
         } catch (e: Exception) { disconnect(); report("Failed to send key: ${e.message}") }
     }
     private fun discover() = discoveryWork.execute {
