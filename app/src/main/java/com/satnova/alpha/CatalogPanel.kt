@@ -195,14 +195,16 @@ class CatalogPanel(
         satellitePage.addView(signalNotice,lp(top=9))
     }
     fun updateChannels(rows:List<JSONObject>,fullyLoaded:Boolean){
-        channels=rows.toList();complete=fullyLoaded;renderChannels()
-        // Avoid O(satellites × channels) re-render on every 100-channel page.
-        // Transponder details are refreshed only on explicit user selection.
+        channels=rows.toList();complete=fullyLoaded
+        // Hidden tabs should not allocate 50+ Android views while Live TV plays.
+        if(channelsPage.isShown)renderChannels()
     }
+    fun showChannels(){renderChannels()}
     fun updateSatellites(rows:List<JSONObject>){
         satellites=rows.toList()
-        renderSatelliteList()
+        if(satellitePage.isShown)renderSatelliteList()
     }
+    fun showSatellites(){renderSatelliteList()}
     private fun renderSatelliteList(){
         satNotice.text=satellites.size.toString()+" satellites configurés sur le récepteur "+
             "• la présence dans la liste ne confirme pas le signal"
