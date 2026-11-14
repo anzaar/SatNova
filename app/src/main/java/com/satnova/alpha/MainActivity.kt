@@ -22,6 +22,7 @@ import org.json.JSONObject
 import org.json.JSONTokener
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
@@ -46,6 +47,10 @@ class MainActivity : Activity() {
     private val monitorWork = Executors.newSingleThreadScheduledExecutor()
     private val fieldViews = linkedMapOf<String,TextView>()
     private val channelNames = ConcurrentHashMap<String,String>()
+    private val channelRecords = ConcurrentHashMap<String,JSONObject>()
+    private val satelliteRecords = CopyOnWriteArrayList<JSONObject>()
+    private val transponderRecords = CopyOnWriteArrayList<JSONObject>()
+    private lateinit var screen: SatNovaScreen
     @Volatile private var currentChannelId = ""
     @Volatile private var currentTvState = 0
     @Volatile private var streamPending = false
@@ -103,7 +108,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = bg
         window.navigationBarColor = bg
-        val screen = SatNovaScreen(
+        screen = SatNovaScreen(
             activity = this,
             onDiscover = { discover() },
             onConnect = {
@@ -117,6 +122,9 @@ class MainActivity : Activity() {
             onServers = { navigateSetting("servers") },
             onNetwork = { navigateSetting("network") },
             onScan = { navigateSetting("scan") },
+            onChannelTune = { id, tvState -> tuneChannel(id,tvState) },
+            onChannelRefresh = { refreshChannels() },
+            onEpgRemote = { sendKey(32) },
             onRefresh = {
                 if (!verified) report("Connecter le récepteur d'abord")
                 else work.execute {
@@ -152,6 +160,40 @@ class MainActivity : Activity() {
         }, 3, 4, TimeUnit.SECONDS)
     }
     private fun showField(key:String,value:String)=runOnUiThread { fieldViews[key]?.text=value }
+    private fun refreshChannels(){
+        if(!verified){report("Connecter le récepteur pour les chaînes");return}
+        screen.updateChannels(channelRecords.values.toList(), totalChannelCount>0 &&
+            channelRecords.size>=totalChannelCount)
+        work.execute{
+            try{
+                requestState(15)
+                if(totalChannelCount>0 && channelRecords.isEmpty())requestNextChannelPage()
+            }catch(e:Exception){report("Chargement chaînes : "+e.message)}
+        }
+    }
+    private fun tuneChannel(id:String,tvState:Int){
+        if(!verified){report("Connectez le récepteur avant le zapping");return}
+        if(!channelRecords.containsKey(id)){report("Chaîne inconnue");return}
+        work.execute{
+            try{
+                val payload=if(jsonMode){
+                    JSONObject().put("request","1000")
+                        .put("array",JSONArray().put(JSONObject()
+                            .put("TvState",tvState.toString()).put("ProgramId",id))).toString()
+                }else{
+                    "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1000\"><parm><TvState>"+
+                        tvState+"</TvState><ProgramId>"+id+"</ProgramId></parm></Command>"
+                }
+                val sock=socket ?: return@execute
+                sock.getOutputStream().write(frame(payload))
+                sock.getOutputStream().flush()
+                report("Zapping envoyé, en attente de confirmation…")
+                monitorWork.schedule({
+                    work.execute{try{requestState(3)}catch(_:Exception){}}
+                },1200,TimeUnit.MILLISECONDS)
+            }catch(e:Exception){report("Échec du zapping : "+e.message)}
+        }
+    }
     private fun videoStatus(text:String) { showField("Diagnostic vidéo","VIDÉO : "+text); report(text) }
     private fun readSatellites(){
         if(!verified){report("Connecter le récepteur d'abord");return}
