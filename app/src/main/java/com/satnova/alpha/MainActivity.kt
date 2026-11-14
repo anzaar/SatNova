@@ -374,8 +374,8 @@ class MainActivity : Activity() {
             }
         },750,TimeUnit.MILLISECONDS)
     }
-    private fun restoreCatalogue(key:String){
-        val snapshot=catalogueCache.load(key)?:return
+    private fun restoreCatalogue(key:String,expectedTotal:Int=0){
+        val snapshot=catalogueCache.load(key,expectedTotal)?:return
         totalChannelCount=snapshot.total;nextChannelIndex=snapshot.next
         val restoredOrder=linkedSetOf<String>()
         for(item in snapshot.channels){
@@ -1009,7 +1009,7 @@ class MainActivity : Activity() {
                         work.execute{
                             if(socket===source && catalogueKey.isBlank()){
                                 catalogueKey=key
-                                if(channelRecords.isEmpty())restoreCatalogue(key)
+                                if(channelRecords.isEmpty())restoreCatalogue(key,totalChannelCount)
                                 saveCatalogue()
                             }
                         }

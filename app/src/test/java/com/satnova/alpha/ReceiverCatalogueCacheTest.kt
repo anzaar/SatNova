@@ -36,6 +36,8 @@ class ReceiverCatalogueCacheTest {
         val cache=ReceiverCatalogueCache(temporary.newFolder())
         cache.save(original,ReceiverCatalogueCache.Snapshot(1,1,listOf(row("A")),emptyList(),emptyList()))
         assertNotNull(cache.load(original));assertNull(cache.load(other))
+        assertNull("Changed receiver channel count invalidates cached catalogue",cache.load(original,2))
+        assertNotNull(cache.load(original,1))
     }
     @Test fun malformedCacheIsIgnoredAndValidSnapshotCanReplaceIt(){
         val key=ReceiverCatalogueCache.identity(login(1))!!

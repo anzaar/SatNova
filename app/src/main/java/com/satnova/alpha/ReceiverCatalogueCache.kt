@@ -11,7 +11,7 @@ import org.json.JSONObject
 class ReceiverCatalogueCache(private val directory:File) {
     data class Snapshot(val total:Int,val next:Int,val channels:List<JSONObject>,
         val satellites:List<JSONObject>,val transponders:List<JSONObject>)
-    fun load(key:String):Snapshot?=try {
+    fun load(key:String,expectedTotal:Int=0):Snapshot?=try {
         require(key.matches(Regex("[a-f0-9]{64}")))
         val file=File(directory,"$key.json")
         require(file.length() in 1..20_000_000)
@@ -19,6 +19,7 @@ class ReceiverCatalogueCache(private val directory:File) {
         require(root.getInt("format")==1 && root.getString("receiver")==key)
         val total=root.getInt("total");val next=root.getInt("next")
         require(total in 0..20000 && next in 0..20000)
+        require(expectedTotal<=0 || total==expectedTotal)
         fun list(name:String):List<JSONObject> {
             val rows=root.getJSONArray(name)
             require(rows.length()<=20000)
