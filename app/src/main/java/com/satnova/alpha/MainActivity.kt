@@ -289,11 +289,22 @@ class MainActivity : Activity() {
                 return
             }
             val normalized=text.replace("\\/","/")
-            val link=Regex("""rtsp://[^\s"'<>\\]+""", RegexOption.IGNORE_CASE)
-                .find(normalized)?.value?.trimEnd(',', '}', ']')
+            val row=rows(normalized).firstOrNull()
+            val success=row?.optString("success","1") ?: "1"
+            if(success=="0"){
+                videoStatus("Le récepteur a indiqué success=0 pour le flux HTTP.")
+                return
+            }
+            val structured=row?.optString("url","") ?: ""
+            val link=if(structured.startsWith("http://",true) ||
+                structured.startsWith("https://",true) || structured.startsWith("rtsp://",true)){
+                structured.trim()
+            }else{
+                Regex("""(?:rtsp|https?)://[^\s"'<>\\]+""",RegexOption.IGNORE_CASE)
+                    .find(normalized)?.value?.trimEnd(',', '}', ']')
+            }
             if(link==null){
-                val detail=text.replace(Regex("[\\p{Cntrl}]")," ").take(220)
-                videoStatus("1009 accepté mais aucune URL RTSP détectée. Réponse: "+detail)
+                videoStatus("1009 sans URL exploitable. Réponse : "+text.take(160))
                 return
             }
             val streamHost=Uri.parse(link).host ?: ""
@@ -302,7 +313,7 @@ class MainActivity : Activity() {
                 return
             }
             streamOpened=true
-            videoStatus("URL RTSP reçue. Test du lecteur en cours…")
+            videoStatus("Flux "+Uri.parse(link).scheme+" reçu. Ouverture du lecteur…")
             runOnUiThread {
                 val intent=Intent(this,LiveTvActivity::class.java)
                 intent.putExtra("stream_url",link)
