@@ -34,6 +34,7 @@ class SatNovaScreen(
     onDisconnect: () -> Unit,
     onConnect: () -> Unit,
     onWatch: () -> Unit,
+    onSwitchPlayer: () -> Unit,
     onRefresh: () -> Unit,
     onReadSatellites: () -> Unit,
     onReadTransponders: () -> Unit,
@@ -316,7 +317,7 @@ class SatNovaScreen(
         brandTexts.addView(actualModel,margin(top=4))
         fields["Modèle du récepteur"]=actualModel
         branding.addView(brandTexts,LinearLayout.LayoutParams(0,-2,1f))
-        val version=text("α 1.5",10f,lavender,true).apply{
+        val version=text("α 1.5.1",10f,lavender,true).apply{
             gravity=Gravity.CENTER
             setPadding(9.dp,7.dp,9.dp,7.dp)
             background=shape(tileColor,24,hairline)
@@ -416,7 +417,7 @@ class SatNovaScreen(
         // A real 16:9 VLCVideoLayout is retained under this tappable poster.
         val videoFrame=FrameLayout(activity).apply{
             background=shape(Color.BLACK,17,Color.rgb(76,61,122))
-            clipToOutline=true
+            clipToOutline=false // TextureView in ScrollView must not be clipped
             isClickable=true
             contentDescription="Vidéo du récepteur • toucher pour relancer"
             setOnClickListener{onWatch()}
@@ -485,8 +486,17 @@ class SatNovaScreen(
         val videoDiagnostic=text("",10f,secondary).apply{visibility=View.GONE}
         hero.addView(videoDiagnostic,margin(top=5))
         fields["Diagnostic vidéo"]=videoDiagnostic
-        hero.addView(action("↻  Réessayer le flux de la chaîne",tileColor,lavender,42,
-            onClick=onWatch),margin(top=8))
+        val playbackActions=row()
+        val retryButton=action("↻ Relancer la TV",tileColor,lavender,43,onClick=onWatch)
+        playbackActions.addView(retryButton,LinearLayout.LayoutParams(0,43.dp,1f).apply{
+            rightMargin=4.dp
+        })
+        val androidButton=action("▶ Lecteur Android",tileColor,lavender,43,
+            onClick=onSwitchPlayer)
+        playbackActions.addView(androidButton,LinearLayout.LayoutParams(0,43.dp,1f).apply{
+            leftMargin=4.dp
+        })
+        hero.addView(playbackActions,margin(top=8))
 
         // Purple remote card inspired by the supplied mockup, with a native hit-tested D-pad.
         val mini=card(page,top=12).apply{
