@@ -1,6 +1,8 @@
 package com.satnova.alpha
 
 import android.app.Activity
+import android.content.Context
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -34,24 +36,57 @@ class InlineVlcPlayer(
     private var generation=0
     private var videoReady=false
     private var usingFallback=false
+    private var pendingStartUrl:String?=null
+    private var surfaceWaitCount=0
+    private val audioManager:AudioManager by lazy {
+        activity.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    }
+    private val audioFocusListener=AudioManager.OnAudioFocusChangeListener { change ->
+        if(change==AudioManager.AUDIOFOCUS_LOSS_TRANSIENT){
+            status("Audio temporairement occupé par une autre application")
+        }
+    }
+    private fun acquireAudioFocus(){
+        try{
+            @Suppress("DEPRECATION")
+            audioManager.requestAudioFocus(
+                audioFocusListener,AudioManager.STREAM_MUSIC,AudioManager.AUDIOFOCUS_GAIN)
+        }catch(_:Exception){}
+    }
+    private fun releaseAudioFocus(){
+        try{
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(audioFocusListener)
+        }catch(_:Exception){}
+    }
 
     fun start(url:String){
-        // VLC's TextureView requires a measured inline surface. SurfaceView can render
-        // behind rounded/scrolling Android containers and leave a black rectangle.
-        if(vlcView.width<=0 || vlcView.height<=0){
+        if(pendingStartUrl!=url){
+            pendingStartUrl=url
+            surfaceWaitCount=0
+        }
+        // The 0.8 VLC Activity started only after its surface was attached.
+        // Inline Accueil can receive 1009 before layout: retry until ready.
+        if(!vlcView.isAttachedToWindow || vlcView.width<2 || vlcView.height<2){
+            surfaceWaitCount++
+            if(surfaceWaitCount>80){
+                status("Zone vidéo indisponible : retourner sur Accueil puis relancer")
+                return
+            }
             handler.postDelayed({
-                if(activity.isFinishing)return@postDelayed
-                if(vlcView.width>0 && vlcView.height>0)start(url)
-                else status("Zone vidéo en préparation • vérifiez l'onglet Accueil")
-            },350L)
+                if(!activity.isFinishing && pendingStartUrl==url)start(url)
+            },250L)
             return
         }
+        pendingStartUrl=null
+        surfaceWaitCount=0
         if(url==currentUrl && (vlc!=null || exo!=null)){
             resume()
             return
         }
         stopEngines()
         generation++
+        acquireAudioFocus()
         val token=generation
         currentUrl=url
         videoReady=false
@@ -70,13 +105,13 @@ class InlineVlcPlayer(
             engine=lib
             val mp=MediaPlayer(lib)
             vlc=mp
-            mp.attachViews(vlcView,null,true,false)
+            mp.attachViews(vlcView,null,false,false)
             mp.setEventListener{event->
                 activity.runOnUiThread{
                     if(token!=generation || usingFallback)return@runOnUiThread
                     when(event.type){
                         MediaPlayer.Event.Playing ->
-                            status("VLC : lecture en cours • attente de l'image…")
+                            status("VLC • flux reçu • MP2 pris en charge, son à vérifier")
                         MediaPlayer.Event.Vout -> {
                             videoReady=true
                             status("VLC • sortie vidéo initialisée • vérifiez que l’image apparaît")
@@ -102,12 +137,14 @@ class InlineVlcPlayer(
         }catch(e:UnsatisfiedLinkError){
             switchToAndroid(url,token,"LibVLC indisponible sur ce téléphone")
         }
-        // No looping retries. A single fallback only if the decoder never outputs video.
+        // Keep VLC 0.8 on-screen rather than automatically replacing its MP2
+        // audio decoder with Android just as a video frame becomes available.
         handler.postDelayed({
             if(token==generation && !videoReady && !usingFallback && currentUrl==url){
-                switchToAndroid(url,token,"Aucune image VLC après 9 secondes")
+                status("VLC : pas de sortie vidéo confirmée après 12 s. "+
+                    "Essayer Lecteur Android ou le lecteur VLC classique.")
             }
-        },9000L)
+        },12000L)
     }
 
     private fun switchToAndroid(url:String,token:Int,reason:String){
@@ -183,8 +220,11 @@ class InlineVlcPlayer(
         try{exo?.release()}catch(_:Exception){}
         exo=null
         stopVlc()
+        releaseAudioFocus()
     }
     fun stop(){
+        pendingStartUrl=null
+        surfaceWaitCount=0
         generation++
         currentUrl=null
         videoReady=false
