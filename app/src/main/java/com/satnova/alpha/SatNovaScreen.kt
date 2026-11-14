@@ -54,6 +54,7 @@ class SatNovaScreen(
     private lateinit var catalog: CatalogPanel
     private var goToChannels: (() -> Unit)? = null
     private var goToRemote: (() -> Unit)? = null
+    private var goToSettings: (() -> Unit)? = null
     val status: TextView
     val ip: EditText
     val connectButton: Button
@@ -244,6 +245,7 @@ class SatNovaScreen(
         }
         goToChannels={showTab(1)}
         goToRemote={showTab(3)}
+        goToSettings={showTab(4)}
         titles.forEachIndexed {i,t->
             val item=text(t,11f,secondary,i==0).apply{
                 gravity=Gravity.CENTER
@@ -269,7 +271,7 @@ class SatNovaScreen(
         brandTexts.addView(text("SATNOVA", 25f, Color.WHITE, true))
         brandTexts.addView(text("CONTROL YOUR UNIVERSE", 10f, lavender, true), margin(top = 5))
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 0.9", 12f, lavender, true).apply {
+        val version = text("α 1.0", 12f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(11.dp, 9.dp, 11.dp, 9.dp)
             background = shape(tileColor, 50, hairline)
@@ -316,52 +318,71 @@ class SatNovaScreen(
         addWeighted(connectLine, connectButton, left = 5)
         connection.addView(connectLine, margin(top = 10))
 
-        // Live TV hero: layout intentionally does not invent a video thumbnail.
-        val hero = card(page, top = 14)
+        // Accueil starts with CURRENT receiver programme, not its connection settings.
+        val hero = card(page, top = 2)
         hero.background = shape(panelColor, 24, colors = intArrayOf(
             Color.rgb(33, 30, 78), Color.rgb(22, 38, 69)
         ))
         val top = row()
-        top.addView(text("●  À L’ANTENNE", 11f, green, true),
+        top.addView(text("●  EN COURS SUR LE RÉCEPTEUR", 11f, green, true),
             LinearLayout.LayoutParams(0, -2, 1f))
-        top.addView(text("LIVE • SAT>IP", 11f, lavender, true))
+        top.addView(text("LIVE", 11f, lavender, true))
         hero.addView(top)
-        hero.addView(text("CHAÎNE ACTUELLE", 11f, lavender, true), margin(top = 24))
-        val now = text("En attente du récepteur…", 25f, Color.WHITE, true)
-        hero.addView(now, margin(top = 9))
+        val connectionBadge = text("● Connexion au récepteur…", 12f, lavender).apply {
+            setPadding(0, 12.dp, 0, 8.dp)
+            isClickable = true
+            setOnClickListener { goToSettings?.invoke() }
+        }
+        hero.addView(connectionBadge)
+        fields["État connexion"] = connectionBadge
+
+        hero.addView(text("CHAÎNE ACTUELLE", 11f, lavender, true), margin(top = 8))
+        val now = text("Lecture de la chaîne en cours…", 27f, Color.WHITE, true).apply {
+            maxLines = 2
+        }
+        hero.addView(now, margin(top = 7))
         fields["Chaîne actuelle"] = now
-        val currentMeta=metric("Numéro de chaîne","N° en attente du récepteur",16f)
-        hero.addView(currentMeta,margin(top=14))
-        val satMeta=metric("Satellite actuel","Satellite non déterminé",16f)
-        hero.addView(satMeta,margin(top=8))
-        val transMeta=metric("Transpondeur actuel","Fréquence inconnue",13f)
-        hero.addView(transMeta,margin(top=8))
-        hero.addView(text("PROGRAMME / EPG", 11f, lavender, true), margin(top = 18))
-        val program = text("Pas encore communiqué", 14f, textColor)
-        hero.addView(program, margin(top = 6))
+
+        val channelNumber = text("Numéro en cours de lecture", 14f, lavender, true)
+        hero.addView(channelNumber, margin(top = 12))
+        fields["Numéro de chaîne"] = channelNumber
+        val satName = text("Satellite en cours de lecture…", 14f, textColor)
+        hero.addView(satName, margin(top = 8))
+        fields["Satellite actuel"] = satName
+        val tpInfo = text("Fréquence en attente…", 12f, secondary)
+        hero.addView(tpInfo, margin(top = 5))
+        fields["Transpondeur actuel"] = tpInfo
+
+        val epgRow = row()
+        epgRow.addView(text("EPG : ", 12f, lavender, true))
+        val program = text("Non communiqué par le récepteur", 12f, secondary)
+        epgRow.addView(program, LinearLayout.LayoutParams(0, -2, 1f))
+        hero.addView(epgRow, margin(top = 13))
         fields["Programme en cours / EPG"] = program
-        hero.addView(Space(activity), margin(height = 19))
-        hero.addView(action("▶   REGARDER EN DIRECT", purple, Color.WHITE, 58,
-            onClick = onWatch), margin())
-        hero.addView(text(
-            "Vérifier sur le démodulateur : Système → DVB To IPTV = Activé. Tester d'abord une chaîne gratuite (FTA).",
-            11f, secondary), margin(top = 10))
-        val videoDiagnostic = text("VIDÉO : Aucun essai pour le moment", 12f, lavender)
-        hero.addView(videoDiagnostic, margin(top = 10))
+
+        hero.addView(action("▶   REGARDER EN DIRECT", purple, Color.WHITE, 50,
+            onClick = onWatch), margin(top = 14))
+        val videoDiagnostic = text(" ", 11f, secondary).apply { visibility = View.GONE }
+        hero.addView(videoDiagnostic, margin(top = 6))
         fields["Diagnostic vidéo"] = videoDiagnostic
 
         // Mini remote on Accueil. Key codes 1/2 verified for navigation / channel selection
         // on G-MScreen firmware; previous 69/70 were not consistently supported.
         val mini = card(page, top = 14)
-        section(mini, "Mini télécommande", "Touches envoyées au récepteur • contrôle vérifié dans les réponses")
-        remoteRow(mini,listOf("CH −" to 2, "MUTE" to 23, "CH +" to 1))
-        remoteRow(mini,listOf("VOL −" to 36,"OK" to 5,"VOL +" to 35))
-        remoteRow(mini,listOf("MENU" to 6,"EXIT" to 7,"INFO" to 57))
+        section(mini, "Mini télécommande", "CH • Volume • Navigation • Mute")
+        remoteRow(mini,listOf("CH −" to 70, "MUTE" to 23, "CH +" to 69))
+        remoteRow(mini,listOf("VOL −" to 36,"▲" to 1,"VOL +" to 35))
+        remoteRow(mini,listOf("◀" to 3,"OK" to 5,"▶" to 4))
+        remoteRow(mini,listOf("MENU" to 6,"▼" to 2,"EXIT" to 7))
         val remoteFeedback = text("Dernière commande : aucune",12f,secondary)
         mini.addView(remoteFeedback,margin(top=10))
         fields["Retour télécommande"]=remoteFeedback
         mini.addView(action("Ouvrir la télécommande complète",tileColor,lavender,46,
             onClick={goToRemote?.invoke()}),margin(top=12))
+
+        // Move advanced connection settings away from the first screen.
+        page.removeView(connection)
+        settingsPage.addView(connection, 0, margin(top = 10))
 
         val metrics = card(page, top = 14)
         section(metrics, "État du récepteur", "Actualisé à partir des réponses réelles")
@@ -374,6 +395,8 @@ class SatNovaScreen(
         val refresh = action("⟳   Actualiser maintenant", tileColor, lavender, 45,
             outline = hairline, onClick = onRefresh)
         metrics.addView(refresh, margin(top = 12))
+        page.removeView(metrics)
+        settingsPage.addView(metrics, 1, margin(top = 14))
 
         // Essentials first; all original keycodes preserved.
         val control = card(remotePage, top = 14)
@@ -381,7 +404,7 @@ class SatNovaScreen(
         remoteRow(control, listOf("⏻ Power" to 42, "Mute" to 23, "EPG" to 32))
         remoteRow(control, listOf("VOL −" to 36, "▲" to 1, "VOL +" to 35))
         remoteRow(control, listOf("◀" to 3, "OK" to 5, "▶" to 4))
-        remoteRow(control, listOf("CH −" to 2, "▼" to 2, "CH +" to 1))
+        remoteRow(control, listOf("CH −" to 70, "▼" to 2, "CH +" to 69))
         remoteRow(control, listOf("MENU" to 6, "EXIT" to 7, "INFO" to 57))
 
         val extras = stack()
