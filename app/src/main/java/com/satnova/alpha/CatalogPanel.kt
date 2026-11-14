@@ -19,7 +19,8 @@ class CatalogPanel(
     private val tune:(String,Int)->Unit,
     private val refreshTp:()->Unit,
     private val measureSignal:()->Unit,
-    private val openEpg:()->Unit
+    private val openEpg:()->Unit,
+    private val openChannelTab:()->Unit
 ) {
     private val surface=Color.rgb(28,36,58)
     private val light=Color.rgb(247,249,255)
@@ -172,7 +173,7 @@ class CatalogPanel(
         channelDetail.addView(txt("EPG • PROGRAMME",11f,accent,true),lp(top=17,bottom=7))
         channelDetail.addView(txt(epg?:"EPG non communiqué dans les informations reçues.",14f,light,epg!=null))
         if(next!=null)channelDetail.addView(txt("Ensuite : "+next,12f,muted),lp(top=8))
-        channelDetail.addView(tile("Afficher l'EPG sur le téléviseur"){openEpg()},lp(top=13,bottom=8))
+        channelDetail.addView(tile("EPG du programme en cours sur la TV"){openEpg()},lp(top=13,bottom=8))
         id(ch)?.let{programId->
             val radio=if(get(ch,"Radio","TvState")=="1")1 else 0
             channelDetail.addView(tile("▶  Zapper vers cette chaîne"){tune(programId,radio)})
@@ -213,7 +214,7 @@ class CatalogPanel(
         if(matches.isEmpty()){
             tpDetail.addView(txt("Aucune association vérifiable. Ce transpondeur n'est pas nécessairement vide.",13f,muted))
         }else{
-            matches.take(30).forEach{ch->tpDetail.addView(tile(cname(ch)){showChannel(ch)},lp(bottom=6))}
+            matches.take(30).forEach{ch->tpDetail.addView(tile(cname(ch)){showChannel(ch);openChannelTab()},lp(bottom=6))}
             if(matches.size>30)tpDetail.addView(txt("+"+(matches.size-30)+" autres",12f,muted))
         }
         tpDetail.addView(txt("Signal : "+signalNotice.text.toString(),12f,green),lp(top=12))
