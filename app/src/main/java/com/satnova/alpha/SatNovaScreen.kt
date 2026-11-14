@@ -40,7 +40,7 @@ class SatNovaScreen(
     onReadSignal: () -> Unit,
     onWatchMode: () -> Unit,
     onSignalMode: () -> Unit,
-    onRestart: () -> Unit,
+    onRestart: (String) -> Unit,
     onServers: () -> Unit,
     onNetwork: () -> Unit,
     onScan: () -> Unit,
@@ -80,10 +80,9 @@ class SatNovaScreen(
     private lateinit var inlinePoster: TextView
     private lateinit var pinnedPlayer: LinearLayout
     private lateinit var previewFrame:FrameLayout
-    private lateinit var watchModeButton:TextView
-    private lateinit var signalModeButton:TextView
     private lateinit var modeHint:TextView
     private var chosenMode="none"
+    private var section=0
     private var receiverOnline=false
     private var signalFullScreen=false
     private var signalReceiverName="Récepteur connecté"
@@ -254,7 +253,8 @@ class SatNovaScreen(
         val page=pageBox()
         val satellitePage=pageBox()
         val settingsPage=pageBox()
-        val pages=listOf(page, satellitePage, settingsPage)
+        val homePage=pageBox()
+        val pages=listOf(homePage, satellitePage, page, settingsPage)
         pages.forEachIndexed { index,view ->
             view.visibility=if(index==0)View.VISIBLE else View.GONE
             content.addView(view)
@@ -267,9 +267,10 @@ class SatNovaScreen(
             setPadding(8.dp,7.dp,8.dp,7.dp)
             setBackgroundColor(panelColor)
         }
-        val titles=listOf("⌂\nAccueil","◈\nSatellites","⚙\nOptions")
+        val titles=listOf("⌂\nAccueil","◈\nSatellites","▷\nRegarder","⚙\nOptions")
         val navButtons=mutableListOf<TextView>()
         fun showTab(tab:Int){
+            section=tab
             catalog.showTab(if(tab==1)2 else 0)
             pages.forEachIndexed{i,p->p.visibility=if(i==tab)View.VISIBLE else View.GONE}
             navButtons.forEachIndexed{i,b->
@@ -277,13 +278,13 @@ class SatNovaScreen(
                 b.background=shape(if(i==tab)tileColor else panelColor,13)
             }
             scroller.scrollTo(0,0)
-            if(tab==0 && homeListSelected)onChannelRefresh()
+            if(tab==2 && homeListSelected)onChannelRefresh()
             if(tab==1){onChannelRefresh();onReadSatellites()}
             onTabChanged(tab)
         }
-        goToChannels={showTab(0);showHomeList?.invoke()}
-        goToRemote={showTab(0)}
-        goToSettings={showTab(2)}
+        goToChannels={showTab(2);showHomeList?.invoke()}
+        goToRemote={showTab(2)}
+        goToSettings={showTab(3)}
         goToHome={showTab(0)}
         titles.forEachIndexed {i,t->
             val item=text(t,11f,secondary,i==0).apply{
@@ -326,7 +327,7 @@ class SatNovaScreen(
         brandTexts.addView(receiverModel,margin(top=5))
         fields["Modèle du récepteur"]=receiverModel
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 1.16", 10f, lavender, true).apply {
+        val version = text("α 1.17", 10f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(9.dp, 7.dp, 9.dp, 7.dp)
             background = shape(tileColor, 50, hairline)
@@ -433,18 +434,8 @@ class SatNovaScreen(
         // Keep the native video surface attached and visible when switching tabs.
         // Hiding its page can synchronously wait for the decoder to release a surface.
         pinnedPlayer=stack().apply{setPadding(16.dp,8.dp,16.dp,8.dp)}
-        val useModes=row()
-        watchModeButton=action("Regarder",tileColor,lavender,44,onClick=onWatchMode)
-        signalModeButton=action("Signal",tileColor,lavender,44,onClick=onSignalMode)
-        val restart=action("⟳ Redémarrer",tileColor,lavender,44,onClick=onRestart)
-        restart.textSize=11f
-        restart.contentDescription="Redémarrer l'application et reconnecter le récepteur"
-        addWeighted(useModes,signalModeButton,right=3)
-        addWeighted(useModes,watchModeButton,left=3,right=3)
-        addWeighted(useModes,restart,left=3)
-        pinnedPlayer.addView(useModes,margin(bottom=8))
-        modeHint=text("Choisissez Regarder ou Signal",12f,lavender)
-        pinnedPlayer.addView(modeHint,margin(top=2,bottom=8))
+        // Mode selection lives in the bottom navigation; no duplicate restart shortcuts.
+        modeHint=text("",12f,lavender).apply{visibility=View.GONE}
         pinnedPlayer.addView(videoFrame,margin(height=videoHeight.coerceAtMost(190.dp)))
         root.addView(pinnedPlayer,0,margin())
         page.removeView(branding)
@@ -552,56 +543,13 @@ class SatNovaScreen(
         changeReceiver.addView(action("Déconnecter / changer de récepteur",tileColor,lavender,47,
             onClick=onDisconnect))
 
-        val metrics = card(page, top = 14)
-        section(metrics, "État du récepteur", "Actualisé à partir des réponses réelles")
-        metricsRow(metrics,
-            Triple("Volume", "Non disponible", 16f),
-            Triple("Mute", "En attente", 16f))
-        metricsRow(metrics,
-            Triple("Signal / fréquence", "Non communiqué", 14f),
-            Triple("Nombre de chaînes", "—", 18f))
-        val refresh = action("⟳   Actualiser maintenant", tileColor, lavender, 45,
-            outline = hairline, onClick = onRefresh)
-        metrics.addView(refresh, margin(top = 12))
-        page.removeView(metrics)
-        settingsPage.addView(metrics, 1, margin(top = 14))
-
-        // Capability-aware receiver tools: display confirmed data, never fake server/network state.
-        val tools = card(settingsPage, top = 14)
-        section(tools, "Récepteur & installation", "Satellites, transpondeurs, réseau, serveurs, signal et recherche")
-        val toolsToggle = action("⌄   Ouvrir les outils", tileColor, lavender, 48, hairline) {}
-        tools.addView(toolsToggle)
-        val toolsBody = stack().apply { visibility = View.GONE }
-        val satButtons = row()
-        addWeighted(satButtons, action("🛰 Satellites", tileColor, lavender, 46, onClick=onReadSatellites), right=5)
-        addWeighted(satButtons, action("◈ Transpondeurs", tileColor, lavender, 46, onClick=onReadTransponders), left=5)
-        toolsBody.addView(satButtons, margin(top=12))
-        toolsBody.addView(metric("Satellites","Pas encore chargés",13f),margin(top=8))
-        toolsBody.addView(metric("Transpondeurs","Diagnostic expérimental uniquement",13f),margin(top=8))
-        toolsBody.addView(action("◉   Mesurer le signal", tileColor, green, 45,
-            onClick=onReadSignal),margin(top=12))
-        toolsBody.addView(metric("Signal temps réel","Lecture indisponible avant connexion",14f),
-            margin(top=8))
-        toolsBody.addView(text("Une valeur est affichée seulement si le récepteur la transmet. Sinon aucun % n'est inventé.",11f,secondary),
-            margin(top=7))
-        toolsBody.addView(action("☷   Serveurs / abonnements", tileColor, lavender, 45,
-            onClick=onServers),margin(top=14))
-        toolsBody.addView(metric("Serveurs","Statut non accessible via l'API documentée. Ouverture du Menu TV possible.",12f),
-            margin(top=8))
-        toolsBody.addView(action("⌁   Réseau / DHCP / IP statique", tileColor, lavender, 45,
-            onClick=onNetwork),margin(top=14))
-        toolsBody.addView(metric("Réseau","L'IP en haut est l'adresse de connexion SatNova, pas un réglage réseau du récepteur.",12f),
-            margin(top=8))
-        toolsBody.addView(action("⌕   Recherche de chaînes", tileColor, lavender, 45,
-            onClick=onScan),margin(top=14))
-        toolsBody.addView(metric("Recherche","Menu Installation sur la TV ; recherche automatique distante non vérifiée.",12f),
-            margin(top=8))
-        tools.addView(toolsBody)
-        toolsToggle.setOnClickListener {
-            val open=toolsBody.visibility!=View.VISIBLE
-            toolsBody.visibility=if(open) View.VISIBLE else View.GONE
-            toolsToggle.text=if(open)"⌃   Fermer les outils" else "⌄   Ouvrir les outils"
-        }
+        val restartCard=card(settingsPage,top=14)
+        restartCard.addView(action("⟳  Redémarrer",tileColor,lavender,50,onClick={
+            AlertDialog.Builder(activity).setTitle("Redémarrer")
+                .setItems(arrayOf("Appareil", "Application", "Tout")){_,which->
+                    onRestart(listOf("device","application","all")[which])
+                }.setNegativeButton("Annuler",null).show()
+        }))
 
         // Diagnostics hidden from the primary UI but still kept live.
         val advanced = card(settingsPage, top = 14)
@@ -614,7 +562,7 @@ class SatNovaScreen(
         diagBody.addView(diagnostics, margin(top = 7))
         diagBody.addView(videoDiagnostic,margin(top=6))
         diagBody.addView(action("Copier le diagnostic vidéo",tileColor,lavender,44,onClick={
-            val value="SatNova 1.16\n"+fields["Chaîne actuelle"]?.text+"\n"+
+            val value="SatNova 1.17\n"+fields["Chaîne actuelle"]?.text+"\n"+
                 fields["Lecture intégrée"]?.text+"\n"+videoDiagnostic.text
             val clipboard=activity.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
             clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Diagnostic SatNova",value))
@@ -655,41 +603,40 @@ class SatNovaScreen(
 
     fun setUseMode(mode:String)=activity.runOnUiThread {
         chosenMode=mode
-        watchModeButton.background=touch(if(mode=="watch")purple else tileColor,14)
-        signalModeButton.background=touch(if(mode=="signal")Color.rgb(35,97,79) else tileColor,14)
-        watchModeButton.setTextColor(if(mode=="watch")Color.WHITE else lavender)
-        signalModeButton.setTextColor(if(mode=="signal")green else lavender)
-        modeHint.text=when(mode){
-            "watch"->"Mode vidéo"
-            "signal"->"Réglage de la parabole • son disponible"
-            else->"Choisissez Regarder ou Signal"
-        }
         if(mode=="watch"){
+            resizeSignalArea(false)
             catalog.signalView.visibility=View.GONE
+            pinnedPlayer.visibility=if(receiverOnline)View.VISIBLE else View.GONE
             previewFrame.visibility=View.VISIBLE
-        }else if(mode=="none"){
-            catalog.signalView.visibility=View.GONE
-            previewFrame.visibility=View.GONE
+            fields["Lecture intégrée"]?.visibility=View.VISIBLE
         }
-        if(mode!="signal")resizeSignalArea(false)
-        appScroller.visibility=if(receiverOnline && mode!="signal")View.VISIBLE else View.GONE
-        appNav.visibility=if(receiverOnline && mode!="signal")View.VISIBLE else View.GONE
-        // Signal mode hides the native surface only after the HTTP reader has closed.
+        appScroller.visibility=if(receiverOnline && section!=0)View.VISIBLE else View.GONE
+        appNav.visibility=if(receiverOnline)View.VISIBLE else View.GONE
+        // Leave the native surface visible until its reader reports that it has closed.
     }
     private fun resizeSignalArea(full:Boolean){
         signalFullScreen=full
         pinnedPlayer.layoutParams=if(full)LinearLayout.LayoutParams(-1,0,1f) else LinearLayout.LayoutParams(-1,-2)
         catalog.signalView.layoutParams=if(full)LinearLayout.LayoutParams(-1,0,1f) else LinearLayout.LayoutParams(-1,-2)
-        modeHint.visibility=if(full)View.GONE else View.VISIBLE
         fields["Lecture intégrée"]?.visibility=if(full)View.GONE else View.VISIBLE
     }
+    fun showBrowseReady()=activity.runOnUiThread{
+        if(chosenMode=="none"){
+            resizeSignalArea(false)
+            previewFrame.visibility=View.GONE
+            catalog.signalView.visibility=View.GONE
+            pinnedPlayer.visibility=View.GONE
+            appScroller.visibility=if(receiverOnline)View.VISIBLE else View.GONE
+        }
+    }
     fun showSignalReady()=activity.runOnUiThread{
-        if(chosenMode=="signal"){
+        if(chosenMode=="signal" && section==0){
             previewFrame.visibility=View.GONE
             catalog.signalView.visibility=View.VISIBLE
+            pinnedPlayer.visibility=if(receiverOnline)View.VISIBLE else View.GONE
             resizeSignalArea(true)
             appScroller.visibility=View.GONE
-            appNav.visibility=View.GONE
+            appNav.visibility=if(receiverOnline)View.VISIBLE else View.GONE
         }
     }
     fun updateSignalContext(channel:String,sat:String,tp:String)=activity.runOnUiThread{catalog.updateSignalContext(channel,sat,tp)}
@@ -715,9 +662,9 @@ class SatNovaScreen(
         connectionState.text=if(online)"● Connecté" else "● Non connecté"
         connectionState.setTextColor(if(online)green else secondary)
         if(!online)setReceiverIdentity(null)
-        pinnedPlayer.visibility=if(online)View.VISIBLE else View.GONE
-        appScroller.visibility=if(online && chosenMode!="signal")View.VISIBLE else View.GONE
-        appNav.visibility=if(online && chosenMode!="signal")View.VISIBLE else View.GONE
+        pinnedPlayer.visibility=if(online && chosenMode!="none")View.VISIBLE else View.GONE
+        appScroller.visibility=if(online && section!=0)View.VISIBLE else View.GONE
+        appNav.visibility=if(online)View.VISIBLE else View.GONE
         setupScroller.visibility=if(online)View.GONE else View.VISIBLE
         if(online)goToHome?.invoke()
     }

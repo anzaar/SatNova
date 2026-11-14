@@ -5,12 +5,14 @@ class ReceiverWorkMode {
     private var measuring=false
     private var readerClosed=false
     private var playing=false
-    @Synchronized fun reset(){measuring=false;readerClosed=false;playing=false}
-    @Synchronized fun measure(enabled:Boolean){measuring=enabled;readerClosed=false;playing=false}
+    private var browsing=false
+    @Synchronized fun reset(){browsing=false;measuring=false;readerClosed=false;playing=false}
+    @Synchronized fun measure(enabled:Boolean){browsing=false;measuring=enabled;readerClosed=false;playing=false}
+    @Synchronized fun browse(){browsing=true;measuring=false;playing=false}
     @Synchronized fun readerClosed(){if(measuring)readerClosed=true}
     @Synchronized fun videoStarted(){if(!measuring)playing=true}
     @Synchronized fun videoStopped(){playing=false}
     @Synchronized fun mayReadSignal()=measuring && readerClosed
     @Synchronized fun mayStartVideo()=!measuring
-    @Synchronized fun mayReadCatalogue(buffering:Boolean)=if(measuring)readerClosed else playing && !buffering
+    @Synchronized fun mayReadCatalogue(buffering:Boolean)=if(measuring)readerClosed else browsing || (playing && !buffering)
 }

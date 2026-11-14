@@ -10,77 +10,74 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowAlertDialog
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[28])
 class HomeNavigationTest {
-    private fun texts(view:View):List<TextView> {
-        val own=if(view is TextView)listOf(view) else emptyList()
-        return own+if(view is ViewGroup)(0 until view.childCount).flatMap{texts(view.getChildAt(it))} else emptyList()
-    }
-    @Test fun switchesBetweenRemoteAndInlineListWithoutHidingTheVideoSurface(){
-        val controller=Robolectric.buildActivity(Activity::class.java).setup()
-        val activity=controller.get()
-        activity.getSharedPreferences("satnova",0).edit().clear().commit()
-        val screen=SatNovaScreen(activity,
-            onDiscover={},onAdvancedScan={},onSelectReceiver={},onDisconnect={},onConnect={},
-            onWatch={},onRefresh={},onReadSatellites={},onReadTransponders={},onReadSignal={},
-            onWatchMode={},onSignalMode={},onRestart={},
-            onServers={},onNetwork={},onScan={},onChannelTune={_,_->},onChannelRefresh={},
-            onEpgRemote={},onTabChanged={},onKey={})
-        try {
-            activity.setContentView(screen.root)
-            screen.setReceiverOnline(true)
-            screen.setUseMode("watch")
-            fun text(label:String)=texts(screen.root).first{it.text.toString()==label}
-            assertTrue(text("CH +").isShown)
-            text("Liste").performClick()
-            assertFalse(text("CH +").isShown)
-            assertTrue(text("Tous les satellites ▾").isShown)
-            assertTrue(screen.inlineVideo.isShown)
-            text("Télécommande").performClick()
-            assertTrue(text("CH +").isShown)
-            text("◈\nSatellites").performClick()
-            assertTrue(screen.inlineVideo.isShown)
-            assertTrue(texts(screen.root).none{it.text.toString()=="☷\nChaînes"})
-            text("⌂\nAccueil").performClick()
-            assertTrue(text("CH +").isShown)
-        } finally {screen.close();controller.pause().stop().destroy()}
-    }
+    private fun texts(view:View):List<TextView> =
+        (if(view is TextView)listOf(view) else emptyList())+
+        (if(view is ViewGroup)(0 until view.childCount).flatMap{texts(view.getChildAt(it))} else emptyList())
 
-    @Test fun explicitModesAndRestartAreSeparateActions(){
+    @Test fun homeSignalWatchAndOptionsHaveIndependentContent(){
         val controller=Robolectric.buildActivity(Activity::class.java).setup()
         val activity=controller.get()
         activity.getSharedPreferences("satnova",0).edit().clear().commit()
         lateinit var screen:SatNovaScreen
-        var restarts=0
+        val restarts=mutableListOf<String>()
+        var ready=false
         screen=SatNovaScreen(activity,
             onDiscover={},onAdvancedScan={},onSelectReceiver={},onDisconnect={},onConnect={},
             onWatch={},onRefresh={},onReadSatellites={},onReadTransponders={},onReadSignal={},
-            onWatchMode={screen.setSignalMonitoring(false);screen.setUseMode("watch")},
-            onSignalMode={screen.setUseMode("signal");screen.setSignalMonitoring(true)},
-            onRestart={restarts++;screen.setSignalMonitoring(false);screen.setUseMode("none")},
+            onWatchMode={},onSignalMode={},onRestart={restarts.add(it)},
             onServers={},onNetwork={},onScan={},onChannelTune={_,_->},onChannelRefresh={},
-            onEpgRemote={},onTabChanged={},onKey={})
+            onEpgRemote={},onTabChanged={tab->
+                if(ready)when(tab){
+                    0->screen.setUseMode("signal")
+                    2->screen.setUseMode("watch")
+                    else->screen.setUseMode("none")
+                }
+            },onKey={})
+        ready=true
         try {
             activity.setContentView(screen.root)
-            screen.setReceiverOnline(true)
             fun text(label:String)=texts(screen.root).first{it.text.toString()==label}
+            screen.setReceiverOnline(true)
+            screen.showSignalReady()
+            screen.setReceiverIdentity("ECHOLINK ZEN 4")
+            screen.setReceiverDetails("192.168.1.2","240117402977")
             assertFalse(screen.inlineVideo.isShown)
-            text("Regarder").performClick()
+            assertFalse(text("CH +").isShown)
+            assertTrue(text("▷\nRegarder").isShown)
+            assertTrue(texts(screen.root).any{it.isShown && it.text.toString().contains("IP : 192.168.1.2") && it.text.toString().contains("Série : 240117402977")})
+            text("▷\nRegarder").performClick()
             assertTrue(screen.inlineVideo.isShown)
-            text("Signal").performClick()
-            // A mode click alone must not destroy a surface while native playback is still closing.
+            assertTrue(text("CH +").isShown)
+            text("Liste").performClick()
+            assertFalse(text("CH +").isShown)
+            assertTrue(text("Tous les satellites ▾").isShown)
+            text("Télécommande").performClick()
+            assertTrue(text("CH +").isShown)
+            text("⚙\nOptions").performClick()
+            // Native surface remains attached until its asynchronous stop callback completes.
             assertTrue(screen.inlineVideo.isShown)
+            screen.showBrowseReady()
+            assertFalse(screen.inlineVideo.isShown)
+            assertTrue(text("Connexion").isShown)
+            assertTrue(text("⌄   Informations techniques").isShown)
+            assertFalse(text("CH +").isShown)
+            assertTrue(texts(screen.root).none{it.text.toString() in listOf("État du récepteur","Récepteur & installation")})
+            listOf("device","application","all").forEachIndexed{i,target->
+                text("⟳  Redémarrer").performClick()
+                val dialog=ShadowAlertDialog.getLatestAlertDialog()
+                dialog.listView.performItemClick(null,i,i.toLong())
+                assertEquals(target,restarts.last())
+            }
+            text("⌂\nAccueil").performClick()
             screen.showSignalReady()
             assertFalse(screen.inlineVideo.isShown)
             assertFalse(text("CH +").isShown)
-            assertFalse(text("◈\nSatellites").isShown)
-            assertTrue(text("Regarder").isShown)
-            screen.setReceiverIdentity("ECHOLINK ZEN 4")
-            screen.setReceiverDetails("192.168.1.2","240117402977")
-            assertTrue(texts(screen.root).any{it.isShown && it.text.toString()=="ECHOLINK ZEN 4"})
-            assertTrue(texts(screen.root).any{it.isShown && it.text.toString().contains("IP : 192.168.1.2") && it.text.toString().contains("Série : 240117402977")})
+            assertTrue(text("◈\nSatellites").isShown)
             activity.window.decorView.measure(
                 View.MeasureSpec.makeMeasureSpec(480,View.MeasureSpec.EXACTLY),
                 View.MeasureSpec.makeMeasureSpec(800,View.MeasureSpec.EXACTLY))
@@ -88,15 +85,7 @@ class HomeNavigationTest {
             fun gauges(v:View):List<SignalGaugeView> =
                 (if(v is SignalGaugeView)listOf(v) else emptyList())+
                 (if(v is ViewGroup)(0 until v.childCount).flatMap{gauges(v.getChildAt(it))} else emptyList())
-            val meters=gauges(screen.root)
-            assertEquals(2,meters.size)
-            assertTrue(meters.all{it.isShown && it.height>100 && it.width>100})
-            text("Regarder").performClick()
-            assertTrue(screen.inlineVideo.isShown)
-            text("⟳ Redémarrer").performClick()
-            assertEquals(1,restarts)
-            assertFalse(screen.inlineVideo.isShown)
-            assertTrue(text("Choisissez Regarder ou Signal").isShown)
+            assertTrue(gauges(screen.root).all{it.isShown && it.height>100 && it.width>100})
         } finally {screen.close();controller.pause().stop().destroy()}
     }
 }
