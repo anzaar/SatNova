@@ -39,7 +39,7 @@ class SatNovaRemoteWheel(
     private val Int.dp get()=(this*resources.displayMetrics.density+0.5f).toInt()
 
     init {
-        contentDescription="Télécommande : haut, bas, gauche, droite et OK"
+        contentDescription="Télécommande : flèche haut, flèche bas, flèche gauche, flèche droite, et OK pour valider"
         isClickable=true
         isFocusable=true
         minimumHeight=190.dp
@@ -89,8 +89,8 @@ class SatNovaRemoteWheel(
             canvas.drawText(symbol,x,y-(labelPaint.ascent()+labelPaint.descent())/2f,labelPaint)
         }
         // Fully named directions: accessible for users unfamiliar with icons.
-        labelPaint.textSize=8f*resources.displayMetrics.scaledDensity
-        labelPaint.color=lavender
+        labelPaint.textSize=10f*resources.displayMetrics.scaledDensity
+        labelPaint.color=Color.WHITE
         for((name,x,y) in listOf(
             Triple("HAUT",cx,cy-d+14*density),
             Triple("DROITE",cx+d,cy+19*density),
