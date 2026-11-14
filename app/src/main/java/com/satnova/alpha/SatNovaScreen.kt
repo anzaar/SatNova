@@ -53,6 +53,7 @@ class SatNovaScreen(
     val root: LinearLayout = LinearLayout(activity)
     private lateinit var catalog: CatalogPanel
     private var goToChannels: (() -> Unit)? = null
+    private var goToRemote: (() -> Unit)? = null
     val status: TextView
     val ip: EditText
     val connectButton: Button
@@ -242,6 +243,7 @@ class SatNovaScreen(
             if(tab==2)onReadSatellites()
         }
         goToChannels={showTab(1)}
+        goToRemote={showTab(3)}
         titles.forEachIndexed {i,t->
             val item=text(t,11f,secondary,i==0).apply{
                 gravity=Gravity.CENTER
@@ -267,7 +269,7 @@ class SatNovaScreen(
         brandTexts.addView(text("SATNOVA", 25f, Color.WHITE, true))
         brandTexts.addView(text("CONTROL YOUR UNIVERSE", 10f, lavender, true), margin(top = 5))
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 0.8", 12f, lavender, true).apply {
+        val version = text("α 0.9", 12f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(11.dp, 9.dp, 11.dp, 9.dp)
             background = shape(tileColor, 50, hairline)
@@ -328,6 +330,12 @@ class SatNovaScreen(
         val now = text("En attente du récepteur…", 25f, Color.WHITE, true)
         hero.addView(now, margin(top = 9))
         fields["Chaîne actuelle"] = now
+        val currentMeta=metric("Numéro de chaîne","N° en attente du récepteur",16f)
+        hero.addView(currentMeta,margin(top=14))
+        val satMeta=metric("Satellite actuel","Satellite non déterminé",16f)
+        hero.addView(satMeta,margin(top=8))
+        val transMeta=metric("Transpondeur actuel","Fréquence inconnue",13f)
+        hero.addView(transMeta,margin(top=8))
         hero.addView(text("PROGRAMME / EPG", 11f, lavender, true), margin(top = 18))
         val program = text("Pas encore communiqué", 14f, textColor)
         hero.addView(program, margin(top = 6))
@@ -341,6 +349,19 @@ class SatNovaScreen(
         val videoDiagnostic = text("VIDÉO : Aucun essai pour le moment", 12f, lavender)
         hero.addView(videoDiagnostic, margin(top = 10))
         fields["Diagnostic vidéo"] = videoDiagnostic
+
+        // Mini remote on Accueil. Key codes 1/2 verified for navigation / channel selection
+        // on G-MScreen firmware; previous 69/70 were not consistently supported.
+        val mini = card(page, top = 14)
+        section(mini, "Mini télécommande", "Touches envoyées au récepteur • contrôle vérifié dans les réponses")
+        remoteRow(mini,listOf("CH −" to 2, "MUTE" to 23, "CH +" to 1))
+        remoteRow(mini,listOf("VOL −" to 36,"OK" to 5,"VOL +" to 35))
+        remoteRow(mini,listOf("MENU" to 6,"EXIT" to 7,"INFO" to 57))
+        val remoteFeedback = text("Dernière commande : aucune",12f,secondary)
+        mini.addView(remoteFeedback,margin(top=10))
+        fields["Retour télécommande"]=remoteFeedback
+        mini.addView(action("Ouvrir la télécommande complète",tileColor,lavender,46,
+            onClick={goToRemote?.invoke()}),margin(top=12))
 
         val metrics = card(page, top = 14)
         section(metrics, "État du récepteur", "Actualisé à partir des réponses réelles")
@@ -360,7 +381,7 @@ class SatNovaScreen(
         remoteRow(control, listOf("⏻ Power" to 42, "Mute" to 23, "EPG" to 32))
         remoteRow(control, listOf("VOL −" to 36, "▲" to 1, "VOL +" to 35))
         remoteRow(control, listOf("◀" to 3, "OK" to 5, "▶" to 4))
-        remoteRow(control, listOf("CH −" to 70, "▼" to 2, "CH +" to 69))
+        remoteRow(control, listOf("CH −" to 2, "▼" to 2, "CH +" to 1))
         remoteRow(control, listOf("MENU" to 6, "EXIT" to 7, "INFO" to 57))
 
         val extras = stack()
