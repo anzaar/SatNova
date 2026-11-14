@@ -153,7 +153,7 @@ class CatalogPanel(
         channelCount.text=found.size.toString()+" chaîne(s) • "+(if(complete)"liste chargée" else "chargement…")
         found.take(limit).forEach{ch->
             val detail=listOfNotNull(satName(ch),freq(ch)?.let{it+" MHz"}).joinToString(" · ")
-            channelList.addView(tile(cname(ch)+(if(detail.isBlank())"" else "\n"+detail)){showChannel(ch)},lp(bottom=7))
+            channelList.addView(tile(cname(ch)+(if(detail.isBlank())"" else "\n"+detail)){showChannel(ch);openChannelTab()},lp(bottom=7))
         }
         if(found.size>limit)channelList.addView(tile("Afficher 50 autres chaînes"){
             limit+=50;renderChannels()
