@@ -45,6 +45,12 @@ class ReceiverCatalogueCacheTest {
         cache.save(key,ReceiverCatalogueCache.Snapshot(1,1,listOf(row("A")),emptyList(),emptyList()))
         assertEquals(1,cache.load(key)!!.next)
     }
+    @Test fun verifiedSerialProvidesIdentityWhenLoginOmitsItsHardwareFields(){
+        assertNotNull(ReceiverCatalogueCache.serialIdentity("240117402977","ECHOLINK ZEN 4"))
+        assertNotEquals(ReceiverCatalogueCache.serialIdentity("240117402977","ECHOLINK ZEN 4"),
+            ReceiverCatalogueCache.serialIdentity("240117402978","ECHOLINK ZEN 4"))
+        assertNull(ReceiverCatalogueCache.serialIdentity("00000000","ECHOLINK ZEN 4"))
+    }
     @Test fun unknownHardwareIdentityCannotBorrowAnotherReceiversCatalogue(){
         assertNull(ReceiverCatalogueCache.identity(login(0)))
         assertNull(ReceiverCatalogueCache.identity(ByteArray(107)))

@@ -52,6 +52,7 @@ class MainActivity : Activity() {
     private val cacheWork=Executors.newSingleThreadExecutor()
     private val catalogueCache by lazy{ReceiverCatalogueCache(java.io.File(filesDir,"receiver-catalogues"))}
     @Volatile private var catalogueKey=""
+    @Volatile private var connectedReceiverModel=""
     private val cacheRevision=java.util.concurrent.atomic.AtomicLong()
     private val cacheSaveQueued=java.util.concurrent.atomic.AtomicBoolean(false)
     private val fieldViews = linkedMapOf<String,TextView>()
@@ -1004,6 +1005,15 @@ class MainActivity : Activity() {
                 pick(info,"SoftwareVersion")?.let{showField("Firmware",it)}
                 pick(info,"SerialNumber","SerialNo","Serial")?.let{serial->
                     screen.setReceiverDetails(source.inetAddress.hostAddress?:"",serial)
+                    if(catalogueKey.isBlank())ReceiverCatalogueCache.serialIdentity(serial,connectedReceiverModel)?.let{key->
+                        work.execute{
+                            if(socket===source && catalogueKey.isBlank()){
+                                catalogueKey=key
+                                if(channelRecords.isEmpty())restoreCatalogue(key)
+                                saveCatalogue()
+                            }
+                        }
+                    }
                 }
                 pick(info,"ProductName","ModelName")?.let{
                     if(verified)screen.setReceiverIdentity(it)
@@ -1245,6 +1255,7 @@ class MainActivity : Activity() {
                 " (firmware variable). Vérifier DVB To IPTV dans le menu Système.")
             if (full) throw IllegalStateException("Le récepteur ne dispose plus de session disponible.")
             jsonMode = useJson
+            connectedReceiverModel=model
             catalogueKey=ReceiverCatalogueCache.identity(loginBlock)?:""
             if(catalogueKey.isNotBlank())restoreCatalogue(catalogueKey)
             getSharedPreferences("satnova",Context.MODE_PRIVATE).edit()

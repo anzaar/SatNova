@@ -43,6 +43,12 @@ class ReceiverCatalogueCache(private val directory:File) {
         }finally{temporary.delete()}
     }
     companion object {
+        fun serialIdentity(serial:String,model:String):String? {
+            val value=serial.trim()
+            if(value.length<4 || value.all{it=='0'} || value.lowercase() in listOf("unknown","null","inconnu"))return null
+            return MessageDigest.getInstance("SHA-256").digest(("serial:$value\n$model").toByteArray())
+                .joinToString(""){"%02x".format(it.toInt() and 255)}
+        }
         fun identity(encodedLogin:ByteArray):String? {
             if(encodedLogin.size!=108)return null
             val bytes=encodedLogin.reversedArray().map{(it.toInt() xor 0x5B).toByte()}.toByteArray()
