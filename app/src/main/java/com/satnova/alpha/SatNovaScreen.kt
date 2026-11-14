@@ -267,7 +267,7 @@ class SatNovaScreen(
         brandTexts.addView(text("SATNOVA", 25f, Color.WHITE, true))
         brandTexts.addView(text("CONTROL YOUR UNIVERSE", 10f, lavender, true), margin(top = 5))
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 0.6", 12f, lavender, true).apply {
+        val version = text("α 0.7", 12f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(11.dp, 9.dp, 11.dp, 9.dp)
             background = shape(tileColor, 50, hairline)

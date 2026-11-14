@@ -257,8 +257,23 @@ class MainActivity : Activity() {
     }
     private fun readSignal(){
         if(!verified){report("Connecter le récepteur d'abord");return}
-        showField("Signal temps réel","Mesure demandée. En attente de valeurs émises par le firmware.")
-        work.execute{try{requestState(14);requestState(15)}catch(e:Exception){showField("Signal temps réel","Échec : "+e.message)}}
+        lastSignalUpdate=0L
+        val waiting="Mesure demandée • lecture de la télémétrie du tuner…"
+        showField("Signal temps réel",waiting)
+        screen.updateSignal(waiting)
+        work.execute{
+            try{requestState(14);requestState(15)}catch(e:Exception){
+                showField("Signal temps réel","Échec : "+e.message)
+            }
+        }
+        monitorWork.schedule({
+            if(lastSignalUpdate==0L && verified){
+                val unavailable="Firmware 1.48 : aucune valeur SNR/qualité/BER reçue " +
+                    "dans les réponses disponibles. Mesure réelle non accessible pour l'instant."
+                showField("Signal temps réel",unavailable)
+                screen.updateSignal(unavailable)
+            }
+        },6,TimeUnit.SECONDS)
     }
     private fun navigateSetting(section:String) {
         when(section){
