@@ -42,8 +42,7 @@ class MainActivity : Activity() {
     private lateinit var diagnostics: TextView
     private lateinit var ip: EditText
     private lateinit var connectButton: Button
-    private val work = Executors.newSingleThreadExecutor()
-    private val remoteWork = Executors.newSingleThreadExecutor()
+    private val work = ReceiverExecutor()
     private val writeLock = Any()
     @Volatile private var lastRemotePressAt=0L
     private val discoveryWork = Executors.newSingleThreadExecutor()
@@ -655,7 +654,7 @@ class MainActivity : Activity() {
                         totalChannelCount=count;nextChannelIndex=0;channelNames.clear()
                         channelRecords.clear();channelOrder.clear()
                         screen.updateChannels(emptyList(),false)
-                        work.execute{try{requestNextChannelPage()}catch(_:Exception){}}
+                        // Catalogue is fetched when the user opens Channels.
                     }
                 }
                 pick(info,"MuteState")?.let{showField("Mute",if(it=="1")"ON (rapporté)" else "OFF (rapporté)")}
@@ -878,9 +877,10 @@ class MainActivity : Activity() {
     // Original 0.2 command queue, key payload and immediate state feedback.
     private fun sendKey(value: Int) {
         lastRemotePressAt=System.currentTimeMillis()
-        work.execute {
+        val session=socket
+        work.executeRemote {
             val s = socket
-            if (!verified || s == null) { report("Connect and verify receiver first"); return@execute }
+            if (!verified || s == null || s !== session) { report("Connect and verify receiver first"); return@executeRemote }
             try {
                 val payload = if (jsonMode) "{\"request\":\"1040\",\"array\":[{\"KeyValue\":\"$value\"}]}"
                     else "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1040\"><parm><KeyValue>$value</KeyValue></parm></Command>"
@@ -992,13 +992,13 @@ class MainActivity : Activity() {
         setVerified(false)
     }
     override fun onDestroy() {
-        inlinePlayer?.stop()
+        inlinePlayer?.close()
         disconnect()
         work.shutdownNow()
-        remoteWork.shutdownNow()
         discoveryWork.shutdownNow()
         monitorWork.shutdownNow()
         super.onDestroy()
     }
 }
+
 

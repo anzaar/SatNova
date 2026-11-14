@@ -255,6 +255,7 @@ class SatNovaScreen(
         val titles=listOf("⌂\nAccueil","☷\nChaînes","◈\nSatellites","◎\nRemote","⚙\nOptions")
         val navButtons=mutableListOf<TextView>()
         fun showTab(tab:Int){
+            catalog.showTab(tab)
             pages.forEachIndexed{i,p->p.visibility=if(i==tab)View.VISIBLE else View.GONE}
             navButtons.forEachIndexed{i,b->
                 b.setTextColor(if(i==tab)lavender else secondary)
@@ -308,7 +309,7 @@ class SatNovaScreen(
         brandTexts.addView(receiverModel,margin(top=5))
         fields["Modèle du récepteur"]=receiverModel
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 1.8.1", 12f, lavender, true).apply {
+        val version = text("α 1.9", 12f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(11.dp, 9.dp, 11.dp, 9.dp)
             background = shape(tileColor, 50, hairline)
@@ -676,4 +677,5 @@ class SatNovaScreen(
     }
 
 }
+
 

@@ -31,7 +31,7 @@ jobs:
         with:
           gradle-version: '8.9'
       - name: Build test APK
-        run: gradle --no-daemon --stacktrace :app:assembleDebug
+        run: gradle --no-daemon --stacktrace :app:testDebugUnitTest :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: SatNova-Alpha-APK
@@ -60,4 +60,5 @@ jobs:
           fi
           gh release upload alpha-latest SatNova-Latest.apk --clobber
           echo "Direct APK URL: https://github.com/${GH_REPO}/releases/download/alpha-latest/SatNova-Latest.apk"
+
 

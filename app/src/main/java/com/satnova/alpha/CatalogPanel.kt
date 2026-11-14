@@ -117,6 +117,14 @@ class CatalogPanel(
     private var complete=false
     private var tpRead=false
     private var limit=50
+    private var activeTab=0
+    private var satelliteLimit=30
+    private var tpLimit=30
+    fun showTab(tab:Int){
+        activeTab=tab
+        if(tab==1)renderChannels()
+        if(tab==2){renderSatelliteList();renderTps()}
+    }
     init {
         channelsPage.addView(txt("Chaînes TV & Radio",23f,light,true),lp(bottom=7))
         channelsPage.addView(txt("Touchez une chaîne pour voir ses informations et son EPG, avant de zapper.",13f,muted),lp(bottom=16))
@@ -168,36 +176,33 @@ class CatalogPanel(
         satellitePage.addView(signalNotice,lp(top=9))
     }
     fun updateChannels(rows:List<JSONObject>,fullyLoaded:Boolean){
-        channels=rows.toList();complete=fullyLoaded;renderChannels()
-        if(satellites.isNotEmpty())renderSatelliteList()
-        if(selectedSatellite!=null)renderTps()
+        channels=rows.toList();complete=fullyLoaded
+        if(activeTab==1)renderChannels()
     }
     fun updateSatellites(rows:List<JSONObject>){
         satellites=rows.toList()
-        renderSatelliteList()
+        if(activeTab==2)renderSatelliteList()
     }
     private fun renderSatelliteList(){
         satNotice.text=satellites.size.toString()+" satellites configurés • présence ≠ signal"
         satelliteList.removeAllViews()
-        satellites.forEach{sat->
+        satellites.take(satelliteLimit).forEach{sat->
             val name=satLabel(sat)
-            val linked=channels.count{sameSatellite(it,sat)}
-            val status=when{
-                linked>0 -> "● "+linked+" chaîne(s) enregistrée(s)"
-                complete && tps.isNotEmpty() -> "○ 0 chaîne enregistrée"
-                else -> "◌ Chaînes non vérifiées"
-            }
+            val status="Voir les transpondeurs"
             satelliteList.addView(tile("🛰  "+name+"\n"+status+"  ·  Signal non mesuré"){
-                selectedSatellite=sat;selectedTp=null;tpRead=false
+                selectedSatellite=sat;selectedTp=null;tpRead=false;tpLimit=30
                 tpList.removeAllViews();tpDetail.removeAllViews()
                 tpNotice.text="Lecture des fréquences de "+name+"…"
                 refreshTp()
             },lp(bottom=7))
         }
+        if(satellites.size>satelliteLimit) satelliteList.addView(tile("Afficher 30 autres satellites"){
+            satelliteLimit+=30;renderSatelliteList()
+        },lp(bottom=7))
     }
     fun updateTps(rows:List<JSONObject>,received:Boolean=true){
-        tps=rows.toList();tpRead=received;renderTps()
-        if(satellites.isNotEmpty())renderSatelliteList()
+        tps=rows.toList();tpRead=received
+        if(activeTab==2)renderTps()
     }
     fun updateSignal(s:String){
         signalNotice.text=s
@@ -248,6 +253,7 @@ class CatalogPanel(
                 tune(programId,radio)
             })
         } ?: channelDetail.addView(txt("Pas d'identifiant de programme : zapping impossible.",12f,muted))
+        (zapStatus.parent as? android.view.ViewGroup)?.removeView(zapStatus)
         channelDetail.addView(zapStatus,lp(top=9))
     }
     private fun renderTps(){
@@ -261,7 +267,7 @@ class CatalogPanel(
             return
         }
         tpNotice.text=linked.size.toString()+" transpondeur(s) associés à "+satLabel(sat)
-        linked.forEach{tp->
+        linked.take(tpLimit).forEach{tp->
             val matches=channels.filter{sameSatellite(it,sat)&&sameTp(it,tp)}
             val known=complete&&tpIndex(tp)!=null&&satId(tp)!=null&&satId(sat)!=null
             val status=when{
@@ -272,6 +278,9 @@ class CatalogPanel(
             val line=listOfNotNull(freq(tp)?.let{it+" MHz"},pol(tp),sr(tp)?.let{"SR "+it}).joinToString(" · ")
             tpList.addView(tile("◈  "+line+"\n"+status){selectedTp=tp;showTp(tp)},lp(bottom=8))
         }
+        if(linked.size>tpLimit) tpList.addView(tile("Afficher 30 autres transpondeurs"){
+            tpLimit+=30;renderTps()
+        },lp(bottom=8))
     }
     private fun showTp(tp:JSONObject){
         val sat=selectedSatellite?:return
@@ -296,3 +305,4 @@ class CatalogPanel(
     }
 
 }
+
