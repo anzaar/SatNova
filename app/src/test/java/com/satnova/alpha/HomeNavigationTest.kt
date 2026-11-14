@@ -65,6 +65,12 @@ class HomeNavigationTest {
             assertFalse(screen.inlineVideo.isShown)
             assertTrue(text("Connexion").isShown)
             assertTrue(text("⌄   Informations techniques").isShown)
+            screen.fields["Dernier diagnostic vidéo"]?.text="FAILED VIDEO • source 192.168.1.2:8080 • 1234 octets"
+            screen.showInlineState("Mode réglage • vidéo en pause")
+            text("⌄   Informations techniques").performClick()
+            text("Copier le diagnostic vidéo").performClick()
+            val clipboard=activity.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            assertEquals("FAILED VIDEO • source 192.168.1.2:8080 • 1234 octets",clipboard.primaryClip?.getItemAt(0)?.text.toString())
             assertFalse(text("CH +").isShown)
             assertTrue(texts(screen.root).none{it.text.toString() in listOf("État du récepteur","Récepteur & installation")})
             listOf("device","application","all").forEachIndexed{i,target->

@@ -78,11 +78,10 @@ class MainActivity : Activity() {
     @Volatile private var nextChannelIndex = 0
     private var monitorTicks = 0
     @Volatile private var signalMonitoring=false
-    private val tunerSession=TunerSession()
+    private val videoAttempt=VideoAttemptDiagnostics()
     private val receiverStream=ReceiverStreamLease()
     private val modeTransition=java.util.concurrent.atomic.AtomicLong()
     @Volatile private var videoTransport=""
-    private var signalRecoveryAttempt=0
     @Volatile private var rebootHost:String?=null
     private val rebootSequence=java.util.concurrent.atomic.AtomicLong()
     @Volatile private var signalRequestAt=0L
@@ -236,9 +235,13 @@ class MainActivity : Activity() {
         connectButton = screen.connectButton
         diagnostics = screen.diagnostics
         fieldViews.putAll(screen.fields)
+        getSharedPreferences("satnova",Context.MODE_PRIVATE).getString("last_video_report",null)?.let{
+            showField("Dernier diagnostic vidéo",it)
+        }
         setContentView(screen.root)
         inlinePlayer=InlineVlcPlayer(this,screen.inlineVideo,status={ msg ->
             screen.showInlineState(msg)
+            videoAttempt.state(msg);updateVideoReport()
             if(msg.startsWith("LIVE • lecture")){
                 screen.setVideoPlaying(true)
             }
@@ -246,6 +249,7 @@ class MainActivity : Activity() {
             videoBuffering=waiting
             streamWatchdog.buffering(waiting,android.os.SystemClock.elapsedRealtime())
         },failed={
+            videoAttempt.finish("Le lecteur a signalé une interruption");updateVideoReport(true)
             receiverMode.videoStopped()
             stopVideo{
                 if(useMode==UseMode.WATCH)screen.showInlineState(
@@ -265,6 +269,7 @@ class MainActivity : Activity() {
             loadTunerMetadata()
         },transport={message->
             videoTransport=message
+            videoAttempt.counters(message);updateVideoReport()
             showField("Diagnostic transport",message)
         },transportFailed={reason->
             receiverMode.browse()
@@ -306,7 +311,7 @@ class MainActivity : Activity() {
         monitorWork.scheduleWithFixedDelay({
             if(verified && foreground && streamWatchdog.takeStall(android.os.SystemClock.elapsedRealtime()))
                 screen.showInlineState("Chargement vidéo bloqué • toucher pour relancer")
-            if(signalMonitoring && tunerSession.mayReadSignal() && receiverMode.mayReadSignal() && verified && foreground){
+            if(signalMonitoring && receiverMode.mayReadSignal() && verified && foreground){
                 val now=android.os.SystemClock.elapsedRealtime()
                 if(now-signalRequestAt>=3500L &&
                     System.currentTimeMillis()-lastRemotePressAt>1500L &&
@@ -314,7 +319,7 @@ class MainActivity : Activity() {
                     val session=socket
                     work.execute{
                         try{
-                            if(signalMonitoring && tunerSession.mayReadSignal() && receiverMode.mayReadSignal() && foreground && verified && socket===session){
+                            if(signalMonitoring && receiverMode.mayReadSignal() && foreground && verified && socket===session){
                                 signalRequestAt=android.os.SystemClock.elapsedRealtime()
                                 requestState(ReceiverTelemetry.SIGNAL_REQUEST)
                             }
@@ -417,7 +422,10 @@ class MainActivity : Activity() {
             }
         }
     }
-    private fun videoStatus(text:String) { showField("Diagnostic vidéo","VIDÉO : "+text); report(text) }
+    private fun videoStatus(text:String) {
+        videoAttempt.state(text);updateVideoReport(true)
+        showField("Diagnostic vidéo","VIDÉO : "+text);report(text)
+    }
     private fun readSatellites(){
         if(!verified){report("Connecter le récepteur d'abord");return}
         if(satelliteRecords.isNotEmpty()){
@@ -445,6 +453,7 @@ class MainActivity : Activity() {
         if(signalMonitoring)chooseWatchMode() else chooseSignalMode()
     }
     private fun stopVideo(onStopped:()->Unit){
+        updateVideoReport(true) // Keep the last video state when Options/Signal replace its label.
         val source=socket
         streamGate.invalidatePlayback()
         val done={
@@ -462,9 +471,7 @@ class MainActivity : Activity() {
         if(!verified){report("Connectez le récepteur.");return}
         modeTransition.incrementAndGet()
         useMode=UseMode.SIGNAL
-        signalRecoveryAttempt=0
         screen.setUseMode("signal")
-        if(signalMonitoring && !tunerSession.mayReadSignal())signalMonitoring=false
         setSignalMonitoring(true)
     }
     private fun chooseWatchMode(){
@@ -475,8 +482,8 @@ class MainActivity : Activity() {
         screen.setUseMode("watch")
         videoRequestTimedOut=false;streamRecoveryAttempts=0;recoveringStream=false
         if(signalMonitoring)setSignalMonitoring(false)
-        else if(previous==UseMode.WATCH && tunerSession.mayPlay())retryInlineStream()
-        else leaveFinder()
+        else if(previous==UseMode.WATCH)retryInlineStream()
+        else refreshLiveChannel()
         receiverMode.browse() // Channel lists remain available even if the video service fails.
         loadTunerMetadata()
     }
@@ -497,20 +504,17 @@ class MainActivity : Activity() {
             }
         }
     }
-    private fun leaveFinder(){
-        val session=socket?:return
-        if(!verified)return
-        streamGate.invalidatePlayback();activeStreamUrl=null;streamedChannel=""
-        currentChannelId="";autoStreamRequestId=""
-        val command=tunerSession.leave()
-        work.executeRemote{
-            if(socket!==session || !verified)return@executeRemote
-            try{requestState(command)}catch(e:Exception){screen.showInlineState("Sortie du signal impossible : "+e.message)}
+    private fun refreshLiveChannel(){
+        val source=socket?:return
+        activeStreamUrl=null;streamedChannel="";currentChannelId="";autoStreamRequestId=""
+        work.executeRemote{if(socket===source && verified)try{requestState(3)}catch(_:Exception){}}
+    }
+    private fun updateVideoReport(persist:Boolean=false){
+        val report=videoAttempt.render()
+        if(report.isNotBlank()){
+            showField("Dernier diagnostic vidéo",report)
+            if(persist)getSharedPreferences("satnova",Context.MODE_PRIVATE).edit().putString("last_video_report",report).apply()
         }
-        monitorWork.schedule({
-            if(socket===session && useMode==UseMode.WATCH && !tunerSession.mayPlay())
-                screen.showInlineState("Sortie du signal non confirmée • toucher pour réessayer")
-        },6,TimeUnit.SECONDS)
     }
     private fun restartTarget(target:String){
         if(target=="application"){restartApplicationConnection();return}
@@ -577,16 +581,18 @@ class MainActivity : Activity() {
             val transition=modeTransition.get()
             stopVideo{
                 if(modeTransition.get()==transition && signalMonitoring && verified && foreground && socket===session){
-                    val command=tunerSession.enter()
-                    work.executeRemote{if(socket===session && signalMonitoring)try{requestState(command)}catch(_:Exception){}}
+                    // Read the current tuner (403), as in working 1.10; do not enter
+                    // the separate 401/402 installation/tuning session.
+                    receiverMode.readerClosed()
+                    signalRequestAt=0L
                     screen.showSignalReady()
                     if(satelliteRecords.isEmpty() || transponderRecords.isEmpty())tunerMetadataRequested=false
                     loadTunerMetadata()
                     if(catalogWanted)continueChannelMetadata()
                 }
             }
-        }else if(verified){
-            leaveFinder()
+        }else if(verified && foreground && useMode==UseMode.WATCH){
+            refreshLiveChannel()
         }
     }
 
@@ -746,31 +752,6 @@ class MainActivity : Activity() {
         showField("Dernière réponse",date+" · type "+kind+" · code "+statusCode)
         showField("Données brutes reçues",if(text.isEmpty()) "(no body)" else text.take(900))
         if(kind==ReceiverStreamLease.STOP)return // Fire-and-forget in the reference protocol.
-        if(kind==TunerSession.START || kind==TunerSession.END){
-            if(tunerSession.reply(kind,statusCode)){
-                if(statusCode!=0){
-                    if(kind==TunerSession.START && useMode==UseMode.SIGNAL && signalRecoveryAttempt++==0){
-                        // A failed earlier stream may still occupy the tuner. Close this finder
-                        // attempt, then retry once; never reboot hardware to recover a command.
-                        stopVideo{if(signalMonitoring && useMode==UseMode.SIGNAL)leaveFinder()}
-                    }else{
-                        if(kind==TunerSession.START){signalMonitoring=false;screen.setSignalMonitoring(false)}
-                        screen.updateSignal("Mesure refusée (code "+statusCode+") • toucher Accueil pour réessayer")
-                        screen.showInlineState("Sortie du signal refusée (code "+statusCode+")")
-                    }
-                }else if(kind==TunerSession.START && signalMonitoring){
-                    receiverMode.readerClosed()
-                    signalRequestAt=0L
-                    loadTunerMetadata()
-                    if(catalogWanted)continueChannelMetadata()
-                }else if(kind==TunerSession.END && useMode==UseMode.SIGNAL && foreground && signalMonitoring){
-                    work.executeRemote{if(socket===source && signalMonitoring)try{requestState(tunerSession.enter())}catch(_:Exception){}}
-                }else if(kind==TunerSession.END && useMode==UseMode.WATCH && foreground){
-                    work.executeRemote{if(socket===source && tunerSession.mayPlay())try{requestState(3)}catch(_:Exception){}}
-                }
-            }
-            return
-        }
         if(kind==TunerSession.RESTART){
             if(statusCode!=0){
                 rebootHost=null
@@ -787,7 +768,7 @@ class MainActivity : Activity() {
                 return
             }
             val sample=ReceiverTelemetry.signal(text)
-            if(sample!=null && signalMonitoring && tunerSession.mayReadSignal()){
+            if(sample!=null && signalMonitoring){
                 lastSignalUpdate=android.os.SystemClock.elapsedRealtime()
                 showField("Signal temps réel","Force : "+(sample.strength?.let{"$it %"}?:"—")+
                     " • Qualité : "+(sample.quality?.let{"$it %"}?:"—"))
@@ -846,12 +827,17 @@ class MainActivity : Activity() {
                 structured.startsWith("rtsp://",true))structured.trim()
                 else Regex("""(?:rtsp|https?)://[^\s"'<>\\]+""",RegexOption.IGNORE_CASE)
                     .find(normalized)?.value?.trimEnd(',', '}', ']')
-            val actualHost=source.inetAddress.hostAddress?:""
-            val resolved=try{link?.let{ReceiverStreamUrl.resolve(it,actualHost)}}catch(_:Exception){null}
-            if(resolved==null || !isPrivate(actualHost)){
+            // Preserve the exact returned URL/port/parameters used by working 1.10.
+            val resolved=link
+            if(resolved==null || !isPrivate(Uri.parse(resolved).host?:"")){
                 videoStatus("Le récepteur n'a pas renvoyé un lien vidéo local valide.")
                 return
             }
+            videoAttempt.source(resolved)
+            updateVideoReport(true)
+            // The reference app sends 1012 for its explicit RTSP setup session,
+            // not for the direct HTTP path used by this receiver.
+            if(resolved.startsWith("rtsp://",true))receiverStream.opened()
             runOnUiThread{
                 if(socket!==source || !verified || !foreground || useMode!=UseMode.WATCH || !receiverMode.mayStartVideo() || recoveringStream ||
                     currentChannelId!=ticket.channel || !streamGate.isActive(ticket))return@runOnUiThread
@@ -1009,7 +995,6 @@ class MainActivity : Activity() {
         if(useMode!=UseMode.WATCH){chooseWatchMode();return}
         if(!verified){report("Connectez le récepteur.");return}
         if(signalMonitoring){setSignalMonitoring(false);return}
-        if(!tunerSession.mayPlay()){leaveFinder();return}
         streamRecoveryAttempts=0
         recoverFreshLive("Actualisation du direct")
     }
@@ -1043,7 +1028,7 @@ class MainActivity : Activity() {
         }
     }
     private fun autostartInlineStream(id:String){
-        if(useMode!=UseMode.WATCH || !tunerSession.mayPlay() || !receiverMode.mayStartVideo())return
+        if(useMode!=UseMode.WATCH || !receiverMode.mayStartVideo())return
         if(!verified || !foreground || recoveringStream || videoRequestTimedOut || id.isBlank())return
         streamGate.desire(id)
         if(streamedChannel==id && activeStreamUrl!=null)return
@@ -1062,13 +1047,17 @@ class MainActivity : Activity() {
         }
     }
     private fun startLiveTv(id:String,source:Socket){
-        if(useMode!=UseMode.WATCH || !tunerSession.mayPlay() || !receiverMode.mayStartVideo())return
+        if(useMode!=UseMode.WATCH || !receiverMode.mayStartVideo())return
         if(!verified || !foreground || socket!==source || currentChannelId!=id)return
         val ticket=streamGate.begin()?:return
         streamPending=true
+        videoAttempt.begin(source.inetAddress.hostAddress?:"inconnu",
+            (channelNames[id]?:id)+" • ID "+id,
+            java.text.SimpleDateFormat("HH:mm:ss",java.util.Locale.FRANCE).format(java.util.Date()))
+        updateVideoReport(true)
         autoStreamRequestId=ticket.channel
         work.execute{
-            if(socket!==source || !verified || !foreground || useMode!=UseMode.WATCH || !tunerSession.mayPlay()){
+            if(socket!==source || !verified || !foreground || useMode!=UseMode.WATCH){
                 streamGate.fail(ticket);return@execute
             }
             try{
@@ -1078,12 +1067,12 @@ class MainActivity : Activity() {
                         .put("ProgramId",ticket.channel))).toString()
                 else "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1009\"><parm><TvState>"+
                     currentTvState+"</TvState><ProgramId>"+ticket.channel+"</ProgramId></parm></Command>"
-                receiverStream.opened()
                 sendFrame(source,payload)
                 monitorWork.schedule({
                     if(socket===source && streamGate.fail(ticket)){
                         streamPending=false
                         videoRequestTimedOut=true
+                        videoAttempt.finish("Le récepteur n'a pas répondu à la demande 1009");updateVideoReport(true)
                         runOnUiThread{stopVideo{
                             if(useMode==UseMode.WATCH)screen.showInlineState("Lien vidéo absent • toucher pour renouveler la connexion vidéo")
                         }}
@@ -1197,7 +1186,6 @@ class MainActivity : Activity() {
             socket = s
             streamGate.reset()
             receiverStream.reset()
-            tunerSession.reset()
             videoRequestTimedOut=false
             recoveringStream=false
             setVerified(true)

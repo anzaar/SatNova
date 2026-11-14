@@ -21,7 +21,6 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
     private var engine:LibVLC?=null
     private var player:MediaPlayer?=null
     private var currentUrl:String?=null
-    @Volatile private var relay:ReceiverHttpStream?=null
     private var closed=false
     private var requestedUrl:String?=null
 
@@ -44,7 +43,7 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
             releasePlayer()
             if(ticket!=generation.get())return@execute
             try {
-                val vlc=LibVLC(context,arrayListOf(
+                val vlc=LibVLC(context.applicationContext,arrayListOf(
                     "--network-caching=550","--live-caching=550","--no-video-title-show"))
                 engine=vlc
                 val mp=MediaPlayer(vlc)
@@ -79,15 +78,8 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
                         }
                     }
                 }
-                main.post{if(ticket==generation.get())diagnostic("Lecteur VLC • transport réseau borné")}
-                val playbackUrl=if(url.startsWith("http://",true) || url.startsWith("https://",true)){
-                    ReceiverHttpStream(url,report={message->
-                        main.post{if(ticket==generation.get())transport(message)}
-                    },failure={reason->
-                        main.post{if(ticket==generation.get())transportFailed(reason)}
-                    }).also{relay=it}.start()
-                }else url
-                val media=Media(vlc,Uri.parse(playbackUrl))
+                main.post{if(ticket==generation.get())diagnostic("Lecture directe VLC • référence 1.10")}
+                val media=Media(vlc,Uri.parse(url))
                 try {
                     media.addOption(":network-caching=550")
                     media.addOption(":live-caching=550")
@@ -95,6 +87,7 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
                 } finally {media.release()}
                 mp.volume=100
                 mp.play()
+                sampleStats(ticket,mp)
             } catch(e:Exception){
                 main.post{if(ticket==generation.get())status("Lecture vidéo impossible : "+e.message)}
                 releasePlayer()
@@ -104,12 +97,32 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
             }
         }
     }
+    private fun sampleStats(ticket:Long,mp:MediaPlayer){
+        main.postDelayed({
+            if(!closed && ticket==generation.get() && !worker.isShutdown)worker.execute{
+                if(!closed && ticket==generation.get() && player===mp){
+                    try{
+                        val media=mp.media
+                        try{
+                            val stats=media?.stats
+                            if(stats!=null){
+                                val message="VLC : ${stats.readBytes} octets reçus • vidéo décodée : ${stats.decodedVideo}"+
+                                    " • images affichées : ${stats.displayedPictures} • audio décodé : ${stats.decodedAudio}"+
+                                    " • audio joué : ${stats.playedAbuffers}"
+                                main.post{if(!closed && ticket==generation.get())transport(message)}
+                            }
+                        }finally{media?.release()}
+                    }catch(_:Exception){}
+                    sampleStats(ticket,mp)
+                }
+            }
+        },1000L)
+    }
     fun pause(){if(!closed)worker.execute{try{player?.pause()}catch(_:Exception){}}}
     fun resume(){if(!closed)worker.execute{try{player?.play()}catch(_:Exception){}}}
     fun stop(onStopped:()->Unit={}){
         if(closed)return
         generation.incrementAndGet()
-        relay?.close()
         requestedUrl=null
         worker.execute{releasePlayer();main.post{if(!closed)onStopped()}}
     }
@@ -117,12 +130,10 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
         if(closed)return
         generation.incrementAndGet()
         closed=true
-        relay?.close()
         worker.execute{releasePlayer()}
         worker.shutdown()
     }
     private fun releasePlayer(){
-        relay?.close();relay=null
         val old=player
         player=null
         currentUrl=null

@@ -1,33 +1,32 @@
-# SatNova 1.18 — receiver media lifecycle and transport evidence
+# SatNova 1.19 — return to the observed working 1.10 playback path
 
-The user's recording 110737.mp4 shows working 1040 channel changes while VLC
-remains buffering at zero, followed by finder START returning status 1. This
-proves control is still live; it does not prove that HTTP media bytes arrive.
+User screenshots of 1.10 show working picture/audio. Comparing that commit
+157883927771 with 1.18 confirms that its 1009 JSON/XML payload, direct URI passed
+to LibVLC, 550 ms network/live caches, SurfaceView attachment, and volume 100 were
+the working path. The 1.19 player retains asynchronous native teardown to keep
+Android's event loop free; generation guards still reject stale replies.
 
-Static interoperability references from the current G-MScreen Android APK:
-- SatRequestManager: bare START 401, SQ 403, END 405.
-- LivePlayActivity.V0/W0: native/RTSP teardown followed by bare PLAY_STOP 1012.
-- LivePlayActivity.D0: rewrite a stale receiver URL IP to the connected STB IP,
-  keeping the returned port, path and channel parameters.
-- GsDebugActivity: bare hardware restart 1043, distinct from standby key 42.
+The 1.18 loopback HTTP relay and automatic URL-host rewriting are removed from
+playback. The validated local URL returned by 1009 reaches VLC unchanged. Real
+LibVLC Media Stats (readBytes, decodedVideo, displayedPictures, decodedAudio,
+playedAbuffers) replace the relay's inference about whether data arrives.
 
-SatNova now releases its own 1009 stream with 1012 before entering finder,
-changing the streamed channel or leaving Watch. It never sends STOP before
-this control session has requested video. Finder status 1 gets one END/START
-recovery attempt; a final rejection leaves an explicit retry, not a stuck flag.
-Pending URL replies from an invalidated playback generation are drained and
-cannot revive an old reader, even when the channel ID did not change.
+Signal reads the current tuner using request 403, as in 1.10. It does not enter
+the separate 401/402/405 installation session: no frequency is being edited in
+this UI. The reference SatRequestManager uses those commands for a distinct
+SatFinderActivity; their presence alone does not require entering that mode to
+read current signal. This change restores the earlier successful read path.
 
-An uncached loopback HTTP relay owns one receiver GET. Its raw upstream socket
-can be closed immediately before native VLC shutdown; this avoids depending on
-a blocked decoder/network read to finish a navigation callback. It reports HTTP
-status, actual transferred bytes, and bounded connection/read timeouts. Its
-reports omit the URL path, query and tokens. These observations are preserved in
-Options / copied diagnostics; they distinguish absent receiver bytes from later
-playback/decoding failure. RTSP continues through LibVLC directly.
+Reference LivePlayActivity.V0/W0 sends 1012 when its explicit Sat2IP_Rtsp setup
+exists. 1.19 limits that ownership/stop command to an RTSP stream, and does not
+apply it to the direct HTTP path that worked on the user's receiver.
 
-Tests use a local fake receiver for forwarded current bytes, HTTP 503, HTTP 200
-with no body, and cancellation while awaiting headers. They also cover stale URL
-NIC correction, one STOP per owned stream, invalidated late replies, and the
-four-page navigation/restart picker. No physical receiver is available in CI;
-video and signal recovery still require validation on the user's firmware.
+Copied diagnostics now belong to the last video attempt. They include receiver
+IP, channel, request time, credential-free endpoint, native state and real VLC
+counters. Options/Signal, disconnect and application restart do not replace this
+report with 'video paused' or login capability flags. Path/query/user info are
+not included. Tests cover report retention, credential redaction, new attempts,
+copying after switching pages, late reply invalidation and UI navigation.
+
+Physical video playback remains unverified in CI. This restores a user-observed
+working path; it does not prove that the receiver service currently responds.
