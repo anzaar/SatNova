@@ -9,6 +9,7 @@ android {
         applicationId = "com.satnova.alpha"
         minSdk = 26
         targetSdk = 35
+        ndk { abiFilters += listOf("arm64-v8a") }
         versionCode = 8
         versionName = "0.8.0-alpha"
     }
