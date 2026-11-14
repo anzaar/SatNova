@@ -59,6 +59,11 @@ class MainActivity : Activity() {
     private val satelliteRecords = CopyOnWriteArrayList<JSONObject>()
     private val transponderRecords = CopyOnWriteArrayList<JSONObject>()
     private lateinit var screen: SatNovaScreen
+    private var inlinePlayer:InlineVlcPlayer?=null
+    @Volatile private var streamedChannel=""
+    @Volatile private var activeStreamUrl:String?=null
+    @Volatile private var autoStreamRequestId=""
+    @Volatile private var liveScreenRequested=false
     @Volatile private var currentChannelId = ""
     @Volatile private var currentTvState = 0
     @Volatile private var streamPending = false
@@ -110,7 +115,20 @@ class MainActivity : Activity() {
     }
     private fun setVerified(value: Boolean) {
         verified = value
+        if(!value){
+            activeStreamUrl=null
+            streamedChannel=""
+            autoStreamRequestId=""
+            streamPending=false
+        }
         runOnUiThread {
+            if(::screen.isInitialized) {
+                screen.setReceiverOnline(value)
+                if(!value){
+                    inlinePlayer?.stop()
+                    screen.showInlineState("Déconnecté")
+                }
+            }
             if (::connectButton.isInitialized) connectButton.text =
                 if (value) "Disconnect" else "Connect"
             showField("État connexion", if (value)
@@ -125,11 +143,19 @@ class MainActivity : Activity() {
         screen = SatNovaScreen(
             activity = this,
             onDiscover = { discover() },
+            onAdvancedScan = { prefix -> scanPrefix(prefix) },
+            onSelectReceiver = { host ->
+                ip.setText(host)
+                connect(host)
+            },
+            onDisconnect = {
+                work.execute{disconnect();report("Récepteur déconnecté")}
+            },
             onConnect = {
                 if (verified) work.execute { disconnect(); report("Déconnecté") }
                 else connect(ip.text.toString().trim())
             },
-            onWatch = { startLiveTv() },
+            onWatch = { openFullscreenPlayer() },
             onReadSatellites = { readSatellites() },
             onReadTransponders = { readTransponders() },
             onReadSignal = { readSignal() },
@@ -159,6 +185,10 @@ class MainActivity : Activity() {
         diagnostics = screen.diagnostics
         fieldViews.putAll(screen.fields)
         setContentView(screen.root)
+        inlinePlayer=InlineVlcPlayer(this,screen.inlineVideo){ msg ->
+            screen.showInlineState(msg)
+        }
+        screen.setReceiverOnline(false)
         // Auto-connect only to an IP previously verified by SatNova.
         val rememberedIp=getSharedPreferences("satnova",Context.MODE_PRIVATE)
             .getString("last_receiver_ip",null)
@@ -476,13 +506,22 @@ class MainActivity : Activity() {
                 videoStatus("Adresse du flux refusée (hors réseau local).")
                 return
             }
-            streamOpened=true
-            videoStatus("Flux "+Uri.parse(link).scheme+" reçu. Ouverture du lecteur…")
+            streamOpened=false
+            activeStreamUrl=link
+            videoStatus("Flux "+Uri.parse(link).scheme+" reçu. Lecture intégrée…")
             runOnUiThread {
                 val intent=Intent(this,VlcLiveActivity::class.java)
                 intent.putExtra("stream_url",link)
                 intent.putExtra("channel_title",channelNames[currentChannelId] ?: "Canal "+currentChannelId)
-                startActivity(intent)
+                if(liveScreenRequested){
+                    liveScreenRequested=false
+                    inlinePlayer?.stop()
+                    startActivity(intent)
+                }else{
+                    activeStreamUrl=link
+                    inlinePlayer?.start(link)
+                    screen.showInlineState("LIVE • Flux du récepteur en cours")
+                }
             }
             return
         }
@@ -544,8 +583,13 @@ class MainActivity : Activity() {
             3 -> {
                 val id=recs.firstOrNull()?.let { pick(it,"Data","ProgramId","ServiceID") }
                 if(id!=null){
+                    val changed=currentChannelId!=id
                     currentChannelId=id
                     showCurrent()
+                    if(changed || (activeStreamUrl==null && !streamPending &&
+                        autoStreamRequestId!=id)){
+                        autostartInlineStream(id)
+                    }
                     if(targetTuneId==id){
                         report("Zapping confirmé : "+(channelNames[id]?:id))
                         screen.updateZapStatus("Zapping confirmé sur la chaîne "+(channelNames[id]?:id))
@@ -611,6 +655,34 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun openFullscreenPlayer(){
+        if(!verified){report("Connectez le récepteur pour regarder la TV.");return}
+        val url=activeStreamUrl
+        if(url==null){
+            liveScreenRequested=true
+            startLiveTv()
+            return
+        }
+        inlinePlayer?.stop()
+        val intent=Intent(this,VlcLiveActivity::class.java).apply{
+            putExtra("stream_url",url)
+            putExtra("channel_title",channelNames[currentChannelId] ?: "Chaîne du récepteur")
+        }
+        startActivity(intent)
+    }
+    private fun autostartInlineStream(id:String){
+        if(!verified || id.isBlank())return
+        if(streamedChannel==id && activeStreamUrl!=null)return
+        if(autoStreamRequestId==id && streamPending)return
+        streamedChannel=id
+        activeStreamUrl=null
+        autoStreamRequestId=id
+        runOnUiThread{
+            inlinePlayer?.stop()
+            screen.showInlineState("Initialisation Live TV pour la chaîne actuelle…")
+        }
+        startLiveTv()
+    }
     private fun startLiveTv(){
         if(!verified){videoStatus("Connecter Echolink avant le streaming.");return}
         if(streamPending){report("Demande de vidéo déjà en cours…");return}
@@ -650,10 +722,13 @@ class MainActivity : Activity() {
     }
     override fun onResume(){
         super.onResume()
-        if(streamOpened){
-            streamOpened=false
-            if(verified)work.execute{try{requestState(1012)}catch(_:Exception){}}
+        if(verified)activeStreamUrl?.let{url->
+            runOnUiThread{inlinePlayer?.start(url)}
         }
+    }
+    override fun onStop(){
+        inlinePlayer?.pause()
+        super.onStop()
     }
     private fun isPrivate(host: String): Boolean {
         val p = host.split('.')
@@ -823,6 +898,7 @@ class MainActivity : Activity() {
         setVerified(false)
     }
     override fun onDestroy() {
+        inlinePlayer?.stop()
         disconnect()
         work.shutdownNow()
         remoteWork.shutdownNow()
