@@ -13,6 +13,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Space
@@ -68,6 +69,8 @@ class SatNovaScreen(
     private val discoveredHosts=linkedSetOf<String>()
     lateinit var inlineVideo: VLCVideoLayout
         private set
+    private lateinit var inlinePoster: TextView
+    private var streamHasPlayed = false
     val status: TextView
     val ip: EditText
     val connectButton: Button
@@ -300,7 +303,7 @@ class SatNovaScreen(
         brandTexts.addView(text("SATNOVA", 25f, Color.WHITE, true))
         brandTexts.addView(text("CONTROL YOUR UNIVERSE", 10f, lavender, true), margin(top = 5))
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 1.1", 12f, lavender, true).apply {
+        val version = text("α 1.2", 12f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(11.dp, 9.dp, 11.dp, 9.dp)
             background = shape(tileColor, 50, hairline)
@@ -379,38 +382,53 @@ class SatNovaScreen(
         hero.addView(now, margin(top = 7))
         fields["Chaîne actuelle"] = now
 
-        val channelNumber = text("Numéro en cours de lecture", 14f, lavender, true)
-        hero.addView(channelNumber, margin(top = 12))
-        fields["Numéro de chaîne"] = channelNumber
-        val satName = text("Satellite en cours de lecture…", 14f, textColor)
-        hero.addView(satName, margin(top = 8))
-        fields["Satellite actuel"] = satName
-        val tpInfo = text("Fréquence en attente…", 12f, secondary)
-        hero.addView(tpInfo, margin(top = 5))
-        fields["Transpondeur actuel"] = tpInfo
-
-        val epgRow = row()
-        epgRow.addView(text("EPG : ", 12f, lavender, true))
-        val program = text("Non communiqué par le récepteur", 12f, secondary)
-        epgRow.addView(program, LinearLayout.LayoutParams(0, -2, 1f))
-        hero.addView(epgRow, margin(top = 13))
-        fields["Programme en cours / EPG"] = program
-
+        // The parent frame is always 16:9: VLCVideoLayout cannot collapse the preview.
+        val videoFrame=FrameLayout(activity).apply {
+            background=shape(Color.BLACK,15)
+            clipToOutline=true
+            isClickable=true
+            isFocusable=true
+            contentDescription="Vidéo de la chaîne, toucher pour réessayer"
+            setOnClickListener { onWatch() }
+        }
         inlineVideo=VLCVideoLayout(activity).apply {
             setBackgroundColor(Color.BLACK)
             keepScreenOn=true
         }
-        val frameWidth=activity.resources.displayMetrics.widthPixels-68.dp
-        hero.addView(inlineVideo,LinearLayout.LayoutParams(-1,
-            ((frameWidth.coerceAtLeast(200.dp))*9/16)))
-        hero.addView(action("▣  PLEIN ÉCRAN / LECTEUR TV", purple, Color.WHITE, 44,
-            onClick=onWatch), margin(top = 10))
-        val inlineState=text("Connexion au flux vidéo…",12f,secondary)
+        videoFrame.addView(inlineVideo,FrameLayout.LayoutParams(-1,-1))
+        inlinePoster=text("SATNOVA • LIVE\n\nAperçu du récepteur en attente\nTouchez pour relancer la vidéo",14f,lavender,true).apply {
+            gravity=Gravity.CENTER
+            setBackgroundColor(Color.BLACK)
+            setPadding(8.dp,12.dp,8.dp,12.dp)
+        }
+        videoFrame.addView(inlinePoster,FrameLayout.LayoutParams(-1,-1))
+        val videoHeight=((activity.resources.displayMetrics.widthPixels-68.dp)*9/16)
+            .coerceAtLeast(170.dp)
+        hero.addView(videoFrame,margin(height=videoHeight,top=12))
+        val inlineState=text("En attente du flux vidéo du récepteur…",12f,secondary)
         hero.addView(inlineState,margin(top=8))
         fields["Lecture intégrée"]=inlineState
-        val videoDiagnostic = text(" ", 11f, secondary).apply { visibility = View.GONE }
-        hero.addView(videoDiagnostic, margin(top = 6))
-        fields["Diagnostic vidéo"] = videoDiagnostic
+
+        val channelNumber=text("Numéro en cours de lecture",13f,lavender,true)
+        hero.addView(channelNumber,margin(top=12))
+        fields["Numéro de chaîne"]=channelNumber
+        val satName=text("Satellite en cours de lecture…",13f,textColor)
+        hero.addView(satName,margin(top=6))
+        fields["Satellite actuel"]=satName
+        val tpInfo=text("Fréquence en attente…",12f,secondary)
+        hero.addView(tpInfo,margin(top=4))
+        fields["Transpondeur actuel"]=tpInfo
+
+        val epgRow=row()
+        epgRow.addView(text("EPG : ",12f,lavender,true))
+        val program=text("Non communiqué par le récepteur",12f,secondary)
+        epgRow.addView(program,LinearLayout.LayoutParams(0,-2,1f))
+        hero.addView(epgRow,margin(top=10))
+        fields["Programme en cours / EPG"]=program
+
+        val videoDiagnostic=text("",11f,secondary).apply { visibility=View.GONE }
+        hero.addView(videoDiagnostic,margin(top=6))
+        fields["Diagnostic vidéo"]=videoDiagnostic
 
         // Mini remote on Accueil. Key codes 1/2 verified for navigation / channel selection
         // on G-MScreen firmware; previous 69/70 were not consistently supported.
@@ -597,6 +615,14 @@ class SatNovaScreen(
         appNav.visibility=if(online)View.VISIBLE else View.GONE
         setupScroller.visibility=if(online)View.GONE else View.VISIBLE
         if(online)goToHome?.invoke()
+    }
+    fun setVideoPlaying(playing:Boolean)=activity.runOnUiThread {
+        if(playing)streamHasPlayed=true
+        inlinePoster.visibility=if(streamHasPlayed)View.GONE else View.VISIBLE
+    }
+    fun resetVideoPlaceholder()=activity.runOnUiThread {
+        streamHasPlayed=false
+        inlinePoster.visibility=View.VISIBLE
     }
     fun showInlineState(message:String)=activity.runOnUiThread {
         fields["Lecture intégrée"]?.text=message
