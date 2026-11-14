@@ -333,9 +333,57 @@ class MainActivity : Activity() {
         }
         return null
     }
+    private fun key(record:JSONObject?,vararg names:String):String? =
+        record?.let{pick(it,*names)}
+
+    private fun receiverChannelNumber(id:String,record:JSONObject?):String {
+        val direct=key(record,"ChannelNumber","ChannelNo","ChNum","ProgramNumber")
+        if(direct!=null)return "N° "+direct
+        val idx=key(record,"ChannelIndex","Index")?.toIntOrNull()
+        if(idx!=null)return "N° "+(idx+1)+" (index du récepteur)"
+        val inList=channelOrder.indexOf(id)
+        return if(inList>=0) "Position "+(inList+1)+" (liste du récepteur)"
+            else "Numéro indisponible • ID "+id.take(16)
+    }
+    private fun currentSatelliteAndTp(rec:JSONObject?):Pair<String,String>{
+        if(rec==null)return Pair("Satellite non identifié","Fréquence inconnue")
+        var sat=key(rec,"SatelliteName","SatName","Satellite")
+        var frequency=key(rec,"Frequency","Freq","TPFreq")
+        val tpIndex=key(rec,"TPIndex","TpIndex","TPID","TransponderId")
+            ?: key(rec,"ServiceID")?.takeIf{it.length>=9}?.substring(4,9)
+        val tp=transponderRecords.firstOrNull{item->
+            val index=key(item,"TPIndex","TpIndex","TPId","TransponderId")
+            index!=null && tpIndex!=null && index.toIntOrNull()==tpIndex.toIntOrNull()
+        }
+        if(tp!=null){
+            frequency=frequency ?: key(tp,"Frequency","Freq","TPFreq")
+            val satIndex=key(tp,"SatIndex","SatelliteIndex","SatelliteId","SatID")
+            if(sat==null&&satIndex!=null){
+                val satRecord=satelliteRecords.firstOrNull{item->
+                    val idx=key(item,"SatIndex","SatelliteIndex","SatelliteId","SatID")
+                    idx!=null && idx.toIntOrNull()==satIndex.toIntOrNull()
+                }
+                sat=key(satRecord,"SatelliteName","SatName","Name","Satellite")
+            }
+        }
+        val p=key(tp,"Polarization","Pol") ?: key(rec,"Polarization","Pol")
+        val sr=key(tp,"SymbolRate","SR") ?: key(rec,"SymbolRate","SR")
+        val tpText=listOfNotNull(frequency?.let{it+" MHz"},p?.let{"Pol "+it},
+            sr?.let{"SR "+it}).joinToString(" • ").ifBlank{"Fréquence non reçue"}
+        return Pair(sat?:"Satellite non identifié",tpText)
+    }
     private fun showCurrent(){
-        if(currentChannelId.isNotEmpty())
-            showField("Chaîne actuelle",channelNames[currentChannelId] ?: "ID "+currentChannelId+" · nom en chargement")
+        val id=currentChannelId
+        if(id.isBlank())return
+        val rec=channelRecords[id]
+        showField("Chaîne actuelle",channelNames[id] ?:
+            "Chaîne en identification (ID "+id.take(16)+")")
+        showField("Numéro de chaîne",receiverChannelNumber(id,rec))
+        val (sat,tp)=currentSatelliteAndTp(rec)
+        showField("Satellite actuel",sat)
+        showField("Transpondeur actuel",tp)
+        val radio=key(rec,"Radio","TvState")?.toIntOrNull()
+        if(radio!=null)currentTvState=if(radio==1)1 else 0
     }
     private fun handleReply(kind:Int,statusCode:Int,body:ByteArray) {
         val text=body.toString(StandardCharsets.UTF_8).trim()
@@ -414,6 +462,7 @@ class MainActivity : Activity() {
                 satelliteRecords.clear()
                 satelliteRecords.addAll(recs.map{JSONObject(it.toString())})
                 screen.updateSatellites(satelliteRecords.toList())
+                showCurrent()
                 val output=recs.take(35).mapNotNull{ rec->
                     val name=pick(rec,"SatelliteName","SatName","Name","Satellite","SatNameValue")
                     val pos=pick(rec,"OrbitalPosition","Position","Angle")
@@ -426,6 +475,7 @@ class MainActivity : Activity() {
                 transponderRecords.clear()
                 transponderRecords.addAll(recs.map{JSONObject(it.toString())})
                 screen.updateTransponders(transponderRecords.toList())
+                showCurrent()
                 val output=recs.take(35).mapNotNull{ rec->
                     val freq=pick(rec,"Frequency","Freq","TPFreq","FrequencyMHz")
                     val sym=pick(rec,"SymbolRate","Symbol","SR","SymRate")
