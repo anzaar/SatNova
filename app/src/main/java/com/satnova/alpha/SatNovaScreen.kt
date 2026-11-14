@@ -1,6 +1,7 @@
 package com.satnova.alpha
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Typeface
@@ -16,6 +17,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Space
 import android.widget.TextView
+import org.videolan.libvlc.util.VLCVideoLayout
 import org.json.JSONObject
 
 /**
@@ -25,6 +27,9 @@ import org.json.JSONObject
 class SatNovaScreen(
     private val activity: Activity,
     onDiscover: () -> Unit,
+    onAdvancedScan: (String) -> Unit,
+    onSelectReceiver: (String) -> Unit,
+    onDisconnect: () -> Unit,
     onConnect: () -> Unit,
     onWatch: () -> Unit,
     onRefresh: () -> Unit,
@@ -55,6 +60,14 @@ class SatNovaScreen(
     private var goToChannels: (() -> Unit)? = null
     private var goToRemote: (() -> Unit)? = null
     private var goToSettings: (() -> Unit)? = null
+    private var goToHome: (() -> Unit)? = null
+    private lateinit var appScroller: ScrollView
+    private lateinit var appNav: LinearLayout
+    private lateinit var setupScroller: ScrollView
+    private lateinit var discoveryResults: LinearLayout
+    private val discoveredHosts=linkedSetOf<String>()
+    lateinit var inlineVideo: VLCVideoLayout
+        private set
     val status: TextView
     val ip: EditText
     val connectButton: Button
@@ -208,6 +221,7 @@ class SatNovaScreen(
             overScrollMode = View.OVER_SCROLL_NEVER
             clipToPadding = true
         }
+        appScroller=scroller
         root.addView(scroller, LinearLayout.LayoutParams(-1, 0, 1f))
         val content=stack()
         scroller.addView(content, ViewGroup.LayoutParams(-1,-2))
@@ -246,6 +260,7 @@ class SatNovaScreen(
         goToChannels={showTab(1)}
         goToRemote={showTab(3)}
         goToSettings={showTab(4)}
+        goToHome={showTab(0)}
         titles.forEachIndexed {i,t->
             val item=text(t,11f,secondary,i==0).apply{
                 gravity=Gravity.CENTER
@@ -257,7 +272,20 @@ class SatNovaScreen(
             navButtons.add(item)
             nav.addView(item,LinearLayout.LayoutParams(0,-2,1f))
         }
+        appNav=nav
         root.addView(nav,LinearLayout.LayoutParams(-1,-2))
+        // An independent, full-height connection screen replaces all navigation while offline.
+        val setupPage=pageBox()
+        setupScroller=ScrollView(activity).apply {
+            setBackgroundColor(navy)
+            isFillViewport=true
+            overScrollMode=View.OVER_SCROLL_NEVER
+        }
+        setupScroller.addView(setupPage,ViewGroup.LayoutParams(-1,-2))
+        root.addView(setupScroller,LinearLayout.LayoutParams(-1,0,1f))
+        appScroller.visibility=View.GONE
+        appNav.visibility=View.GONE
+        setupScroller.visibility=View.VISIBLE
         showTab(0)
 
         // Identity
@@ -271,7 +299,7 @@ class SatNovaScreen(
         brandTexts.addView(text("SATNOVA", 25f, Color.WHITE, true))
         brandTexts.addView(text("CONTROL YOUR UNIVERSE", 10f, lavender, true), margin(top = 5))
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 1.0", 12f, lavender, true).apply {
+        val version = text("α 1.1", 12f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(11.dp, 9.dp, 11.dp, 9.dp)
             background = shape(tileColor, 50, hairline)
@@ -280,6 +308,13 @@ class SatNovaScreen(
         page.addView(branding, margin(bottom = 15))
 
         // Receiver and LAN connection
+        setupPage.addView(text("SATNOVA • CONNEXION",25f,textColor,true),
+            margin(top=16,bottom=6))
+        setupPage.addView(text("Connecter un récepteur",23f,lavender,true),
+            margin(top=18,bottom=10))
+        setupPage.addView(text("Si aucun décodeur n'est connecté, la vidéo et les commandes sont masquées. "+
+            "Connectez par IP ou recherchez un récepteur réel sur votre Wi-Fi.",
+            13f,secondary),margin(bottom=18))
         val connection = card(page, top = 0)
         val connectionHeading = row()
         connectionHeading.addView(text("◉  ECHOLINK ZEN 4", 13f, lavender, true),
@@ -302,7 +337,7 @@ class SatNovaScreen(
         }
         connection.addView(ip, margin(height = 48, top = 14))
         val connectLine = row()
-        val discover = action("⌁  Rechercher", height = 48, onClick = onDiscover)
+        val discover = action("⌕  Recherche auto", height = 48, onClick = onDiscover)
         addWeighted(connectLine, discover, right = 5)
         connectButton = Button(activity).apply {
             text = "Connect"
@@ -360,8 +395,18 @@ class SatNovaScreen(
         hero.addView(epgRow, margin(top = 13))
         fields["Programme en cours / EPG"] = program
 
-        hero.addView(action("▶   REGARDER EN DIRECT", purple, Color.WHITE, 50,
-            onClick = onWatch), margin(top = 14))
+        inlineVideo=VLCVideoLayout(activity).apply {
+            setBackgroundColor(Color.BLACK)
+            keepScreenOn=true
+        }
+        val frameWidth=activity.resources.displayMetrics.widthPixels-68.dp
+        hero.addView(inlineVideo,LinearLayout.LayoutParams(-1,
+            ((frameWidth.coerceAtLeast(200.dp))*9/16)))
+        hero.addView(action("▣  PLEIN ÉCRAN / LECTEUR TV", purple, Color.WHITE, 44,
+            onClick=onWatch), margin(top = 10))
+        val inlineState=text("Connexion au flux vidéo…",12f,secondary)
+        hero.addView(inlineState,margin(top=8))
+        fields["Lecture intégrée"]=inlineState
         val videoDiagnostic = text(" ", 11f, secondary).apply { visibility = View.GONE }
         hero.addView(videoDiagnostic, margin(top = 6))
         fields["Diagnostic vidéo"] = videoDiagnostic
@@ -377,12 +422,52 @@ class SatNovaScreen(
         val remoteFeedback = text("Dernière commande : aucune",12f,secondary)
         mini.addView(remoteFeedback,margin(top=10))
         fields["Retour télécommande"]=remoteFeedback
-        mini.addView(action("Ouvrir la télécommande complète",tileColor,lavender,46,
-            onClick={goToRemote?.invoke()}),margin(top=12))
+        val extraInline=stack().apply {visibility=View.GONE}
+        remoteRow(extraInline,listOf("POWER" to 42,"EPG" to 32,"INFO" to 57))
+        listOf(listOf(1,2,3),listOf(4,5,6),listOf(7,8,9)).forEach { digits ->
+            remoteRow(extraInline,digits.map { it.toString() to (it+12) })
+        }
+        remoteRow(extraInline,listOf("FAV" to 33,"0" to 12,"RECALL" to 29))
+        mini.addView(extraInline)
+        val expandRemote=action("⌄  Afficher plus de commandes",tileColor,lavender,46,
+            onClick={
+                val opening=extraInline.visibility!=View.VISIBLE
+                extraInline.visibility=if(opening)View.VISIBLE else View.GONE
+            })
+        mini.addView(expandRemote,margin(top=12))
 
         // Move advanced connection settings away from the first screen.
         page.removeView(connection)
-        settingsPage.addView(connection, 0, margin(top = 10))
+        setupPage.addView(connection,margin(top=8))
+        setupPage.addView(action("⌕  Recherche automatique",tileColor,lavender,50,
+            onClick=onDiscover),margin(top=12))
+        setupPage.addView(action("⚙  Recherche avancée • plage IP",tileColor,lavender,50,
+            onClick={
+                val defaultPrefix=ip.text.toString().trim().substringBeforeLast('.', "192.168.1")
+                val field=EditText(activity).apply {
+                    setText(defaultPrefix)
+                    setSingleLine(true)
+                    inputType=InputType.TYPE_CLASS_PHONE or InputType.TYPE_NUMBER_FLAG_DECIMAL
+                    setSelectAllOnFocus(true)
+                }
+                AlertDialog.Builder(activity).setTitle("Recherche avancée")
+                    .setMessage("Préfixe d'un sous-réseau local, par exemple 192.168.1. "+
+                        "Scan des adresses .1 à .254 sur le port 20000.")
+                    .setView(field)
+                    .setPositiveButton("Démarrer"){_,_->
+                        onAdvancedScan(field.text.toString().trim().trimEnd('.'))
+                    }
+                    .setNegativeButton("Annuler",null).show()
+            }),margin(top=10))
+        setupPage.addView(text("RÉCEPTEURS DÉTECTÉS",12f,lavender,true),
+            margin(top=22,bottom=10))
+        discoveryResults=stack()
+        discoveryResults.addView(text("Aucun récepteur détecté. Lancez une recherche.",13f,secondary))
+        setupPage.addView(discoveryResults)
+        val changeReceiver=card(settingsPage,top=10)
+        section(changeReceiver,"Connexion","Gérer la session du récepteur connecté")
+        changeReceiver.addView(action("Déconnecter / changer de récepteur",tileColor,lavender,47,
+            onClick=onDisconnect))
 
         val metrics = card(page, top = 14)
         section(metrics, "État du récepteur", "Actualisé à partir des réponses réelles")
@@ -503,6 +588,30 @@ class SatNovaScreen(
 
     fun updateZapStatus(message:String){
         activity.runOnUiThread{catalog.updateZapStatus(message)}
+    }
+
+    /** Sole entry view until a verified TCP login has completed. */
+    fun setReceiverOnline(online:Boolean) = activity.runOnUiThread {
+        appScroller.visibility=if(online)View.VISIBLE else View.GONE
+        appNav.visibility=if(online)View.VISIBLE else View.GONE
+        setupScroller.visibility=if(online)View.GONE else View.VISIBLE
+        if(online)goToHome?.invoke()
+    }
+    fun showInlineState(message:String)=activity.runOnUiThread {
+        fields["Lecture intégrée"]?.text=message
+    }
+    fun addDiscovered(host:String,model:String?=null)=activity.runOnUiThread {
+        if(!discoveredHosts.add(host))return@runOnUiThread
+        if(discoveredHosts.size==1)discoveryResults.removeAllViews()
+        val item=action((model?:"Appareil possible")+" • "+host+"   → Connecter",
+            tileColor,lavender,52,onClick={onSelectReceiver(host)})
+        discoveryResults.addView(item,margin(bottom=8))
+    }
+    fun discoveryMessage(message:String)=activity.runOnUiThread {
+        if(discoveredHosts.isEmpty()){
+            discoveryResults.removeAllViews()
+            discoveryResults.addView(text(message,13f,secondary))
+        }
     }
 
 }
