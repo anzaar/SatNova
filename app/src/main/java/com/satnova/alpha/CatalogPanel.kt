@@ -1,6 +1,7 @@
 package com.satnova.alpha
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -26,6 +27,10 @@ class CatalogPanel(
     private val light=Color.rgb(247,249,255)
     private val muted=Color.rgb(159,174,199)
     private val accent=Color.rgb(183,171,255)
+    private val prefs=activity.getSharedPreferences("satnova_catalog",0)
+    private var filterMode=0
+    private val modeButtons=mutableListOf<TextView>()
+    private var manualOrder=mutableListOf<String>()
     private val green=Color.rgb(88,220,167)
     private val Int.dp get()=(this*activity.resources.displayMetrics.density+0.5f).toInt()
     private fun bg(color:Int=surface)=GradientDrawable().apply{setColor(color);cornerRadius=15.dp.toFloat()}
@@ -47,23 +52,58 @@ class CatalogPanel(
         return null
     }
     private fun id(r:JSONObject)=get(r,"ServiceID","ProgramId","ProgramID")
-    private fun cname(r:JSONObject)=get(r,"ServiceName","Name","ChannelName","ProgramName") ?: ("Chaîne "+(id(r)?:"?"))
+    private fun cname(r:JSONObject):String {
+        val original=get(r,"ServiceName","Name","ChannelName","ProgramName") ?: ("Chaîne "+(id(r)?:"?"))
+        return prefs.getString("name_"+id(r),null)?.takeIf{it.isNotBlank()} ?: original
+    }
+    private fun isRadio(r:JSONObject)=get(r,"Radio","TvState")=="1"
+    private fun favorite(r:JSONObject)=prefs.getBoolean("fav_"+id(r),false)
+    private fun move(r:JSONObject,delta:Int){
+        val keys=orderedChannels().mapNotNull{id(it)}
+        val current=id(r)?:return
+        val at=keys.indexOf(current)
+        val dest=at+delta
+        if(at<0||dest !in keys.indices)return
+        val reordered=keys.toMutableList()
+        reordered.removeAt(at);reordered.add(dest,current)
+        manualOrder=reordered
+        prefs.edit().putString("manual_order",manualOrder.joinToString("|")).apply()
+        renderChannels();showChannel(r)
+    }
+    private fun orderedChannels():List<JSONObject>{
+        val map=channels.associateBy{id(it)}
+        return manualOrder.mapNotNull{map[it]}+
+            channels.filter{id(it) !in manualOrder}
+    }
     private fun freq(r:JSONObject)=get(r,"Frequency","Freq","TPFreq","FrequencyMHz","TPFrequency")
-    private fun pol(r:JSONObject)=get(r,"Polarization","Pol","Polar","Polarity")
+    private fun pol(r:JSONObject):String? {
+        val v=get(r,"Polarization","Pol","Polar","Polarity","POL")?:return null
+        return when(v.uppercase(Locale.ROOT)){"0"->"H";"1"->"V";else->v}
+    }
     private fun sr(r:JSONObject)=get(r,"SymbolRate","SR","Symbol","SymRate")
-    private fun satId(r:JSONObject)=get(r,"SatelliteId","SatelliteID","SatID","SatId","SatIndex","SatelliteIndex","SatelliteNo")
+    private fun satId(r:JSONObject)=get(r,"SatelliteId","SatelliteID","SatID","SatId","SatIndex","SatelliteIndex","SatelliteNo","SatelliteNumber")
     private fun satName(r:JSONObject)=get(r,"SatelliteName","SatName","Satellite","Sat","SatNameValue")
     private fun satLabel(r:JSONObject)=get(r,"SatelliteName","SatName","Name","Satellite","SatNameValue")?:"Satellite"
     private fun norm(x:String?)=(x?:"").trim().lowercase(Locale.ROOT).replace(Regex("\\s+")," ")
+    private fun tpIndex(r:JSONObject):Int? {
+        val direct=get(r,"TPIndex","TpIndex","TPId","TPID","TransponderId")
+        if(direct!=null)return direct.toIntOrNull()
+        val service=get(r,"ServiceID")?:return null
+        return if(service.length>=9)service.substring(4,9).toIntOrNull() else null
+    }
     private fun sameSatellite(item:JSONObject,satellite:JSONObject):Boolean{
         val itemId=satId(item);val targetId=satId(satellite)
+        if(itemId==null&&get(item,"ServiceID")!=null){
+            val index=tpIndex(item)
+            val tp=tps.firstOrNull{tpIndex(it)==index && index!=null}
+            if(tp!=null)return sameSatellite(tp,satellite)
+        }
         if(itemId!=null&&targetId!=null)return itemId==targetId
         val name=satName(item)
         return name!=null&&norm(name)==norm(satLabel(satellite))
     }
     private fun sameTp(ch:JSONObject,tp:JSONObject):Boolean{
-        val t1=get(ch,"TPId","TpId","TPIndex","TransponderId")
-        val t2=get(tp,"TPId","TpId","TPIndex","TransponderId")
+        val t1=tpIndex(ch);val t2=tpIndex(tp)
         if(t1!=null&&t2!=null)return t1==t2
         val f1=freq(ch);val f2=freq(tp)
         if(f1==null||f2==null)return false
@@ -93,6 +133,7 @@ class CatalogPanel(
     private var tpRead=false
     private var limit=50
     init {
+        manualOrder=prefs.getString("manual_order","")!!.split('|').filter{it.isNotBlank()}.toMutableList()
         channelsPage.addView(txt("Chaînes TV & Radio",23f,light,true),lp(bottom=7))
         channelsPage.addView(txt("Touchez une chaîne pour voir ses informations et son EPG, avant de zapper.",13f,muted),lp(bottom=16))
         filter.apply{
@@ -100,6 +141,28 @@ class CatalogPanel(
             setTextColor(light);setHintTextColor(muted);background=bg()
             setPadding(12.dp,0,12.dp,0)
         }
+        val modeRow=LinearLayout(activity).apply{orientation=LinearLayout.HORIZONTAL}
+        listOf("📺 TV","♫ Radio","★ Favoris").forEachIndexed {ix,name->
+            val b=txt(name,14f,if(ix==0)light else accent,true).apply {
+                gravity=android.view.Gravity.CENTER
+                setPadding(9.dp,12.dp,9.dp,12.dp)
+                background=bg(if(ix==0)Color.rgb(97,77,217) else surface)
+                isClickable=true
+                setOnClickListener{
+                    filterMode=ix
+                    modeButtons.forEachIndexed{j,b->
+                        b.background=bg(if(ix==j)Color.rgb(97,77,217) else surface)
+                        b.setTextColor(if(ix==j)light else accent)
+                    }
+                    limit=50;renderChannels()
+                }
+            }
+            modeButtons.add(b)
+            modeRow.addView(b,LinearLayout.LayoutParams(0,-2,1f).apply{
+                setMargins(if(ix==0)0 else 4.dp,0,if(ix==2)0 else 4.dp,0)
+            })
+        }
+        channelsPage.addView(modeRow,lp(bottom=12))
         channelsPage.addView(filter,LinearLayout.LayoutParams(-1,52.dp))
         channelsPage.addView(channelCount,lp(top=12,bottom=8))
         channelsPage.addView(channelDetail,lp(bottom=11))
@@ -149,11 +212,17 @@ class CatalogPanel(
     private fun renderChannels(){
         channelList.removeAllViews()
         val term=norm(filter.text.toString())
-        val found=channels.filter{term.isBlank()||norm(cname(it)).contains(term)||norm(satName(it)).contains(term)}
+        val found=orderedChannels().filter{
+            (when(filterMode){0->!isRadio(it);1->isRadio(it);else->favorite(it)}) &&
+            (term.isBlank()||norm(cname(it)).contains(term)||norm(satName(it)).contains(term))
+        }
         channelCount.text=found.size.toString()+" chaîne(s) • "+(if(complete)"liste chargée" else "chargement…")
         found.take(limit).forEach{ch->
             val detail=listOfNotNull(satName(ch),freq(ch)?.let{it+" MHz"}).joinToString(" · ")
-            channelList.addView(tile(cname(ch)+(if(detail.isBlank())"" else "\n"+detail)){showChannel(ch);openChannelTab()},lp(bottom=7))
+            channelList.addView(tile(
+                (if(favorite(ch))"★  " else "")+cname(ch)+
+                    (if(detail.isBlank())"" else "\n"+detail)
+            ){showChannel(ch);openChannelTab()},lp(bottom=7))
         }
         if(found.size>limit)channelList.addView(tile("Afficher 50 autres chaînes"){
             limit+=50;renderChannels()
