@@ -183,7 +183,14 @@ class MainActivity : Activity() {
             }
         }, 3, 4, TimeUnit.SECONDS)
     }
-    private fun showField(key:String,value:String)=runOnUiThread { fieldViews[key]?.text=value }
+    private fun showField(key:String,value:String)=runOnUiThread {
+        fieldViews[key]?.let { view ->
+            view.text=value
+            if(key=="Diagnostic vidéo"){
+                view.visibility=if(value.isBlank()) android.view.View.GONE else android.view.View.VISIBLE
+            }
+        }
+    }
     private fun refreshChannels(){
         if(!verified){report("Connecter le récepteur pour les chaînes");return}
         screen.updateChannels(currentChannelsOrdered(), totalChannelCount>0 &&
