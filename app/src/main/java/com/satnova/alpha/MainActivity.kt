@@ -49,6 +49,11 @@ class MainActivity : Activity() {
     @Volatile private var lastRemotePressAt=0L
     private val discoveryWork = Executors.newSingleThreadExecutor()
     private val monitorWork = Executors.newSingleThreadScheduledExecutor()
+    private val cacheWork=Executors.newSingleThreadExecutor()
+    private val catalogueCache by lazy{ReceiverCatalogueCache(java.io.File(filesDir,"receiver-catalogues"))}
+    @Volatile private var catalogueKey=""
+    private val cacheRevision=java.util.concurrent.atomic.AtomicLong()
+    private val cacheSaveQueued=java.util.concurrent.atomic.AtomicBoolean(false)
     private val fieldViews = linkedMapOf<String,TextView>()
     private val channelNames = ConcurrentHashMap<String,String>()
     private val channelRecords = ConcurrentHashMap<String,JSONObject>()
@@ -226,7 +231,8 @@ class MainActivity : Activity() {
                     } catch (e: Exception) { report("Actualisation : " + e.message) }
                 }
             },
-            onKey = { code -> sendKey(code) }
+            onKey = { code -> sendKey(code) },
+            onCatalogueReload = { refreshChannels(true) }
         )
         status = screen.status
         ip = screen.ip
@@ -302,7 +308,7 @@ class MainActivity : Activity() {
                     monitorTicks++
                     if(monitorTicks%5==0)requestState(15)
                     if(monitorTicks%7==0)requestState(14)
-                    requestState(26)
+                    if(useMode!=UseMode.WATCH)requestState(26)
                     if(foreground && (!channelRecords.containsKey(currentChannelId) ||
                         (catalogWanted && !videoBuffering)))requestNextChannelPage()
                 }catch(e:Exception){report("Synchronisation : "+e.message)}
@@ -338,9 +344,61 @@ class MainActivity : Activity() {
             }
         }
     }
-    private fun refreshChannels(){
+    private fun mayLoadCatalogue()=receiverMode.mayReadCatalogue(videoBuffering) && ReceiverLoadPolicy.catalogue(
+        useMode==UseMode.WATCH,
+        selectedTab==1 || getSharedPreferences("satnova",Context.MODE_PRIVATE).getBoolean("home_list",false),
+        videoBuffering,streamPending,channelRecords.containsKey(currentChannelId))
+    private fun saveCatalogue(){
+        cacheRevision.incrementAndGet()
+        queueCatalogueSave()
+    }
+    private fun queueCatalogueSave(){
+        if(catalogueKey.isBlank() || monitorWork.isShutdown || !cacheSaveQueued.compareAndSet(false,true))return
+        monitorWork.schedule({
+            if(work.isShutdown){cacheSaveQueued.set(false);return@schedule}
+            work.execute{
+                val revision=cacheRevision.get()
+                val key=catalogueKey
+                val snapshot=ReceiverCatalogueCache.Snapshot(totalChannelCount,nextChannelIndex,
+                    currentChannelsOrdered().map{JSONObject(it.toString())},
+                    satelliteRecords.map{JSONObject(it.toString())},transponderRecords.map{JSONObject(it.toString())})
+                if(cacheWork.isShutdown){cacheSaveQueued.set(false);return@execute}
+                cacheWork.execute{
+                    try{if(key.isNotBlank())catalogueCache.save(key,snapshot)}catch(_:Exception){}
+                    finally{
+                        cacheSaveQueued.set(false)
+                        if(cacheRevision.get()!=revision)queueCatalogueSave()
+                    }
+                }
+            }
+        },750,TimeUnit.MILLISECONDS)
+    }
+    private fun restoreCatalogue(key:String){
+        val snapshot=catalogueCache.load(key)?:return
+        totalChannelCount=snapshot.total;nextChannelIndex=snapshot.next
+        val restoredOrder=linkedSetOf<String>()
+        for(item in snapshot.channels){
+            val id=pick(item,"ServiceID","ProgramId","ProgramID")?:continue
+            channelRecords[id]=item
+            channelNames[id]=pick(item,"ServiceName","Name","ChannelName","ProgramName")?:"Service "+id
+            restoredOrder.add(id)
+        }
+        channelOrder.addAll(restoredOrder)
+        satelliteRecords.addAll(snapshot.satellites);transponderRecords.addAll(snapshot.transponders)
+        screen.updateChannels(currentChannelsOrdered(),totalChannelCount>0 && nextChannelIndex>=totalChannelCount)
+        screen.updateSatellites(satelliteRecords.toList());screen.updateTransponders(transponderRecords.toList())
+    }
+    private fun refreshChannels(force:Boolean=false){
         if(!verified){report("Connecter le récepteur pour les chaînes");return}
         catalogWanted=true
+        if(force){
+            channelNames.clear();channelRecords.clear();channelOrder.clear()
+            nextChannelIndex=0;channelPageRequestAt=0L
+            satelliteRecords.clear();transponderRecords.clear();tunerMetadataRequested=false
+            screen.updateSatellites(emptyList());screen.updateTransponders(emptyList())
+            saveCatalogue()
+            loadTunerMetadata()
+        }
         screen.updateChannels(currentChannelsOrdered(), totalChannelCount>0 &&
             channelRecords.size>=totalChannelCount)
         work.execute{
@@ -432,7 +490,7 @@ class MainActivity : Activity() {
             screen.updateSatellites(satelliteRecords.toList())
             return
         }
-        if(!receiverMode.mayReadCatalogue(videoBuffering))return
+        if(!mayLoadCatalogue())return
         showField("Satellites","Lecture de la liste des satellites…")
         work.execute{try{requestState(22)}catch(e:Exception){showField("Satellites","Échec : "+e.message)}}
     }
@@ -442,7 +500,7 @@ class MainActivity : Activity() {
             screen.updateTransponders(transponderRecords.toList())
             return
         }
-        if(!receiverMode.mayReadCatalogue(videoBuffering))return
+        if(!mayLoadCatalogue())return
         showField("Transpondeurs","Lecture des transpondeurs du récepteur…")
         work.execute{try{
             lastRequest24=System.currentTimeMillis()
@@ -630,7 +688,7 @@ class MainActivity : Activity() {
         sendFrame(active,payload)
     }
     private fun requestNextChannelPage() {
-        if(!receiverMode.mayReadCatalogue(videoBuffering))return
+        if(!mayLoadCatalogue())return
         if(!verified || totalChannelCount<=0 || nextChannelIndex>=totalChannelCount || nextChannelIndex>=20000)return
         val now=android.os.SystemClock.elapsedRealtime()
         if(channelPageRequestAt>0 && now-channelPageRequestAt<6000L)return
@@ -641,7 +699,7 @@ class MainActivity : Activity() {
         requestState(0,from,to)
     }
     private fun continueChannelMetadata(){
-        if(!receiverMode.mayReadCatalogue(videoBuffering))return
+        if(!mayLoadCatalogue())return
         if(!foreground || (!catalogWanted && channelRecords.containsKey(currentChannelId)))return
         val session=socket
         val identified=channelRecords.containsKey(currentChannelId)
@@ -686,18 +744,18 @@ class MainActivity : Activity() {
     /** Tuner catalogue loading must follow playback initialization. */
     @Synchronized private fun loadTunerMetadata(){
         val session=socket ?: return
-        if(!verified || tunerMetadataRequested || !receiverMode.mayReadCatalogue(videoBuffering))return
+        if(!verified || tunerMetadataRequested || !mayLoadCatalogue())return
         tunerMetadataRequested=true
         monitorWork.schedule({
             if(socket===session && verified)work.execute{
-                if(socket!==session || !verified || !receiverMode.mayReadCatalogue(videoBuffering))return@execute
-                try{requestNextChannelPage();requestState(22)}catch(e:Exception){report("Métadonnées : "+e.message)}
+                if(socket!==session || !verified || !mayLoadCatalogue())return@execute
+                try{requestNextChannelPage();if(satelliteRecords.isEmpty())requestState(22)}catch(e:Exception){report("Métadonnées : "+e.message)}
             }
         },600,TimeUnit.MILLISECONDS)
         monitorWork.schedule({
             if(socket===session && verified)work.execute{
-                if(socket!==session || !verified || !receiverMode.mayReadCatalogue(videoBuffering))return@execute
-                try{requestState(24)}catch(e:Exception){report("Transpondeurs : "+e.message)}
+                if(socket!==session || !verified || !mayLoadCatalogue())return@execute
+                try{if(transponderRecords.isEmpty())requestState(24)}catch(e:Exception){report("Transpondeurs : "+e.message)}
             }
         },1500,TimeUnit.MILLISECONDS)
     }
@@ -865,6 +923,7 @@ class MainActivity : Activity() {
                     if(kind==2002){
                         channelNames.clear();channelRecords.clear();channelOrder.clear();nextChannelIndex=0
                         screen.updateChannels(emptyList(),false)
+                        saveCatalogue()
                         requestNextChannelPage()
                     }
                 }catch(_:Exception){}
@@ -877,6 +936,7 @@ class MainActivity : Activity() {
                 satelliteRecords.clear()
                 satelliteRecords.addAll(recs.map{JSONObject(it.toString())})
                 screen.updateSatellites(satelliteRecords.toList())
+                saveCatalogue()
                 showCurrent()
                 val output=recs.take(35).mapNotNull{ rec->
                     val name=pick(rec,"SatelliteName","SatName","Name","Satellite","SatNameValue")
@@ -890,6 +950,7 @@ class MainActivity : Activity() {
                 transponderRecords.clear()
                 transponderRecords.addAll(recs.map{JSONObject(it.toString())})
                 screen.updateTransponders(transponderRecords.toList())
+                saveCatalogue()
                 showCurrent()
                 val output=recs.take(35).mapNotNull{ rec->
                     val freq=pick(rec,"Frequency","Freq","TPFreq","FrequencyMHz")
@@ -956,6 +1017,7 @@ class MainActivity : Activity() {
                         channelRecords.clear();channelOrder.clear()
                         screen.updateChannels(emptyList(),false)
                         channelPageRequestAt=0L
+                        saveCatalogue()
                         if(activeStreamUrl!=null)continueChannelMetadata()
                     }
                 }
@@ -984,6 +1046,7 @@ class MainActivity : Activity() {
                 channelOrder.addAll(newIds)
                 nextChannelIndex=maxOf(nextChannelIndex,channelPageTo+1)
                 channelPageRequestAt=0L
+                saveCatalogue()
                 showCurrent()
                 screen.updateChannels(currentChannelsOrdered(),totalChannelCount>0&&channelRecords.size>=totalChannelCount)
                 if(nextChannelIndex<totalChannelCount && nextChannelIndex<20000)continueChannelMetadata()
@@ -1158,6 +1221,7 @@ class MainActivity : Activity() {
     private fun connect(host: String) = work.execute {
         if (!isPrivate(host)) { report("Saisissez l'adresse IP locale du récepteur."); return@execute }
         disconnect()
+        catalogueKey=""
         totalChannelCount=0;nextChannelIndex=0;channelPageRequestAt=0L;catalogWanted=false
         channelNames.clear();channelRecords.clear();channelOrder.clear()
         satelliteRecords.clear();transponderRecords.clear();currentChannelId="";currentTvState=0
@@ -1181,6 +1245,8 @@ class MainActivity : Activity() {
                 " (firmware variable). Vérifier DVB To IPTV dans le menu Système.")
             if (full) throw IllegalStateException("Le récepteur ne dispose plus de session disponible.")
             jsonMode = useJson
+            catalogueKey=ReceiverCatalogueCache.identity(loginBlock)?:""
+            if(catalogueKey.isNotBlank())restoreCatalogue(catalogueKey)
             getSharedPreferences("satnova",Context.MODE_PRIVATE).edit()
                 .putString("last_receiver_ip",host).apply()
             socket = s
@@ -1374,6 +1440,7 @@ class MainActivity : Activity() {
         remoteWork.shutdownNow()
         discoveryWork.shutdownNow()
         monitorWork.shutdownNow()
+        cacheWork.shutdown()
         super.onDestroy()
     }
 }

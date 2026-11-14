@@ -30,3 +30,27 @@ copying after switching pages, late reply invalidation and UI navigation.
 
 Physical video playback remains unverified in CI. This restores a user-observed
 working path; it does not prove that the receiver service currently responds.
+
+## 1.20 — verified playback, smoother buffering and durable catalogues
+
+The user confirmed that hardware receiver restart restored playback: 1.19 native
+counters showed received bytes, displayed pictures and played audio. Later
+reports came from separate attempts and cannot be compared as throughput samples.
+The direct URI/player/protocol path is retained. Network/live caching increases
+from 550 ms to 1500 ms; no clock/codec/decoder mode changes or new HTTP relay.
+Diagnostics add elapsed attempt time, native lost/corrupt counters and buffering
+episodes, so future recordings can distinguish stalls from initial buffering.
+
+A reconnect previously unconditionally cleared all channels, satellites, TP and
+paging progress. Catalogues now persist atomically per validated login hardware
+identity (STB serial plus chip identity and model; never IP alone). Reconnect
+restores receiver order, associations and the next missing page. Changed IP on
+the same hardware preserves the cache; a different receiver at the same IP does
+not borrow it. The reported channel count and 2002 notification still invalidate
+changed data. The channel list overflow adds explicit receiver refresh, including
+satellite/TP reload, for changes that cannot be detected from count alone.
+
+Catalogue writes are coalesced, snapshot on the control worker, and serialize on
+a separate disk worker. Corrupt/missing files are ignored. During known-channel
+Watch with the list hidden, catalogue reads are paused. Visible-list reads also
+wait while the video buffers/negotiates; current-state/remote commands continue.

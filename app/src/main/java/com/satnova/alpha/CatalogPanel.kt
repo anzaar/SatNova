@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicLong
 /** Native, bounded channel picker embedded in the home controls. All indexing runs on a worker. */
 class CatalogPanel(private val activity:Activity,private val tune:(String,Int)->Unit,
     private val refreshTp:()->Unit,measureSignal:()->Unit,private val openEpg:()->Unit,
-    private val openChannelTab:()->Unit) {
+    private val openChannelTab:()->Unit,private val reloadCatalogue:()->Unit={}) {
     private val surface=Color.rgb(28,36,58)
     private val light=Color.rgb(247,249,255)
     private val muted=Color.rgb(159,174,199)
@@ -105,9 +105,11 @@ class CatalogPanel(private val activity:Activity,private val tune:(String,Int)->
         filter.setTextColor(light);filter.setHintTextColor(muted)
         search.addView(filter,LinearLayout.LayoutParams(0,44.dp,1f))
         search.addView(tile("⋯"){
-            val labels=arrayOf("Toutes les chaînes","TV","Radio","Favoris du récepteur")
+            val labels=arrayOf("Toutes les chaînes","TV","Radio","Favoris du récepteur","Actualiser depuis le récepteur")
             AlertDialog.Builder(activity).setTitle("Afficher").setSingleChoiceItems(labels,filterMode){dialog,which->
-                filterMode=which;channelPage=0;focusCurrent=false;renderChannels();dialog.dismiss()
+                if(which==4)reloadCatalogue()
+                else {filterMode=which;channelPage=0;focusCurrent=false;renderChannels()}
+                dialog.dismiss()
             }.show()
         })
         channelsPage.addView(search,lp(bottom=8))

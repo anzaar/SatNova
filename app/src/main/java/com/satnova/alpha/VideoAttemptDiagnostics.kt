@@ -10,7 +10,7 @@ class VideoAttemptDiagnostics {
     private var counts="Compteurs VLC : en attente"
     private var frozen=false
     @Synchronized fun begin(receiver:String,channel:String,at:String){
-        header="SatNova 1.19 • $at\nRécepteur : $receiver\nChaîne : $channel"
+        header="SatNova 1.20 • $at\nRécepteur : $receiver\nChaîne : $channel"
         endpoint="En attente du lien 1009";stage="Demande de lecture en cours";counts="Compteurs VLC : en attente";frozen=false
     }
     @Synchronized fun source(url:String){
@@ -24,5 +24,5 @@ class VideoAttemptDiagnostics {
     @Synchronized fun state(value:String){if(header.isNotEmpty() && !frozen)stage=value}
     @Synchronized fun counters(value:String){if(header.isNotEmpty() && !frozen)counts=value}
     @Synchronized fun finish(reason:String){if(header.isNotEmpty() && !frozen){stage=reason;frozen=true}}
-    @Synchronized fun render():String=if(header.isEmpty())"" else "$header\n$endpoint\nLecture directe VLC • référence 1.10\n$stage\n$counts"
+    @Synchronized fun render():String=if(header.isEmpty())"" else "$header\n$endpoint\nLecture directe VLC • tampon stabilité 1,5 s\n$stage\n$counts"
 }

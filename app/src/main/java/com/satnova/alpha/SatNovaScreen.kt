@@ -48,7 +48,8 @@ class SatNovaScreen(
     onChannelRefresh: () -> Unit,
     onEpgRemote: () -> Unit,
     onTabChanged: (Int) -> Unit,
-    onKey: (Int) -> Unit
+    onKey: (Int) -> Unit,
+    onCatalogueReload: () -> Unit = {}
 ) {
     private val navy = Color.rgb(8, 12, 25)
     private val panelColor = Color.rgb(21, 27, 45)
@@ -259,7 +260,7 @@ class SatNovaScreen(
             view.visibility=if(index==0)View.VISIBLE else View.GONE
             content.addView(view)
         }
-        catalog = CatalogPanel(activity, onChannelTune, onReadTransponders, onReadSignal, onEpgRemote, {goToChannels?.invoke()})
+        catalog = CatalogPanel(activity, onChannelTune, onReadTransponders, onReadSignal, onEpgRemote, {goToChannels?.invoke()},onCatalogueReload)
         satellitePage.addView(catalog.satellitePage,margin())
         satellitePage.addView(action("⟳  Actualiser les satellites", tileColor, lavender, 46,
             onClick=onReadSatellites),margin(top=12))
@@ -327,7 +328,7 @@ class SatNovaScreen(
         brandTexts.addView(receiverModel,margin(top=5))
         fields["Modèle du récepteur"]=receiverModel
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 1.19", 10f, lavender, true).apply {
+        val version = text("α 1.20", 10f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(9.dp, 7.dp, 9.dp, 7.dp)
             background = shape(tileColor, 50, hairline)
@@ -569,7 +570,7 @@ class SatNovaScreen(
         diagBody.addView(transportDiagnostic,margin(top=8))
         diagBody.addView(action("Copier le diagnostic vidéo",tileColor,lavender,44,onClick={
             val value=retainedDiagnostic.text.toString().takeIf{it.isNotBlank()}?:
-                ("SatNova 1.19\n"+fields["Chaîne actuelle"]?.text+"\n"+
+                ("SatNova 1.20\n"+fields["Chaîne actuelle"]?.text+"\n"+
                 fields["Lecture intégrée"]?.text+"\n"+videoDiagnostic.text+"\n"+transportDiagnostic.text)
             val clipboard=activity.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
             clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Diagnostic SatNova",value))

@@ -44,11 +44,13 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
             if(ticket!=generation.get())return@execute
             try {
                 val vlc=LibVLC(context.applicationContext,arrayListOf(
-                    "--network-caching=550","--live-caching=550","--no-video-title-show"))
+                    "--network-caching=1500","--live-caching=1500","--no-video-title-show"))
                 engine=vlc
                 val mp=MediaPlayer(vlc)
                 player=mp
                 currentUrl=url
+                val startedAt=android.os.SystemClock.elapsedRealtime()
+                val bufferingEpisodes=java.util.concurrent.atomic.AtomicInteger()
                 onMain{mp.attachViews(view,null,false,false)}
                 var lastMessage=""
                 var lastBufferState:Boolean?=null
@@ -56,6 +58,7 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
                 mp.setEventListener { event ->
                     if(event.type==MediaPlayer.Event.Playing)
                         main.post{if(ticket==generation.get())playing()}
+                    if(event.type==MediaPlayer.Event.Buffering && event.buffering<100f && lastBufferState!=true)bufferingEpisodes.incrementAndGet()
                     val progress=if(event.type==MediaPlayer.Event.Buffering)event.buffering else 100f
                     val waiting=event.type==MediaPlayer.Event.Buffering && progress<100f
                     val message=when(event.type){
@@ -78,16 +81,16 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
                         }
                     }
                 }
-                main.post{if(ticket==generation.get())diagnostic("Lecture directe VLC • référence 1.10")}
+                main.post{if(ticket==generation.get())diagnostic("Lecture directe VLC • tampon stabilité 1,5 s")}
                 val media=Media(vlc,Uri.parse(url))
                 try {
-                    media.addOption(":network-caching=550")
-                    media.addOption(":live-caching=550")
+                    media.addOption(":network-caching=1500")
+                    media.addOption(":live-caching=1500")
                     mp.media=media
                 } finally {media.release()}
                 mp.volume=100
                 mp.play()
-                sampleStats(ticket,mp)
+                sampleStats(ticket,mp,startedAt){bufferingEpisodes.get()}
             } catch(e:Exception){
                 main.post{if(ticket==generation.get())status("Lecture vidéo impossible : "+e.message)}
                 releasePlayer()
@@ -97,7 +100,7 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
             }
         }
     }
-    private fun sampleStats(ticket:Long,mp:MediaPlayer){
+    private fun sampleStats(ticket:Long,mp:MediaPlayer,startedAt:Long,episodes:()->Int){
         main.postDelayed({
             if(!closed && ticket==generation.get() && !worker.isShutdown)worker.execute{
                 if(!closed && ticket==generation.get() && player===mp){
@@ -108,12 +111,15 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
                             if(stats!=null){
                                 val message="VLC : ${stats.readBytes} octets reçus • vidéo décodée : ${stats.decodedVideo}"+
                                     " • images affichées : ${stats.displayedPictures} • audio décodé : ${stats.decodedAudio}"+
-                                    " • audio joué : ${stats.playedAbuffers}"
+                                    " • audio joué : ${stats.playedAbuffers}"+
+                                    " • durée : ${(android.os.SystemClock.elapsedRealtime()-startedAt)/1000} s"+
+                                    " • images perdues : ${stats.lostPictures} • audio perdu : ${stats.lostAbuffers}"+
+                                    " • données corrompues : ${stats.demuxCorrupted} • attentes : ${episodes()}"
                                 main.post{if(!closed && ticket==generation.get())transport(message)}
                             }
                         }finally{media?.release()}
                     }catch(_:Exception){}
-                    sampleStats(ticket,mp)
+                    sampleStats(ticket,mp,startedAt,episodes)
                 }
             }
         },1000L)
