@@ -9,8 +9,8 @@ android {
         applicationId = "com.satnova.alpha"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "0.7.0-alpha"
+        versionCode = 8
+        versionName = "0.8.0-alpha"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -24,4 +24,5 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:${media3Version}")
     implementation("androidx.media3:media3-exoplayer-rtsp:${media3Version}")
     implementation("androidx.media3:media3-ui:${media3Version}")
+    implementation("org.videolan.android:libvlc-all:3.7.7")
 }

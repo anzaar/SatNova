@@ -43,6 +43,8 @@ class MainActivity : Activity() {
     private lateinit var ip: EditText
     private lateinit var connectButton: Button
     private val work = Executors.newSingleThreadExecutor()
+    private val remoteWork = Executors.newSingleThreadExecutor()
+    private val writeLock = Any()
     private val discoveryWork = Executors.newSingleThreadExecutor()
     private val monitorWork = Executors.newSingleThreadScheduledExecutor()
     private val fieldViews = linkedMapOf<String,TextView>()
@@ -210,8 +212,7 @@ class MainActivity : Activity() {
                             tvState+"</TvState><ProgramId>"+id+"</ProgramId></parm></Command>"
                 }
                 val sock=socket ?: return@execute
-                sock.getOutputStream().write(frame(payload))
-                sock.getOutputStream().flush()
+                sendFrame(sock,payload)
                 report(if(flat)"Test de zapping alternatif…"
                     else "Zapping demandé au récepteur, vérification…")
                 showField("Dernière commande envoyée","1000 • "+id+
@@ -306,8 +307,7 @@ class MainActivity : Activity() {
             else
                 "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\""+type+"\" />"
         }
-        active.getOutputStream().write(frame(payload))
-        active.getOutputStream().flush()
+        sendFrame(active,payload)
     }
     private fun requestNextChannelPage() {
         if(!verified||totalChannelCount<=0||nextChannelIndex>=totalChannelCount||nextChannelIndex>=3000)return
@@ -383,7 +383,7 @@ class MainActivity : Activity() {
             streamOpened=true
             videoStatus("Flux "+Uri.parse(link).scheme+" reçu. Ouverture du lecteur…")
             runOnUiThread {
-                val intent=Intent(this,LiveTvActivity::class.java)
+                val intent=Intent(this,VlcLiveActivity::class.java)
                 intent.putExtra("stream_url",link)
                 intent.putExtra("channel_title",channelNames[currentChannelId] ?: "Canal "+currentChannelId)
                 startActivity(intent)
@@ -531,8 +531,7 @@ class MainActivity : Activity() {
                 }else{
                     "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1009\"><parm><TvState>"+currentTvState+"</TvState><ProgramId>"+id+"</ProgramId></parm></Command>"
                 }
-                s.getOutputStream().write(frame(payload))
-                s.getOutputStream().flush()
+                sendFrame(s,payload)
                 monitorWork.schedule({
                     if(streamPending){
                         streamPending=false
@@ -562,6 +561,12 @@ class MainActivity : Activity() {
             v
         }
         return n[0] == 10 || (n[0] == 172 && n[1] in 16..31) || (n[0] == 192 && n[1] == 168)
+    }
+    private fun sendFrame(active: Socket, payload: String) {
+        synchronized(writeLock) {
+            active.getOutputStream().write(frame(payload))
+            active.getOutputStream().flush()
+        }
     }
     private fun frame(payload: String): ByteArray {
         val body = payload.toByteArray(StandardCharsets.UTF_8)
@@ -598,8 +603,7 @@ class MainActivity : Activity() {
             s.soTimeout = 4500
             report("TCP is open. Verifying receiver login …")
             val xml = "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"998\"><data>SatNova Alpha</data><uuid>$clientId</uuid></Command>"
-            s.getOutputStream().write(frame(xml))
-            s.getOutputStream().flush()
+            sendFrame(s,xml)
             val loginBlock=read(s.getInputStream(),108)
             val (model,useJson,full) = decode(loginBlock)
             satIpFlag=((loginBlock.reversedArray()[84].toInt() xor 0x5B) and 0x18) shr 3
@@ -650,13 +654,13 @@ class MainActivity : Activity() {
             report("Connection/login failed: ${e.message}")
         }
     }
-    private fun sendKey(value: Int) = work.execute {
+    private fun sendKey(value: Int) = remoteWork.execute {
         val s = socket
         if (!verified || s == null) { report("Connect and verify receiver first"); return@execute }
         try {
             val payload = if (jsonMode) "{\"request\":\"1040\",\"array\":[{\"KeyValue\":\"$value\"}]}"
                 else "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1040\"><parm><KeyValue>$value</KeyValue></parm></Command>"
-            s.getOutputStream().write(frame(payload)); s.getOutputStream().flush()
+            sendFrame(s,payload)
             showField("Dernière commande envoyée","Key "+value+" envoyé · effet non confirmé")
             if(value in listOf(69,70,35,36,23)) {
                 requestState(3)
@@ -709,6 +713,7 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         disconnect()
         work.shutdownNow()
+        remoteWork.shutdownNow()
         discoveryWork.shutdownNow()
         monitorWork.shutdownNow()
         super.onDestroy()

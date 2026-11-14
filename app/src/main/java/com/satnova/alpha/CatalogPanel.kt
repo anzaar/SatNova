@@ -27,10 +27,8 @@ class CatalogPanel(
     private val light=Color.rgb(247,249,255)
     private val muted=Color.rgb(159,174,199)
     private val accent=Color.rgb(183,171,255)
-    private val prefs=activity.getSharedPreferences("satnova_catalog",0)
     private var filterMode=0
     private val modeButtons=mutableListOf<TextView>()
-    private var manualOrder=mutableListOf<String>()
     private val green=Color.rgb(88,220,167)
     private val Int.dp get()=(this*activity.resources.displayMetrics.density+0.5f).toInt()
     private fun bg(color:Int=surface)=GradientDrawable().apply{setColor(color);cornerRadius=15.dp.toFloat()}
@@ -52,29 +50,15 @@ class CatalogPanel(
         return null
     }
     private fun id(r:JSONObject)=get(r,"ServiceID","ProgramId","ProgramID")
-    private fun cname(r:JSONObject):String {
-        val original=get(r,"ServiceName","Name","ChannelName","ProgramName") ?: ("Chaîne "+(id(r)?:"?"))
-        return prefs.getString("name_"+id(r),null)?.takeIf{it.isNotBlank()} ?: original
-    }
+    private fun cname(r:JSONObject):String =
+        get(r,"ServiceName","Name","ChannelName","ProgramName") ?: ("Chaîne "+(id(r)?:"?"))
     private fun isRadio(r:JSONObject)=get(r,"Radio","TvState")=="1"
-    private fun favorite(r:JSONObject)=prefs.getBoolean("fav_"+id(r),false)
-    private fun move(r:JSONObject,delta:Int){
-        val keys=orderedChannels().mapNotNull{id(it)}
-        val current=id(r)?:return
-        val at=keys.indexOf(current)
-        val dest=at+delta
-        if(at<0||dest !in keys.indices)return
-        val reordered=keys.toMutableList()
-        reordered.removeAt(at);reordered.add(dest,current)
-        manualOrder=reordered
-        prefs.edit().putString("manual_order",manualOrder.joinToString("|")).apply()
-        renderChannels();showChannel(r)
+    private fun favorite(r:JSONObject):Boolean {
+        val v=get(r,"Fav","Favor","FavFlag","Favorite","FavoriteFlag","Favourite","IsFavourite","IsFavorite")
+            ?: return false
+        return v=="1" || v.equals("true",true)
     }
-    private fun orderedChannels():List<JSONObject>{
-        val map=channels.associateBy{id(it)}
-        return manualOrder.mapNotNull{map[it]}+
-            channels.filter{id(it) !in manualOrder}
-    }
+    private fun orderedChannels()=channels
     private fun freq(r:JSONObject)=get(r,"Frequency","Freq","TPFreq","FrequencyMHz","TPFrequency")
     private fun pol(r:JSONObject):String? {
         val v=get(r,"Polarization","Pol","Polar","Polarity","POL")?:return null
@@ -133,7 +117,6 @@ class CatalogPanel(
     private var tpRead=false
     private var limit=50
     init {
-        manualOrder=prefs.getString("manual_order","")!!.split('|').filter{it.isNotBlank()}.toMutableList()
         channelsPage.addView(txt("Chaînes TV & Radio",23f,light,true),lp(bottom=7))
         channelsPage.addView(txt("Touchez une chaîne pour voir ses informations et son EPG, avant de zapper.",13f,muted),lp(bottom=16))
         filter.apply{
@@ -142,7 +125,7 @@ class CatalogPanel(
             setPadding(12.dp,0,12.dp,0)
         }
         val modeRow=LinearLayout(activity).apply{orientation=LinearLayout.HORIZONTAL}
-        listOf("📺 TV","♫ Radio","★ Favoris").forEachIndexed {ix,name->
+        listOf("📺 TV","♫ Radio","★ Favoris récepteur").forEachIndexed {ix,name->
             val b=txt(name,14f,if(ix==0)light else accent,true).apply {
                 gravity=android.view.Gravity.CENTER
                 setPadding(9.dp,12.dp,9.dp,12.dp)
@@ -226,7 +209,7 @@ class CatalogPanel(
             (when(filterMode){0->!isRadio(it);1->isRadio(it);else->favorite(it)}) &&
             (term.isBlank()||norm(cname(it)).contains(term)||norm(satName(it)).contains(term))
         }
-        channelCount.text=found.size.toString()+" chaîne(s) • "+(if(complete)"liste chargée" else "chargement…")
+        channelCount.text=found.size.toString()+" chaîne(s) • "+(if(complete)"liste du récepteur chargée" else "chargement du récepteur…")
         found.take(limit).forEach{ch->
             val detail=listOfNotNull(satName(ch),freq(ch)?.let{it+" MHz"}).joinToString(" · ")
             channelList.addView(tile(
@@ -253,42 +236,10 @@ class CatalogPanel(
         channelDetail.addView(txt(epg?:"EPG non communiqué dans les informations reçues.",14f,light,epg!=null))
         if(next!=null)channelDetail.addView(txt("Ensuite : "+next,12f,muted),lp(top=8))
         channelDetail.addView(tile("EPG du programme en cours sur la TV"){openEpg()},lp(top=13,bottom=8))
-        channelDetail.addView(tile("✎  Renommer localement") {
-            val editor=EditText(activity).apply{
-                setSingleLine(true)
-                setText(cname(ch))
-                setPadding(20.dp,18.dp,20.dp,18.dp)
-            }
-            AlertDialog.Builder(activity)
-                .setTitle("Nom affiché dans SatNova")
-                .setMessage("Cette modification ne change pas le récepteur.")
-                .setView(editor)
-                .setPositiveButton("Enregistrer"){_,_->
-                    val key=id(ch)
-                    if(key!=null){
-                        prefs.edit().putString("name_"+key,editor.text.toString().trim()).apply()
-                        renderChannels();showChannel(ch)
-                    }
-                }
-                .setNegativeButton("Annuler",null)
-                .show()
-        },lp(top=9,bottom=7))
-        channelDetail.addView(tile(if(favorite(ch))"★  Retirer des favoris SatNova"
-            else "☆  Ajouter aux favoris SatNova"){
-            val key=id(ch)
-            if(key!=null){
-                prefs.edit().putBoolean("fav_"+key,!favorite(ch)).apply()
-                renderChannels();showChannel(ch)
-            }
-        },lp(bottom=7))
-        val orderRow=LinearLayout(activity).apply{orientation=LinearLayout.HORIZONTAL}
-        for((label,delta) in listOf("↑ Monter" to -1,"↓ Descendre" to 1)){
-            orderRow.addView(tile(label){move(ch,delta)},LinearLayout.LayoutParams(0,-2,1f).apply{
-                setMargins(2.dp,0,2.dp,0)
-            })
-        }
-        channelDetail.addView(orderRow,lp(bottom=9))
-        channelDetail.addView(txt("Tri et modifications locaux à SatNova. Le récepteur reste inchangé.",11f,muted),lp(bottom=12))
+        channelDetail.addView(txt(
+            "Actions de modification : uniquement sur le récepteur. "+
+            "Aucune liste locale ne remplace la configuration du décodeur.",
+            12f,muted),lp(top=10,bottom=12))
         id(ch)?.let{programId->
             val radio=if(get(ch,"Radio","TvState")=="1")1 else 0
             channelDetail.addView(tile("▶  Zapper vers cette chaîne"){tune(programId,radio)})

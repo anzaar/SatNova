@@ -166,9 +166,10 @@ class LiveTvActivity : Activity() {
                 setDataAndType(uri, "video/*")
                 addCategory(Intent.CATEGORY_DEFAULT)
             }
-            startActivity(Intent.createChooser(i, "Select video player"))
+            i.setPackage("org.videolan.vlc")
+            startActivity(i)
         } catch (_: ActivityNotFoundException) {
-            info.text = "Lecteur externe absent. Installer VLC pour tester le codec audio."
+            info.text = "Application VLC (org.videolan.vlc) non installée. Ce bouton ne lance pas un navigateur."
         } catch (e: Exception) {
             info.text = "Could not open external player: " + (e.message ?: "Unknown error")
         }
