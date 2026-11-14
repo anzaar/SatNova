@@ -237,7 +237,14 @@ class MainActivity : Activity() {
             receiverMode.videoStopped()
             screen.showInlineState("Flux interrompu • toucher pour relancer")
         },diagnostic={info->
-            showField("Diagnostic vidéo",info)
+            val uri=activeStreamUrl?.let{Uri.parse(it)}
+            val endpoint=uri?.let{u->
+                val port=if(u.port>=0)u.port else when(u.scheme){"rtsp"->554;"https"->443;else->80}
+                "${u.scheme}://${u.host}:$port"
+            }?:"non reçu"
+            val control=socket?.inetAddress?.hostAddress?:"déconnecté"
+            showField("Diagnostic vidéo",info+"\nSource vidéo : "+endpoint+
+                "\nRécepteur connecté : "+control+"\nIndicateur SAT>IP : "+satIpFlag)
         },playing={
             receiverMode.videoStarted()
             loadTunerMetadata()
