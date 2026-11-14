@@ -36,6 +36,16 @@ class InlineVlcPlayer(
     private var usingFallback=false
 
     fun start(url:String){
+        // VLC's TextureView requires a measured inline surface. SurfaceView can render
+        // behind rounded/scrolling Android containers and leave a black rectangle.
+        if(vlcView.width<=0 || vlcView.height<=0){
+            handler.postDelayed({
+                if(activity.isFinishing)return@postDelayed
+                if(vlcView.width>0 && vlcView.height>0)start(url)
+                else status("Zone vidéo en préparation • vérifiez l'onglet Accueil")
+            },350L)
+            return
+        }
         if(url==currentUrl && (vlc!=null || exo!=null)){
             resume()
             return
@@ -60,7 +70,7 @@ class InlineVlcPlayer(
             engine=lib
             val mp=MediaPlayer(lib)
             vlc=mp
-            mp.attachViews(vlcView,null,false,false)
+            mp.attachViews(vlcView,null,true,false)
             mp.setEventListener{event->
                 activity.runOnUiThread{
                     if(token!=generation || usingFallback)return@runOnUiThread
@@ -69,7 +79,7 @@ class InlineVlcPlayer(
                             status("VLC : lecture en cours • attente de l'image…")
                         MediaPlayer.Event.Vout -> {
                             videoReady=true
-                            status("LIVE • Image VLC reçue • décodeur MP2 activé")
+                            status("VLC • sortie vidéo initialisée • vérifiez que l’image apparaît")
                         }
                         MediaPlayer.Event.Buffering ->
                             status("VLC • chargement du flux local…")
@@ -137,6 +147,18 @@ class InlineVlcPlayer(
         }
     }
 
+    fun tryAndroid(){
+        val url=currentUrl
+        if(url.isNullOrBlank()){
+            status("Lecteur Android : aucune URL vidéo reçue du récepteur")
+            return
+        }
+        if(usingFallback){
+            status("Le lecteur Android est déjà en cours de test")
+            return
+        }
+        switchToAndroid(url,generation,"Test manuel")
+    }
     fun pause(){
         try{exo?.pause()}catch(_:Exception){}
         try{vlc?.pause()}catch(_:Exception){}
