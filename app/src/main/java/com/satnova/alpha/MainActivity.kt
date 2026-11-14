@@ -188,10 +188,10 @@ class MainActivity : Activity() {
                 connect(host)
             },
             onDisconnect = {
-                work.execute{disconnect();report("Récepteur déconnecté")}
+                stopVideo{work.execute{disconnect();report("Récepteur déconnecté")}}
             },
             onConnect = {
-                if (verified) work.execute { disconnect(); report("Déconnecté") }
+                if (verified) stopVideo{work.execute { disconnect(); report("Déconnecté") }}
                 else connect(ip.text.toString().trim())
             },
             onWatch = { retryInlineStream() },

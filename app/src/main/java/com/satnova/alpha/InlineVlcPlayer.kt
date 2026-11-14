@@ -79,7 +79,7 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
                         }
                     }
                 }
-                main.post{if(ticket==generation.get())diagnostic("Lecture directe • configuration vidéo 1.2")}
+                main.post{if(ticket==generation.get())diagnostic("Lecteur VLC • transport réseau borné")}
                 val playbackUrl=if(url.startsWith("http://",true) || url.startsWith("https://",true)){
                     ReceiverHttpStream(url,report={message->
                         main.post{if(ticket==generation.get())transport(message)}

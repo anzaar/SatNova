@@ -64,7 +64,12 @@ class ReceiverHttpStream(
             remote.soTimeout=timeoutMillis
             val inputSocket=if(uri.scheme=="https"){
                 (SSLSocketFactory.getDefault() as SSLSocketFactory)
-                    .createSocket(remote,uri.host,port,true).also{upstream=it;it.soTimeout=timeoutMillis}
+                    .createSocket(remote,uri.host,port,true).also{
+                        upstream=it;it.soTimeout=timeoutMillis
+                        val tls=it as javax.net.ssl.SSLSocket
+                        tls.sslParameters=tls.sslParameters.apply{endpointIdentificationAlgorithm="HTTPS"}
+                        tls.startHandshake()
+                    }
             }else remote
             if(closed.get())return
             val path=(uri.rawPath?.takeIf{it.isNotEmpty()}?:"/")+(uri.rawQuery?.let{"?$it"}?:"")
@@ -92,7 +97,7 @@ class ReceiverHttpStream(
                 val now=System.nanoTime()/1_000_000L
                 if(lastReport==0L || now-lastReport>=1000L){
                     lastReport=now
-                    report("HTTP $httpStatus • flux reçu : ${received/1024} Ko")
+                    report("HTTP $httpStatus • flux reçu : "+if(received<1024L)"$received octets" else "${received/1024} Ko")
                 }
             }
             if(!closed.get())error(if(received==0L)"HTTP $httpStatus • flux vide" else "Flux fermé après ${received/1024} Ko")
