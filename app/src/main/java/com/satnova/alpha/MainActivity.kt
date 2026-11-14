@@ -64,6 +64,9 @@ class MainActivity : Activity() {
     @Volatile private var streamedChannel=""
     @Volatile private var activeStreamUrl:String?=null
     @Volatile private var autoStreamRequestId=""
+    @Volatile private var lastStreamChannelId=""
+    @Volatile private var streamAttemptStartedAt=0L
+    @Volatile private var metadataLoadedAfterStream=false
     @Volatile private var liveScreenRequested=false
     @Volatile private var currentChannelId = ""
     @Volatile private var currentTvState = 0
@@ -123,6 +126,8 @@ class MainActivity : Activity() {
             activeStreamUrl=null
             streamedChannel=""
             autoStreamRequestId=""
+            lastStreamChannelId=""
+            metadataLoadedAfterStream=false
             streamPending=false
         }
         runOnUiThread {
@@ -207,8 +212,10 @@ class MainActivity : Activity() {
         }
 
         monitorWork.scheduleWithFixedDelay({
-            if(verified && System.currentTimeMillis()-lastRemotePressAt>4500L) work.execute{
-                if(!verified || System.currentTimeMillis()-lastRemotePressAt<=4500L)return@execute
+            if(verified && !streamPending &&
+               System.currentTimeMillis()-lastRemotePressAt>4500L) work.execute{
+                if(!verified || streamPending ||
+                   System.currentTimeMillis()-lastRemotePressAt<=4500L)return@execute
                 try{
                     requestState(3)
                     requestState(19)
@@ -332,6 +339,16 @@ class MainActivity : Activity() {
         }
     }
     private fun videoStatus(text:String) { showField("Diagnostic vidéo","VIDÉO : "+text); report(text) }
+    /** Receiver metadata, queried lazily so TV streaming gets first priority. */
+    private fun loadTunerMetadata(){
+        if(!verified)return
+        try{
+            requestState(22)
+            // Unsupported request 24 is requested only after current streaming
+            // negotiation finishes, preventing speculative tuner queries during 1009.
+            if(!streamPending)requestState(24)
+        }catch(e:Exception){report("Métadonnées du récepteur : "+e.message)}
+    }
     private fun readSatellites(){
         if(!verified){report("Connecter le récepteur d'abord");return}
         showField("Satellites","Lecture de la liste des satellites…")
@@ -402,6 +419,7 @@ class MainActivity : Activity() {
     }
     private fun requestNextChannelPage() {
         if(!verified||totalChannelCount<=0||nextChannelIndex>=totalChannelCount||nextChannelIndex>=3000)return
+        if(streamPending && nextChannelIndex>0)return
         val from=nextChannelIndex
         val to=minOf(from+99,totalChannelCount-1,2999)
         requestState(0,from,to)
@@ -503,8 +521,11 @@ class MainActivity : Activity() {
             return
         }
         if(kind==1009){
-            if(!streamPending) return
+            // A valid 1009 response can arrive after the local timeout.
+            // Never discard it solely because our timer cleared streamPending.
+            if(lastStreamChannelId.isBlank() || lastStreamChannelId!=currentChannelId)return
             streamPending=false
+            if(statusCode==0 && body.isNotEmpty())autoStreamRequestId=lastStreamChannelId
             if(statusCode!=0){
                 videoStatus("Refus du récepteur • réponse 1009 • code "+statusCode+
                     ". Vérifier DVB To IPTV + abonnement SAT>IP / Apollo.")
@@ -689,9 +710,15 @@ class MainActivity : Activity() {
                 if(recs.isNotEmpty()&&nextChannelIndex<totalChannelCount&&nextChannelIndex<3000)
                     monitorWork.schedule({
                         if(verified)work.execute{
-                            try{requestNextChannelPage()}catch(_:Exception){}
+                            if(streamPending){
+                                monitorWork.schedule({
+                                    if(verified)work.execute{
+                                        try{requestNextChannelPage()}catch(_:Exception){}
+                                    }
+                                },3,TimeUnit.SECONDS)
+                            }else try{requestNextChannelPage()}catch(_:Exception){}
                         }
-                    },420,TimeUnit.MILLISECONDS)
+                    },900,TimeUnit.MILLISECONDS)
             }
         }
     }
@@ -738,7 +765,9 @@ class MainActivity : Activity() {
             return
         }
         streamPending=true
-        videoStatus("Demande 1009 envoyée pour "+(channelNames[id] ?: id)+"…")
+        lastStreamChannelId=id
+        streamAttemptStartedAt=System.currentTimeMillis()
+        videoStatus("Demande vidéo prioritaire 1009 • "+(channelNames[id] ?: id)+"…")
         work.execute {
             try {
                 val s=socket ?: throw IllegalStateException("Récepteur déconnecté")
@@ -753,12 +782,14 @@ class MainActivity : Activity() {
                     "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1009\"><parm><TvState>"+currentTvState+"</TvState><ProgramId>"+id+"</ProgramId></parm></Command>"
                 }
                 sendFrame(s,payload)
+                val startedAt=streamAttemptStartedAt
                 monitorWork.schedule({
-                    if(streamPending){
+                    if(streamPending && streamAttemptStartedAt==startedAt){
                         streamPending=false
-                        videoStatus("Pas de réponse 1009 en 12 s. Activer DVB To IPTV dans Système.")
+                        videoStatus("Le récepteur ne répond pas au flux 1009 après 18 s. "+
+                            "Touchez la vidéo pour réessayer. Vérifier DVB To IPTV dans Système.")
                     }
-                },12,TimeUnit.SECONDS)
+                },18,TimeUnit.SECONDS)
             }catch(e:Exception){
                 streamPending=false
                 videoStatus("Impossible d'interroger le flux : "+(e.message ?: "erreur"))
@@ -852,14 +883,19 @@ class MainActivity : Activity() {
                     requestState(14)
                     requestState(19)
                 }catch(e:Exception){report("Initial state: "+e.message)}
-                // Satellite and TP metadata are separate; fetch them once after login,
-                // without blocking the first frame or recreating large lists repeatedly.
+                // Preserve startup video priority. Metadata requests (22 and the
+                // firmware-specific 24) must not overtake the live stream URL (1009).
                 monitorWork.schedule({
                     if(verified)work.execute{
-                        try{requestState(22);requestState(24)}
-                        catch(e:Exception){report("Tuner metadata: "+e.message)}
+                        try{
+                            if(streamPending){
+                                monitorWork.schedule({
+                                    if(verified)work.execute{loadTunerMetadata()}
+                                },12,TimeUnit.SECONDS)
+                            }else loadTunerMetadata()
+                        }catch(e:Exception){report("Tuner metadata: "+e.message)}
                     }
-                },5,TimeUnit.SECONDS)
+                },19,TimeUnit.SECONDS)
             }
             Thread {
                 try {
