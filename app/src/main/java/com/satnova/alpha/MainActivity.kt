@@ -100,6 +100,11 @@ class MainActivity : Activity() {
     @Volatile private var useMode=UseMode.SIGNAL
     @Volatile private var recoveringStream=false
     private var streamRecoveryAttempts=0
+    @Volatile private var recoveryChannel=""
+    @Volatile private var softwareVideoDecoder=false
+    @Volatile private var channelCommandPending=false
+    private val channelCommandSequence=java.util.concurrent.atomic.AtomicLong()
+    private val playbackPreparation=java.util.concurrent.atomic.AtomicLong()
     private var resumeReceiverHost:String?=null
     @Volatile private var videoRequestTimedOut=false
     @Volatile private var selectedTab=0
@@ -279,14 +284,10 @@ class MainActivity : Activity() {
             videoAttempt.counters(message);updateVideoReport()
             showField("Diagnostic transport",message)
         },transportFailed={reason->
-            receiverMode.browse()
             streamWatchdog.reset()
-            stopVideo{
-                if(useMode==UseMode.WATCH){
-                    screen.resetVideoPlaceholder()
-                    screen.showInlineState(reason+" • toucher pour réessayer")
-                }
-            }
+            softwareVideoDecoder=true
+            recoverFreshLive(reason)
+
         })
         screen.setReceiverOnline(false)
         // Auto-connect only to an IP previously verified by SatNova.
@@ -317,7 +318,7 @@ class MainActivity : Activity() {
         }, 6, 12, TimeUnit.SECONDS)
         monitorWork.scheduleWithFixedDelay({
             if(verified && foreground && streamWatchdog.takeStall(android.os.SystemClock.elapsedRealtime()))
-                screen.showInlineState("Chargement vidéo bloqué • toucher pour relancer")
+                recoverFreshLive("Chargement vidéo bloqué")
             if(signalMonitoring && receiverMode.mayReadSignal() && verified && foreground){
                 val now=android.os.SystemClock.elapsedRealtime()
                 if(now-signalRequestAt>=3500L &&
@@ -417,7 +418,7 @@ class MainActivity : Activity() {
         tuneStartMillis=System.currentTimeMillis()
         tuneAckStatus=-1
         screen.updateZapStatus("Demande 1000 vers le récepteur…")
-        sendTune(id,tvState,false)
+        beforeChannelCommand{sendTune(id,tvState,false)}
     }
     private fun sendTune(id:String,tvState:Int,flat:Boolean){
         work.execute{
@@ -903,7 +904,7 @@ class MainActivity : Activity() {
                 activeStreamUrl=resolved
                 videoTransport="Connexion au service vidéo…"
                 streamedChannel=ticket.channel
-                inlinePlayer?.start(resolved)
+                inlinePlayer?.start(resolved,softwareVideoDecoder)
                 screen.showInlineState("Ouverture du direct actuel…")
             }
             return
@@ -1078,8 +1079,12 @@ class MainActivity : Activity() {
             return@runOnUiThread
         }
         if(streamGate.pending()!=null)return@runOnUiThread
+        if(useMode!=UseMode.WATCH || channelCommandPending)return@runOnUiThread
         if(streamRecoveryAttempts>=1){
-            screen.showInlineState("Flux vidéo indisponible • diagnostic dans Options")
+            stopVideo{
+                screen.resetVideoPlaceholder()
+                screen.showInlineState("Direct interrompu • toucher pour réessayer")
+            }
             return@runOnUiThread
         }
         val source=socket?:return@runOnUiThread
@@ -1102,11 +1107,15 @@ class MainActivity : Activity() {
     }
     private fun autostartInlineStream(id:String){
         if(useMode!=UseMode.WATCH || !receiverMode.mayStartVideo())return
-        if(!verified || !foreground || recoveringStream || videoRequestTimedOut || id.isBlank())return
+        if(!verified || !foreground || recoveringStream || channelCommandPending || videoRequestTimedOut || id.isBlank())return
+        if(recoveryChannel!=id){
+            recoveryChannel=id;streamRecoveryAttempts=0;softwareVideoDecoder=false
+        }
         streamGate.desire(id)
         if(streamedChannel==id && activeStreamUrl!=null)return
         if(streamGate.pending()?.channel==id)return
         val source=socket?:return
+        val preparation=playbackPreparation.incrementAndGet()
         receiverMode.videoStopped()
         activeStreamUrl=null
         runOnUiThread{
@@ -1114,8 +1123,12 @@ class MainActivity : Activity() {
             screen.resetVideoPlaceholder()
             screen.showInlineState("Préparation du direct actuel…")
             stopVideo{
-                if(socket===source && verified && foreground && !recoveringStream && currentChannelId==id)
-                    startLiveTv(id,source)
+                // Allow the tuner to settle after a transponder change. A newer zap cancels this start.
+                screen.root.postDelayed({
+                    if(playbackPreparation.get()==preparation && socket===source && verified && foreground &&
+                        !recoveringStream && !channelCommandPending && currentChannelId==id)
+                        startLiveTv(id,source)
+                },400L)
             }
         }
     }
@@ -1323,7 +1336,26 @@ class MainActivity : Activity() {
         }
     }
     // Working 1.2 key payload and dedicated serial writer; state reads are coalesced after a press burst.
+    private fun beforeChannelCommand(action:()->Unit){
+        if(useMode!=UseMode.WATCH){action();return}
+        val source=socket
+        val sequence=channelCommandSequence.incrementAndGet()
+        channelCommandPending=true
+        playbackPreparation.incrementAndGet()
+        streamWatchdog.reset()
+        activeStreamUrl=null;streamedChannel="";autoStreamRequestId=""
+        screen.resetVideoPlaceholder()
+        screen.showInlineState("Changement de chaîne…")
+        stopVideo{
+            if(socket===source && verified)action()
+            if(channelCommandSequence.get()==sequence)channelCommandPending=false
+        }
+    }
     private fun sendKey(value:Int){
+        if(value in listOf(1,2,69,70))beforeChannelCommand{sendKeyNow(value)}
+        else sendKeyNow(value)
+    }
+    private fun sendKeyNow(value:Int){
         lastRemotePressAt=System.currentTimeMillis()
         val session=socket
         val press=remoteKeySequence.incrementAndGet()

@@ -54,3 +54,21 @@ Catalogue writes are coalesced, snapshot on the control worker, and serialize on
 a separate disk worker. Corrupt/missing files are ignored. During known-channel
 Watch with the list hidden, catalogue reads are paused. Visible-list reads also
 wait while the video buffers/negotiates; current-state/remote commands continue.
+
+## 1.21 — channel-switch teardown and frozen-output recovery
+
+The recording shows 2M freezing while the UI still says LIVE. Native Playing
+and Buffering(100) are no longer treated as proof of rendered output: sampled
+picture/audio counters establish progress. An eight-second loss of picture
+progress (even with continuing audio) or fifteen-second empty startup triggers
+one fresh stream request per channel, with software decoding on output stalls.
+A second stall stops playback and offers an explicit retry, avoiding a restart
+loop. Radio uses played audio until a video stream is observed.
+
+List tunes and CH/up/down commands close the owned native reader before sending
+the channel command. Fresh playback waits 400 ms after teardown and checks the
+latest preparation generation, channel, connection and work mode. The original
+1009 URI, 1500 ms buffer, remote payloads and passive signal protocol remain.
+Tests exercise frozen output with continuing decode/audio, startup timeout,
+radio, advancing still-picture frames and fresh-session counters. Receiver
+hardware validation is still required; these tests do not reproduce firmware.

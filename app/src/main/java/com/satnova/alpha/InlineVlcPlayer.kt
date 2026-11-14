@@ -30,7 +30,7 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
         main.post{try{action()}finally{done.countDown()}}
         done.await()
     }
-    fun start(url:String){
+    fun start(url:String,softwareDecoder:Boolean=false){
         if(closed)return
         val ticket=if(requestedUrl==url)generation.get() else generation.incrementAndGet()
         requestedUrl=url
@@ -51,6 +51,7 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
                 currentUrl=url
                 val startedAt=android.os.SystemClock.elapsedRealtime()
                 val bufferingEpisodes=java.util.concurrent.atomic.AtomicInteger()
+                val health=PlaybackHealth(startedAt)
                 onMain{mp.attachViews(view,null,false,false)}
                 var lastMessage=""
                 var lastBufferState:Boolean?=null
@@ -62,9 +63,9 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
                     val progress=if(event.type==MediaPlayer.Event.Buffering)event.buffering else 100f
                     val waiting=event.type==MediaPlayer.Event.Buffering && progress<100f
                     val message=when(event.type){
-                        MediaPlayer.Event.Playing->"LIVE • lecture du flux récepteur"
+                        MediaPlayer.Event.Playing->"Vérification des images du direct…"
                         MediaPlayer.Event.Buffering->if(waiting)"Chargement vidéo • "+progress.toInt().coerceIn(0,100)+" %"
-                            else "LIVE • lecture du flux récepteur"
+                            else "Vérification des images du direct…"
                         MediaPlayer.Event.EncounteredError->"Flux interrompu • toucher la vidéo pour relancer"
                         MediaPlayer.Event.EndReached->"Diffusion terminée • toucher pour relancer"
                         else->null
@@ -81,16 +82,17 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
                         }
                     }
                 }
-                main.post{if(ticket==generation.get())diagnostic("Lecture directe VLC • tampon stabilité 1,5 s")}
+                main.post{if(ticket==generation.get())diagnostic("Lecture directe VLC • tampon 1,5 s • "+if(softwareDecoder)"décodage logiciel" else "décodage automatique")}
                 val media=Media(vlc,Uri.parse(url))
                 try {
+                    if(softwareDecoder)media.setHWDecoderEnabled(false,false)
                     media.addOption(":network-caching=1500")
                     media.addOption(":live-caching=1500")
                     mp.media=media
                 } finally {media.release()}
                 mp.volume=100
                 mp.play()
-                sampleStats(ticket,mp,startedAt){bufferingEpisodes.get()}
+                sampleStats(ticket,mp,startedAt,health){bufferingEpisodes.get()}
             } catch(e:Exception){
                 main.post{if(ticket==generation.get())status("Lecture vidéo impossible : "+e.message)}
                 releasePlayer()
@@ -100,7 +102,7 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
             }
         }
     }
-    private fun sampleStats(ticket:Long,mp:MediaPlayer,startedAt:Long,episodes:()->Int){
+    private fun sampleStats(ticket:Long,mp:MediaPlayer,startedAt:Long,health:PlaybackHealth,episodes:()->Int){
         main.postDelayed({
             if(!closed && ticket==generation.get() && !worker.isShutdown)worker.execute{
                 if(!closed && ticket==generation.get() && player===mp){
@@ -115,11 +117,20 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
                                     " • durée : ${(android.os.SystemClock.elapsedRealtime()-startedAt)/1000} s"+
                                     " • images perdues : ${stats.lostPictures} • audio perdu : ${stats.lostAbuffers}"+
                                     " • données corrompues : ${stats.demuxCorrupted} • attentes : ${episodes()}"
-                                main.post{if(!closed && ticket==generation.get())transport(message)}
+                                val result=health.sample(android.os.SystemClock.elapsedRealtime(),stats.decodedVideo.toLong(),
+                                    stats.displayedPictures.toLong(),stats.playedAbuffers.toLong())
+                                main.post{if(!closed && ticket==generation.get()){
+                                    transport(message)
+                                    when(result){
+                                        PlaybackHealth.Result.PROGRESS->{buffering(false);status("LIVE • lecture du flux récepteur")}
+                                        PlaybackHealth.Result.STALLED->{status("Images du direct bloquées");transportFailed("Images ou audio sans progression")}
+                                        else->Unit
+                                    }
+                                }}
                             }
                         }finally{media?.release()}
                     }catch(_:Exception){}
-                    sampleStats(ticket,mp,startedAt,episodes)
+                    sampleStats(ticket,mp,startedAt,health,episodes)
                 }
             }
         },1000L)
