@@ -258,8 +258,14 @@ class SatNovaScreen(
                 b.background=shape(if(i==tab)tileColor else panelColor,13)
             }
             scroller.scrollTo(0,0)
-            if(tab==1)onChannelRefresh()
-            if(tab==2)onReadSatellites()
+            if(tab==1){
+                catalog.showChannels()
+                onChannelRefresh()
+            }
+            if(tab==2){
+                catalog.showSatellites()
+                onReadSatellites()
+            }
         }
         goToChannels={showTab(1)}
         goToRemote={showTab(3)}
