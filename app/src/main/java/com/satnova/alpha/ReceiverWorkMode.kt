@@ -10,7 +10,7 @@ class ReceiverWorkMode {
     @Synchronized fun measure(enabled:Boolean){browsing=false;measuring=enabled;readerClosed=false;playing=false}
     @Synchronized fun browse(){browsing=true;measuring=false;playing=false}
     @Synchronized fun readerClosed(){if(measuring)readerClosed=true}
-    @Synchronized fun videoStarted(){if(!measuring)playing=true}
+    @Synchronized fun videoStarted(){if(!measuring){playing=true;browsing=false}}
     @Synchronized fun videoStopped(){playing=false}
     @Synchronized fun mayReadSignal()=measuring && readerClosed
     @Synchronized fun mayStartVideo()=!measuring

@@ -10,7 +10,7 @@ class LiveStreamGate {
     private var active:Ticket?=null
     @Synchronized fun reset(){epoch++;wanted="";pending=null;active=null}
     @Synchronized fun desire(channel:String){if(wanted!=channel){wanted=channel;active=null}}
-    @Synchronized fun invalidatePlayback(){active=null}
+    @Synchronized fun invalidatePlayback(){epoch++;active=null}
     @Synchronized fun begin():Ticket? {
         if(wanted.isBlank() || pending!=null)return null
         return Ticket(epoch,++serial,wanted).also{pending=it}

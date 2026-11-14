@@ -14,13 +14,14 @@ import java.util.concurrent.atomic.AtomicLong
 
 /** Native network/decoder shutdown must never block the Android event loop. */
 class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayout,
-                      private val status:(String)->Unit,private val buffering:(Boolean)->Unit={},private val failed:()->Unit={},private val diagnostic:(String)->Unit={},private val playing:()->Unit={}) {
+                      private val status:(String)->Unit,private val buffering:(Boolean)->Unit={},private val failed:()->Unit={},private val diagnostic:(String)->Unit={},private val playing:()->Unit={},private val transport:(String)->Unit={},private val transportFailed:(String)->Unit={}) {
     private val worker=Executors.newSingleThreadExecutor()
     private val main=Handler(Looper.getMainLooper())
     private val generation=AtomicLong()
     private var engine:LibVLC?=null
     private var player:MediaPlayer?=null
     private var currentUrl:String?=null
+    @Volatile private var relay:ReceiverHttpStream?=null
     private var closed=false
     private var requestedUrl:String?=null
 
@@ -79,7 +80,14 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
                     }
                 }
                 main.post{if(ticket==generation.get())diagnostic("Lecture directe • configuration vidéo 1.2")}
-                val media=Media(vlc,Uri.parse(url))
+                val playbackUrl=if(url.startsWith("http://",true) || url.startsWith("https://",true)){
+                    ReceiverHttpStream(url,report={message->
+                        main.post{if(ticket==generation.get())transport(message)}
+                    },failure={reason->
+                        main.post{if(ticket==generation.get())transportFailed(reason)}
+                    }).also{relay=it}.start()
+                }else url
+                val media=Media(vlc,Uri.parse(playbackUrl))
                 try {
                     media.addOption(":network-caching=550")
                     media.addOption(":live-caching=550")
@@ -101,6 +109,7 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
     fun stop(onStopped:()->Unit={}){
         if(closed)return
         generation.incrementAndGet()
+        relay?.close()
         requestedUrl=null
         worker.execute{releasePlayer();main.post{if(!closed)onStopped()}}
     }
@@ -108,10 +117,12 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
         if(closed)return
         generation.incrementAndGet()
         closed=true
+        relay?.close()
         worker.execute{releasePlayer()}
         worker.shutdown()
     }
     private fun releasePlayer(){
+        relay?.close();relay=null
         val old=player
         player=null
         currentUrl=null

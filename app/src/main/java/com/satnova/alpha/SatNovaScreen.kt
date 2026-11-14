@@ -327,7 +327,7 @@ class SatNovaScreen(
         brandTexts.addView(receiverModel,margin(top=5))
         fields["Modèle du récepteur"]=receiverModel
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 1.17", 10f, lavender, true).apply {
+        val version = text("α 1.18", 10f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(9.dp, 7.dp, 9.dp, 7.dp)
             background = shape(tileColor, 50, hairline)
@@ -561,9 +561,12 @@ class SatNovaScreen(
         diagnostics = text("Login non vérifié", 13f, secondary)
         diagBody.addView(diagnostics, margin(top = 7))
         diagBody.addView(videoDiagnostic,margin(top=6))
+        val transportDiagnostic=text("Transport vidéo : en attente",12f,secondary)
+        fields["Diagnostic transport"]=transportDiagnostic
+        diagBody.addView(transportDiagnostic,margin(top=8))
         diagBody.addView(action("Copier le diagnostic vidéo",tileColor,lavender,44,onClick={
-            val value="SatNova 1.17\n"+fields["Chaîne actuelle"]?.text+"\n"+
-                fields["Lecture intégrée"]?.text+"\n"+videoDiagnostic.text
+            val value="SatNova 1.18\n"+fields["Chaîne actuelle"]?.text+"\n"+
+                fields["Lecture intégrée"]?.text+"\n"+videoDiagnostic.text+"\n"+transportDiagnostic.text
             val clipboard=activity.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
             clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Diagnostic SatNova",value))
             android.widget.Toast.makeText(activity,"Diagnostic copié",android.widget.Toast.LENGTH_SHORT).show()
