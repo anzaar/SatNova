@@ -514,9 +514,8 @@ class SatNovaScreen(
             })
         mini.addView(expandRemote,margin(top=8))
 
-        // Move advanced connection settings away from the first screen.
-        page.removeView(connection)
-        setupPage.addView(connection,margin(top=14))
+        // "connection" was already attached by card(setupPage). Never add a View twice.
+        // Previous build crashed in Activity.onCreate due to an existing View parent.
         setupPage.addView(action("⌕  Recherche automatique",tileColor,lavender,50,
             onClick=onDiscover),margin(top=12))
         setupPage.addView(action("⚙  Recherche avancée • plage IP",tileColor,lavender,50,
