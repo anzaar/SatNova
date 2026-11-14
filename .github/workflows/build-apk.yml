@@ -60,3 +60,4 @@ jobs:
           fi
           gh release upload alpha-latest SatNova-Latest.apk --clobber
           echo "Direct APK URL: https://github.com/${GH_REPO}/releases/download/alpha-latest/SatNova-Latest.apk"
+

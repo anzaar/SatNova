@@ -64,28 +64,17 @@ class MainActivity : Activity() {
     @Volatile private var streamedChannel=""
     @Volatile private var activeStreamUrl:String?=null
     @Volatile private var autoStreamRequestId=""
-    @Volatile private var lastStreamChannelId=""
-    @Volatile private var queuedVideoChannelId=""
-    @Volatile private var streamAttemptStartedAt=0L
-    @Volatile private var automaticVideoRetryCount=0
-    @Volatile private var metadataLoadedAfterStream=false
     @Volatile private var liveScreenRequested=false
-    private var classicPlayback=false
-    @Volatile private var foreground=false
+    @Volatile private var tunerMetadataRequested=false
     @Volatile private var currentChannelId = ""
     @Volatile private var currentTvState = 0
     @Volatile private var streamPending = false
     @Volatile private var streamOpened = false
     @Volatile private var satIpFlag = -1
     @Volatile private var lastSignalUpdate = 0L
-    @Volatile private var trackingSignal = false
-    @Volatile private var signalTrackingStartedAt = 0L
-    @Volatile private var receiverModel = "Récepteur en détection"
     @Volatile private var lastRequest24 = 0L
     @Volatile private var totalChannelCount = 0
     @Volatile private var nextChannelIndex = 0
-    @Volatile private var fullCatalogRequested=false
-    @Volatile private var bootstrapCatalogPending=false
     private var monitorTicks = 0
     @Volatile private var socket: Socket? = null
     @Volatile private var verified = false
@@ -129,15 +118,10 @@ class MainActivity : Activity() {
     private fun setVerified(value: Boolean) {
         verified = value
         if(!value){
-            streamOpened=false
-            classicPlayback=false
+            tunerMetadataRequested=false
             activeStreamUrl=null
             streamedChannel=""
             autoStreamRequestId=""
-            lastStreamChannelId=""
-            queuedVideoChannelId=""
-            metadataLoadedAfterStream=false
-            automaticVideoRetryCount=0
             streamPending=false
         }
         runOnUiThread {
@@ -176,11 +160,9 @@ class MainActivity : Activity() {
                 else connect(ip.text.toString().trim())
             },
             onWatch = { retryInlineStream() },
-            onSwitchPlayer = { inlinePlayer?.tryAndroid() },
-            onClassicPlayer = { openClassicVlc() },
             onReadSatellites = { readSatellites() },
             onReadTransponders = { readTransponders() },
-            onReadSignal = { toggleSignalTracking() },
+            onReadSignal = { readSignal() },
             onServers = { navigateSetting("servers") },
             onNetwork = { navigateSetting("network") },
             onScan = { navigateSetting("scan") },
@@ -194,6 +176,8 @@ class MainActivity : Activity() {
                         requestState(15)
                         requestState(3)
                         requestState(19)
+                        tunerMetadataRequested=false
+                        loadTunerMetadata()
                     } catch (e: Exception) { report("Actualisation : " + e.message) }
                 }
             },
@@ -207,10 +191,12 @@ class MainActivity : Activity() {
         diagnostics = screen.diagnostics
         fieldViews.putAll(screen.fields)
         setContentView(screen.root)
-        inlinePlayer=InlineVlcPlayer(this,screen.inlineVideo,screen.inlineExoVideo){ msg ->
+        inlinePlayer=InlineVlcPlayer(this,screen.inlineVideo){ msg ->
             screen.showInlineState(msg)
-            showField("Diagnostic vidéo",msg)
-            if(msg.startsWith("LIVE • Image"))screen.setVideoPlaying(true)
+            if(msg.startsWith("LIVE • lecture")){
+                screen.setVideoPlaying(true)
+                loadTunerMetadata()
+            }
         }
         screen.setReceiverOnline(false)
         // Auto-connect only to an IP previously verified by SatNova.
@@ -224,38 +210,19 @@ class MainActivity : Activity() {
             showField("Chaîne actuelle","Connectez Echolink depuis Options")
         }
 
-        // Lean receiver monitoring. Large catalogue and tuner probes are on-demand,
-        // not interleaved with live video or key presses on the one TCP session.
         monitorWork.scheduleWithFixedDelay({
-            if(verified && !streamPending &&
-               System.currentTimeMillis()-lastRemotePressAt>5000L){
-                work.execute{
-                    if(verified && !streamPending){
-                        try{requestState(3)}catch(_:Exception){}
-                    }
-                }
-            }
-        }, 15, 25, TimeUnit.SECONDS)
-        // Dish alignment: do not poll unless the user explicitly starts this mode.
-        monitorWork.scheduleWithFixedDelay({
-            if(trackingSignal && verified) work.execute{
-                if(!trackingSignal || !verified)return@execute
+            if(verified && System.currentTimeMillis()-lastRemotePressAt>4500L) work.execute{
+                if(!verified || System.currentTimeMillis()-lastRemotePressAt<=4500L)return@execute
                 try{
-                    requestState(14)
-                    requestState(15)
-                }catch(e:Exception){
-                    screen.updateSignal("Mesure interrompue : "+(e.message?:"connexion"))
-                }
+                    requestState(3)
+                    requestState(19)
+                    monitorTicks++
+                    if(monitorTicks%5==0)requestState(15)
+                    if(monitorTicks%7==0)requestState(14)
+                    if(monitorTicks%7==0)requestState(26)
+                }catch(e:Exception){report("Synchronisation : "+e.message)}
             }
-        }, 2, 3, TimeUnit.SECONDS)
-        monitorWork.scheduleWithFixedDelay({
-            if(trackingSignal && verified && lastSignalUpdate==0L &&
-               System.currentTimeMillis()-signalTrackingStartedAt>7500L){
-                screen.updateSignalReading(null,null,
-                    "Firmware 1.48 : aucune valeur de force/qualité fournie par les réponses 14/15. "+
-                    "La position de la parabole doit être confirmée sur l'écran TV.")
-            }
-        }, 8, 9, TimeUnit.SECONDS)
+        }, 6, 12, TimeUnit.SECONDS)
     }
     private fun showField(key:String,value:String)=runOnUiThread {
         fieldViews[key]?.let { view ->
@@ -269,11 +236,10 @@ class MainActivity : Activity() {
         if(!verified){report("Connecter le récepteur pour les chaînes");return}
         screen.updateChannels(currentChannelsOrdered(), totalChannelCount>0 &&
             channelRecords.size>=totalChannelCount)
-        fullCatalogRequested=true
         work.execute{
             try{
-                if(totalChannelCount<=0)requestState(14)
-                else if(nextChannelIndex<totalChannelCount)requestNextChannelPage()
+                requestState(15)
+                if(totalChannelCount>0 && channelRecords.isEmpty())requestNextChannelPage()
             }catch(e:Exception){report("Chargement chaînes : "+e.message)}
         }
     }
@@ -350,16 +316,6 @@ class MainActivity : Activity() {
         }
     }
     private fun videoStatus(text:String) { showField("Diagnostic vidéo","VIDÉO : "+text); report(text) }
-    /** Receiver metadata, queried lazily so TV streaming gets first priority. */
-    private fun loadTunerMetadata(){
-        if(!verified)return
-        try{
-            requestState(22)
-            // Unsupported request 24 is requested only after current streaming
-            // negotiation finishes, preventing speculative tuner queries during 1009.
-            if(!streamPending)requestState(24)
-        }catch(e:Exception){report("Métadonnées du récepteur : "+e.message)}
-    }
     private fun readSatellites(){
         if(!verified){report("Connecter le récepteur d'abord");return}
         showField("Satellites","Lecture de la liste des satellites…")
@@ -373,27 +329,25 @@ class MainActivity : Activity() {
             requestState(24)
         }catch(e:Exception){showField("Transpondeurs","Échec : "+e.message)}}
     }
-    private fun toggleSignalTracking(){
-        if(!verified){report("Connecter le récepteur pour mesurer le signal");return}
-        trackingSignal=!trackingSignal
-        screen.updateSignalTracking(trackingSignal)
-        if(trackingSignal){
-            lastSignalUpdate=0L
-            signalTrackingStartedAt=System.currentTimeMillis()
-            screen.updateSignalReading(null,null,
-                "Mesure du tuner actif en cours • force et qualité réelles uniquement")
-            work.execute{
-                try{requestState(14);requestState(15)}
-                catch(e:Exception){screen.updateSignal("Erreur du tuner : "+(e.message?:"connexion"))}
+    private fun readSignal(){
+        if(!verified){report("Connecter le récepteur d'abord");return}
+        lastSignalUpdate=0L
+        val waiting="Mesure demandée • lecture de la télémétrie du tuner…"
+        showField("Signal temps réel",waiting)
+        screen.updateSignal(waiting)
+        work.execute{
+            try{requestState(14);requestState(15)}catch(e:Exception){
+                showField("Signal temps réel","Échec : "+e.message)
             }
-        }else screen.updateSignal("Mesure arrêtée par l'utilisateur. Dernière donnée conservée si reçue.")
-    }
-    private fun receiverPercent(record:JSONObject,vararg keys:String):Int?{
-        val value=pick(record,*keys)?:return null
-        val num=value.trim().removeSuffix("%").trim().toDoubleOrNull()?:return null
-        // Percentage is only displayed for fields explicitly meaning a percentage.
-        if(num<0.0 || num>100.0 || num.isNaN())return null
-        return num.toInt()
+        }
+        monitorWork.schedule({
+            if(lastSignalUpdate==0L && verified){
+                val unavailable="Firmware 1.48 : aucune valeur SNR/qualité/BER reçue " +
+                    "dans les réponses disponibles. Mesure réelle non accessible pour l'instant."
+                showField("Signal temps réel",unavailable)
+                screen.updateSignal(unavailable)
+            }
+        },6,TimeUnit.SECONDS)
     }
     private fun navigateSetting(section:String) {
         when(section){
@@ -430,14 +384,6 @@ class MainActivity : Activity() {
     }
     private fun requestNextChannelPage() {
         if(!verified||totalChannelCount<=0||nextChannelIndex>=totalChannelCount||nextChannelIndex>=3000)return
-        if(streamPending){
-            monitorWork.schedule({
-                if(verified)work.execute{
-                    try{requestNextChannelPage()}catch(_:Exception){}
-                }
-            },3,TimeUnit.SECONDS)
-            return
-        }
         val from=nextChannelIndex
         val to=minOf(from+99,totalChannelCount-1,2999)
         requestState(0,from,to)
@@ -471,6 +417,24 @@ class MainActivity : Activity() {
         val inList=channelOrder.indexOf(id)
         return if(inList>=0) "Position "+(inList+1)+" (liste du récepteur)"
             else "Numéro indisponible • ID "+id.take(16)
+    }
+    /** Tuner catalogue loading must follow playback initialization. */
+    @Synchronized private fun loadTunerMetadata(){
+        val session=socket ?: return
+        if(!verified || tunerMetadataRequested)return
+        tunerMetadataRequested=true
+        monitorWork.schedule({
+            if(socket===session && verified)work.execute{
+                if(socket!==session || !verified)return@execute
+                try{requestState(22)}catch(e:Exception){report("Satellites : "+e.message)}
+            }
+        },600,TimeUnit.MILLISECONDS)
+        monitorWork.schedule({
+            if(socket===session && verified)work.execute{
+                if(socket!==session || !verified)return@execute
+                try{requestState(24)}catch(e:Exception){report("Transpondeurs : "+e.message)}
+            }
+        },1500,TimeUnit.MILLISECONDS)
     }
     private fun currentSatelliteAndTp(rec:JSONObject?):Pair<String,String>{
         if(rec==null)return Pair("Satellite en cours d'identification","TP en attente de lecture")
@@ -539,22 +503,8 @@ class MainActivity : Activity() {
             return
         }
         if(kind==1009){
-            // The receiver does not provide a 1009 request ID. A zapping operation
-            // during a pending video request must not permanently block the new
-            // channel's URL: finish the old request, then request the new channel.
-            if(lastStreamChannelId.isBlank())return
-            if(lastStreamChannelId!=currentChannelId){
-                streamPending=false
-                val next=currentChannelId
-                queuedVideoChannelId=""
-                if(next.isNotBlank()){
-                    autoStreamRequestId=""
-                    autostartInlineStream(next)
-                }
-                return
-            }
+            if(!streamPending) return
             streamPending=false
-            if(statusCode==0 && body.isNotEmpty())autoStreamRequestId=lastStreamChannelId
             if(statusCode!=0){
                 videoStatus("Refus du récepteur • réponse 1009 • code "+statusCode+
                     ". Vérifier DVB To IPTV + abonnement SAT>IP / Apollo.")
@@ -584,32 +534,21 @@ class MainActivity : Activity() {
                 videoStatus("Adresse du flux refusée (hors réseau local).")
                 return
             }
-            streamOpened=true
+            streamOpened=false
             activeStreamUrl=link
             videoStatus("Flux "+Uri.parse(link).scheme+" reçu. Lecture intégrée…")
             runOnUiThread {
-                if(!foreground){
-                    work.execute{
-                        try{requestState(1012)}catch(_:Exception){}
-                        streamOpened=false
-                    }
-                    return@runOnUiThread
-                }
                 val intent=Intent(this,VlcLiveActivity::class.java)
                 intent.putExtra("stream_url",link)
                 intent.putExtra("channel_title",channelNames[currentChannelId] ?: "Canal "+currentChannelId)
                 if(liveScreenRequested){
                     liveScreenRequested=false
-                    classicPlayback=true
                     inlinePlayer?.stop()
                     startActivity(intent)
                 }else{
-                    if(!foreground)return@runOnUiThread
                     activeStreamUrl=link
-                    // Remove the opaque placeholder before VLC/Android creates its surface.
-                    // Otherwise a valid stream can play invisibly behind a black TextView.
-                    screen.setVideoPlaying(true)
                     inlinePlayer?.start(link)
+                    screen.showInlineState("LIVE • Flux du récepteur en cours")
                 }
             }
             return
@@ -693,44 +632,27 @@ class MainActivity : Activity() {
             }
             14,15 -> {
                 val info=recs.firstOrNull() ?: return
-                val level=receiverPercent(info,
-                    "SignalStrength","SignalLevel","SignalIntensity","StrengthPercent","SignalPercent")
-                val quality=receiverPercent(info,
-                    "SignalQuality","QualityLevel","Quality","QualityPercent","SignalQualityPercent")
-                val ber=pick(info,"BER","Ber","BitErrorRate")
-                if(level!=null||quality!=null||ber!=null){
-                    val pieces=listOfNotNull(level?.let{"Force "+it+" %"},
-                        quality?.let{"Qualité "+it+" %"},ber?.let{"BER "+it})
-                    val signalMessage=pieces.joinToString(" · ")+" • mesuré "+date
+                val lvl=pick(info,"SignalStrength","SignalLevel","Signal","Strength")
+                val qual=pick(info,"SignalQuality","Quality","QualityLevel","SNR")
+                val ber=pick(info,"BER","Ber")
+                if(lvl!=null||qual!=null||ber!=null) {
+                    val pieces=listOfNotNull(lvl?.let{"Niveau: "+it},qual?.let{"Qualité: "+it},ber?.let{"BER: "+it})
+                    val signalMessage=pieces.joinToString(" · ")+" (récepteur, "+date+")"
                     showField("Signal temps réel",signalMessage)
-                    screen.updateSignalReading(level,quality,
-                        "Valeurs reçues du récepteur • "+date+
-                        if(ber!=null)" • BER "+ber else "")
+                    screen.updateSignal(signalMessage)
                     lastSignalUpdate=System.currentTimeMillis()
                 }
 
                 pick(info,"SoftwareVersion")?.let{showField("Firmware",it)}
-                pick(info,"ProductName","ModelName")?.let{
-                    receiverModel=it.trim()
-                    showField("Modèle du récepteur",receiverModel.uppercase(java.util.Locale.ROOT))
-                }
                 pick(info,"ProductName","ModelName")?.let{runOnUiThread {diagnostics.text="Récepteur confirmé: "+it}}
                 pick(info,"ChannelNum")?.let{ n->
                     showField("Nombre de chaînes",n+" (confirmé)")
                     val count=n.toIntOrNull()
                     if(count!=null&&count>0&&count!=totalChannelCount){
-                        totalChannelCount=count;nextChannelIndex=0
-                        channelNames.clear();channelRecords.clear();channelOrder.clear()
+                        totalChannelCount=count;nextChannelIndex=0;channelNames.clear()
+                        channelRecords.clear();channelOrder.clear()
                         screen.updateChannels(emptyList(),false)
-                        bootstrapCatalogPending=true
-                        monitorWork.schedule({
-                            if(verified && bootstrapCatalogPending){
-                                bootstrapCatalogPending=false
-                                work.execute{
-                                    try{requestNextChannelPage()}catch(_:Exception){}
-                                }
-                            }
-                        },2500,TimeUnit.MILLISECONDS)
+                        work.execute{try{requestNextChannelPage()}catch(_:Exception){}}
                     }
                 }
                 pick(info,"MuteState")?.let{showField("Mute",if(it=="1")"ON (rapporté)" else "OFF (rapporté)")}
@@ -755,35 +677,12 @@ class MainActivity : Activity() {
                 }
                 showCurrent()
                 screen.updateChannels(currentChannelsOrdered(),totalChannelCount>0&&channelRecords.size>=totalChannelCount)
-                if(fullCatalogRequested && recs.isNotEmpty() &&
-                   nextChannelIndex<totalChannelCount && nextChannelIndex<3000)
-                    monitorWork.schedule({
-                        if(verified)work.execute{
-                            if(streamPending){
-                                monitorWork.schedule({
-                                    if(verified)work.execute{
-                                        try{requestNextChannelPage()}catch(_:Exception){}
-                                    }
-                                },3,TimeUnit.SECONDS)
-                            }else try{requestNextChannelPage()}catch(_:Exception){}
-                        }
-                    },900,TimeUnit.MILLISECONDS)
+                if(recs.isNotEmpty()&&nextChannelIndex<totalChannelCount&&nextChannelIndex<3000)
+                    work.execute{try{requestNextChannelPage()}catch(_:Exception){}}
             }
         }
     }
 
-    /** Recovery path: use the exact original 0.8 VLC Activity, not a new player. */
-    private fun openClassicVlc(){
-        if(!verified){
-            report("Connecter Echolink avant de lancer le lecteur")
-            return
-        }
-        if(streamPending){report("Attendez la réponse vidéo en cours.");return}
-        // 1009 URLs belong to a receiver stream session. A released HTTP reader
-        // cannot safely hand its old URL to a second player. Negotiate anew.
-        liveScreenRequested=true
-        retryInlineStream()
-    }
     private fun retryInlineStream(){
         if(!verified){report("Connectez le récepteur.");return}
         if(streamPending){report("Demande vidéo déjà en cours.");return}
@@ -794,27 +693,18 @@ class MainActivity : Activity() {
         }
         autoStreamRequestId=""
         streamedChannel=""
-        automaticVideoRetryCount=0
         activeStreamUrl=null
         runOnUiThread{
             inlinePlayer?.stop()
             screen.resetVideoPlaceholder()
             screen.showInlineState("Relance du flux en cours…")
-            autostartInlineStream(id)
         }
+        autostartInlineStream(id)
     }
     private fun autostartInlineStream(id:String){
         if(!verified || id.isBlank())return
         if(streamedChannel==id && activeStreamUrl!=null)return
-        if(streamPending){
-            if(lastStreamChannelId!=id){
-                queuedVideoChannelId=id
-                screen.showInlineState("Changement de chaîne • mise en file du flux…")
-            }
-            return
-        }
-        if(autoStreamRequestId==id && activeStreamUrl!=null)return
-        queuedVideoChannelId=""
+        if(autoStreamRequestId==id && streamPending)return
         streamedChannel=id
         activeStreamUrl=null
         autoStreamRequestId=id
@@ -822,11 +712,10 @@ class MainActivity : Activity() {
             inlinePlayer?.stop()
             screen.resetVideoPlaceholder()
             screen.showInlineState("Initialisation Live TV pour la chaîne actuelle…")
-            startLiveTv()
         }
+        startLiveTv()
     }
     private fun startLiveTv(){
-        if(!foreground)return
         if(!verified){videoStatus("Connecter Echolink avant le streaming.");return}
         if(streamPending){report("Demande de vidéo déjà en cours…");return}
         val id=currentChannelId
@@ -836,19 +725,10 @@ class MainActivity : Activity() {
             return
         }
         streamPending=true
-        if(lastStreamChannelId!=id)automaticVideoRetryCount=0
-        lastStreamChannelId=id
-        streamAttemptStartedAt=System.currentTimeMillis()
-        videoStatus("Demande vidéo prioritaire 1009 • "+(channelNames[id] ?: id)+"…")
+        videoStatus("Demande 1009 envoyée pour "+(channelNames[id] ?: id)+"…")
         work.execute {
             try {
                 val s=socket ?: throw IllegalStateException("Récepteur déconnecté")
-                // Restore the 0.8 receiver-side teardown, in the same serial
-                // command queue as 1009, after the local HTTP player is released.
-                if(streamOpened){
-                    requestState(1012)
-                    streamOpened=false
-                }
                 val payload=if(jsonMode){
                     JSONObject()
                         .put("request","1009")
@@ -860,32 +740,12 @@ class MainActivity : Activity() {
                     "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1009\"><parm><TvState>"+currentTvState+"</TvState><ProgramId>"+id+"</ProgramId></parm></Command>"
                 }
                 sendFrame(s,payload)
-                val startedAt=streamAttemptStartedAt
                 monitorWork.schedule({
-                    if(streamPending && streamAttemptStartedAt==startedAt){
+                    if(streamPending){
                         streamPending=false
-                        if(verified && currentChannelId!=lastStreamChannelId &&
-                           currentChannelId.isNotBlank()){
-                            val next=currentChannelId
-                            queuedVideoChannelId=""
-                            autoStreamRequestId=""
-                            autostartInlineStream(next)
-                        }else if(verified && automaticVideoRetryCount==0 &&
-                           currentChannelId==lastStreamChannelId){
-                            automaticVideoRetryCount=1
-                            videoStatus("1009 sans réponse • nouvelle tentative automatique…")
-                            monitorWork.schedule({
-                                if(verified && activeStreamUrl==null && !streamPending &&
-                                   currentChannelId==lastStreamChannelId){
-                                    startLiveTv()
-                                }
-                            },2,TimeUnit.SECONDS)
-                        }else{
-                            videoStatus("Le récepteur ne répond pas au flux 1009 après deux essais. "+
-                                "Touchez la vidéo pour réessayer et vérifiez DVB To IPTV sur la TV.")
-                        }
+                        videoStatus("Pas de réponse 1009 en 12 s. Activer DVB To IPTV dans Système.")
                     }
-                },18,TimeUnit.SECONDS)
+                },12,TimeUnit.SECONDS)
             }catch(e:Exception){
                 streamPending=false
                 videoStatus("Impossible d'interroger le flux : "+(e.message ?: "erreur"))
@@ -894,21 +754,12 @@ class MainActivity : Activity() {
     }
     override fun onResume(){
         super.onResume()
-        foreground=true
-        if(verified && !streamPending){
-            classicPlayback=false
-            retryInlineStream()
+        if(verified)activeStreamUrl?.let{url->
+            runOnUiThread{inlinePlayer?.start(url)}
         }
     }
     override fun onStop(){
-        foreground=false
-        // Pausing keeps the receiver's only HTTP stream client alive.
-        inlinePlayer?.stop()
-        if(!classicPlayback && verified)work.execute{
-            try{
-                if(streamOpened){requestState(1012);streamOpened=false}
-            }catch(_:Exception){}
-        }
+        inlinePlayer?.pause()
         super.onStop()
     }
     private fun isPrivate(host: String): Boolean {
@@ -966,8 +817,6 @@ class MainActivity : Activity() {
             sendFrame(s,xml)
             val loginBlock=read(s.getInputStream(),108)
             val (model,useJson,full) = decode(loginBlock)
-            receiverModel=model
-            showField("Modèle du récepteur",receiverModel.uppercase(java.util.Locale.ROOT))
             satIpFlag=((loginBlock.reversedArray()[84].toInt() xor 0x5B) and 0x18) shr 3
             showField("Diagnostic vidéo","SAT>IP indicateur brut = "+satIpFlag+
                 " (firmware variable). Vérifier DVB To IPTV dans le menu Système.")
@@ -982,15 +831,12 @@ class MainActivity : Activity() {
             s.soTimeout = 0
             showField("Chaîne actuelle","Lecture en cours…")
             work.execute {
-                try{
-                    // Order matters on single-session G-MScreen devices:
-                    // tune state, receiver info, then one initial channel page.
+                try {
                     requestState(3)
+                    requestState(15)
                     requestState(14)
                     requestState(19)
                 }catch(e:Exception){report("Initial state: "+e.message)}
-                // Satellite/TP lists are fetched when the user opens Satellites.
-                // No background request 24 or full-channel sweep on startup.
             }
             Thread {
                 try {
@@ -1011,11 +857,7 @@ class MainActivity : Activity() {
                         handleReply(kind,statusCode,decoded)
                     }
                 } catch (e: Exception) {
-                    if(socket===s){
-                        disconnect()
-                        report("Connexion fermée par le récepteur : "+(e.message?:"session interrompue")+
-                            ". Fermez SAT Chef/G-MScreen puis reconnectez-vous à SatNova.")
-                    }
+                    if (socket === s) { socket = null; setVerified(false); report("Connection lost: ${e.message}") }
                 } finally { try { s.close() } catch (_: Exception) { } }
             }.apply { isDaemon = true; start() }
         } catch (e: Exception) {
@@ -1024,48 +866,24 @@ class MainActivity : Activity() {
             showField("État connexion","● Connexion échouée • Options réseau")
         }
     }
-    // Same 1040/KeyValue payload as the first working SatNova Alpha.
-    // Crucially, do not interleave follow-up state probes with rapid remote presses.
-    private fun sendKey(value:Int){
+    // Original 0.2 command queue, key payload and immediate state feedback.
+    private fun sendKey(value: Int) {
         lastRemotePressAt=System.currentTimeMillis()
-        remoteWork.execute{
-            val s=socket
-            if(!verified||s==null){
-                report("Récepteur non connecté")
-                return@execute
-            }
-            try{
-                val payload=if(jsonMode)
-                    "{\"request\":\"1040\",\"array\":[{\"KeyValue\":\"$value\"}]}"
-                else
-                    "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1040\"><parm><KeyValue>$value</KeyValue></parm></Command>"
-                // SatNova 0.2/0.3 sent 1040 and then asked for receiver states 3/19
-                // on CH/Volume/Mute. Restore that real feedback without blocking keys.
+        work.execute {
+            val s = socket
+            if (!verified || s == null) { report("Connect and verify receiver first"); return@execute }
+            try {
+                val payload = if (jsonMode) "{\"request\":\"1040\",\"array\":[{\"KeyValue\":\"$value\"}]}"
+                    else "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1040\"><parm><KeyValue>$value</KeyValue></parm></Command>"
                 sendFrame(s,payload)
-                showField("Dernière commande envoyée","1040 • touche "+value+" • en attente")
-                showField("Retour télécommande","Touche "+value+" transmise • contrôle du résultat sur TV")
-                if(value in listOf(69,70,35,36,23)){
-                    val pressAt=lastRemotePressAt
-                    monitorWork.schedule({
-                        if(verified && !streamPending && lastRemotePressAt==pressAt){
-                            work.execute{
-                                if(verified && !streamPending){
-                                    try{
-                                        requestState(3)
-                                        requestState(19)
-                                    }catch(e:Exception){
-                                        showField("Retour télécommande",
-                                            "Retour de vérification indisponible : "+e.message)
-                                    }
-                                }
-                            }
-                        }
-                    },420,TimeUnit.MILLISECONDS)
+                showField("Dernière commande envoyée","1040 • touche "+value+" envoyée")
+                showField("Retour télécommande","Touche "+value+" transmise au récepteur")
+                if(value in listOf(69,70,35,36,23)) {
+                    requestState(3)
+                    requestState(19)
                 }
-            }catch(e:Exception){
-                report("Télécommande : "+(e.message?:"échec d'envoi"))
-                showField("Retour télécommande","Échec de l'envoi : "+(e.message?:"connexion"))
-            }
+                report("Commande "+value+" envoyée. État récepteur en cours de vérification.")
+            } catch (e: Exception) { disconnect(); report("Failed to send key: ${e.message}") }
         }
     }
     private fun wifiSubnet():String? {
@@ -1157,30 +975,9 @@ class MainActivity : Activity() {
         else screen.discoveryMessage("Sous-réseau Wi-Fi inconnu. Saisir l'IP ou utiliser Recherche avancée.")
     }
     private fun disconnect() {
-        trackingSignal=false
-        if(::screen.isInitialized)screen.updateSignalTracking(false)
-        verified=false
-        val old=socket;socket=null
-        try{old?.close()}catch(_:Exception){}
-        // Never carry a previous receiver's channel metadata or pending streams
-        // into a re-established session (it can refer to another tuner state).
-        currentChannelId=""
-        currentTvState=0
-        totalChannelCount=0
-        nextChannelIndex=0
-        fullCatalogRequested=false
-        bootstrapCatalogPending=false
-        channelNames.clear()
-        channelRecords.clear()
-        channelOrder.clear()
-        satelliteRecords.clear()
-        transponderRecords.clear()
-        targetTuneId=""
-        if(::screen.isInitialized){
-            screen.updateChannels(emptyList(),false)
-            screen.updateSatellites(emptyList())
-            screen.updateTransponders(emptyList())
-        }
+        verified = false
+        val s = socket; socket = null
+        try { s?.close() } catch (_: Exception) { }
         setVerified(false)
     }
     override fun onDestroy() {
