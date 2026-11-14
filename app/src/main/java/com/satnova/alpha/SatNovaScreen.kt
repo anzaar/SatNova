@@ -45,13 +45,13 @@ class SatNovaScreen(
     onEpgRemote: () -> Unit,
     onKey: (Int) -> Unit
 ) {
-    private val navy = Color.rgb(8, 12, 25)
-    private val panelColor = Color.rgb(21, 27, 45)
-    private val tileColor = Color.rgb(29, 36, 57)
+    private val navy = Color.rgb(10, 11, 28)
+    private val panelColor = Color.rgb(21, 19, 43)
+    private val tileColor = Color.rgb(42, 37, 74)
     private val textColor = Color.rgb(248, 250, 255)
     private val secondary = Color.rgb(153, 166, 191)
-    private val lavender = Color.rgb(184, 172, 255)
-    private val purple = Color.rgb(113, 89, 247)
+    private val lavender = Color.rgb(202, 171, 255)
+    private val purple = Color.rgb(120, 69, 198)
     private val blue = Color.rgb(65, 128, 232)
     private val green = Color.rgb(80, 230, 170)
     private val hairline = Color.rgb(53, 63, 91)
@@ -229,7 +229,7 @@ class SatNovaScreen(
         root.addView(scroller, LinearLayout.LayoutParams(-1, 0, 1f))
         val content=stack()
         scroller.addView(content, ViewGroup.LayoutParams(-1,-2))
-        fun pageBox()=stack().apply{setPadding(16.dp,20.dp,16.dp,36.dp)}
+        fun pageBox()=stack().apply{setPadding(10.dp,10.dp,10.dp,18.dp)}
         val page=pageBox()
         val channelsPage=pageBox()
         val satellitePage=pageBox()
@@ -249,7 +249,7 @@ class SatNovaScreen(
             setPadding(8.dp,7.dp,8.dp,7.dp)
             setBackgroundColor(panelColor)
         }
-        val titles=listOf("⌂\nAccueil","☷\nChaînes","◈\nSatellites","◎\nRemote","⚙\nOptions")
+        val titles=listOf("⌂\nAccueil","▣\nChaînes","◈\nSatellites","▤\nRemote","⚙\nOptions")
         val navButtons=mutableListOf<TextView>()
         fun showTab(tab:Int){
             pages.forEachIndexed{i,p->p.visibility=if(i==tab)View.VISIBLE else View.GONE}
@@ -292,24 +292,24 @@ class SatNovaScreen(
         setupScroller.visibility=View.VISIBLE
         showTab(0)
 
-        // Identity
-        val branding = row()
-        val mark = text("✦", 29f, Color.WHITE, true).apply {
-            gravity = Gravity.CENTER
-            background = shape(purple, 17, colors = intArrayOf(purple, blue))
+        // Brand from the approved SatNova purple-black receiver dashboard design.
+        val branding=row().apply{setPadding(6.dp,10.dp,6.dp,12.dp)}
+        val mark=text("◈",27f,lavender,true).apply{
+            gravity=Gravity.CENTER
+            background=shape(Color.rgb(33,24,60),17,Color.rgb(91,51,150))
         }
-        branding.addView(mark, margin(width = 56, height = 56, right = 12))
-        val brandTexts = stack()
-        brandTexts.addView(text("SATNOVA", 25f, Color.WHITE, true))
-        brandTexts.addView(text("CONTROL YOUR UNIVERSE", 10f, lavender, true), margin(top = 5))
-        branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 1.2", 12f, lavender, true).apply {
-            gravity = Gravity.CENTER
-            setPadding(11.dp, 9.dp, 11.dp, 9.dp)
-            background = shape(tileColor, 50, hairline)
+        branding.addView(mark,margin(width=44,height=44,right=10))
+        val brandTexts=stack()
+        brandTexts.addView(text("SATNOVA  •  LIVE TV",21f,textColor,true))
+        brandTexts.addView(text("CONTROL YOUR UNIVERSE",9f,lavender,true),margin(top=4))
+        branding.addView(brandTexts,LinearLayout.LayoutParams(0,-2,1f))
+        val version=text("α 1.3",10f,lavender,true).apply{
+            gravity=Gravity.CENTER
+            setPadding(9.dp,7.dp,9.dp,7.dp)
+            background=shape(tileColor,24,hairline)
         }
         branding.addView(version)
-        page.addView(branding, margin(bottom = 15))
+        page.addView(branding,margin(bottom=3))
 
         // Receiver and LAN connection
         setupPage.addView(text("SATNOVA • CONNEXION",25f,textColor,true),
@@ -357,103 +357,139 @@ class SatNovaScreen(
         addWeighted(connectLine, connectButton, left = 5)
         connection.addView(connectLine, margin(top = 10))
 
-        // Accueil starts with CURRENT receiver programme, not its connection settings.
-        val hero = card(page, top = 2)
-        hero.background = shape(panelColor, 24, colors = intArrayOf(
-            Color.rgb(33, 30, 78), Color.rgb(22, 38, 69)
-        ))
-        val top = row()
-        top.addView(text("●  EN COURS SUR LE RÉCEPTEUR", 11f, green, true),
-            LinearLayout.LayoutParams(0, -2, 1f))
-        top.addView(text("LIVE", 11f, lavender, true))
-        hero.addView(top)
-        val connectionBadge = text("● Connexion au récepteur…", 12f, lavender).apply {
-            setPadding(0, 12.dp, 0, 8.dp)
-            isClickable = true
-            setOnClickListener { goToSettings?.invoke() }
+        // The connected home exactly follows: channel -> real live preview ->
+        // connection/tuner metadata -> real remote wheel, not a static mock image.
+        val hero=card(page,top=1).apply{
+            setPadding(12.dp,13.dp,12.dp,13.dp)
+            background=shape(Color.rgb(24,21,52),24,Color.rgb(68,51,119),
+                colors=intArrayOf(Color.rgb(34,25,66),Color.rgb(18,28,57)))
         }
-        hero.addView(connectionBadge)
-        fields["État connexion"] = connectionBadge
-
-        hero.addView(text("CHAÎNE ACTUELLE", 11f, lavender, true), margin(top = 8))
-        val now = text("Lecture de la chaîne en cours…", 27f, Color.WHITE, true).apply {
-            maxLines = 2
+        val header=row()
+        val smallTv=text("▣",18f,lavender,true).apply{
+            gravity=Gravity.CENTER
+            background=shape(tileColor,12)
         }
-        hero.addView(now, margin(top = 7))
-        fields["Chaîne actuelle"] = now
+        header.addView(smallTv,margin(width=36,height=36,right=9))
+        val now=text("Lecture de la chaîne actuelle…",21f,Color.WHITE,true).apply{
+            maxLines=2
+        }
+        header.addView(now,LinearLayout.LayoutParams(0,-2,1f))
+        hero.addView(header)
+        fields["Chaîne actuelle"]=now
 
-        // The parent frame is always 16:9: VLCVideoLayout cannot collapse the preview.
-        val videoFrame=FrameLayout(activity).apply {
-            background=shape(Color.BLACK,15)
+        // A real 16:9 VLCVideoLayout is retained under this tappable poster.
+        val videoFrame=FrameLayout(activity).apply{
+            background=shape(Color.BLACK,17,Color.rgb(76,61,122))
             clipToOutline=true
             isClickable=true
-            isFocusable=true
-            contentDescription="Vidéo de la chaîne, toucher pour réessayer"
-            setOnClickListener { onWatch() }
+            contentDescription="Vidéo du récepteur • toucher pour relancer"
+            setOnClickListener{onWatch()}
         }
-        inlineVideo=VLCVideoLayout(activity).apply {
+        inlineVideo=VLCVideoLayout(activity).apply{
             setBackgroundColor(Color.BLACK)
             keepScreenOn=true
         }
         videoFrame.addView(inlineVideo,FrameLayout.LayoutParams(-1,-1))
-        inlinePoster=text("SATNOVA • LIVE\n\nAperçu du récepteur en attente\nTouchez pour relancer la vidéo",14f,lavender,true).apply {
+        inlinePoster=text("◈  SATNOVA  •  LIVE\n\nEn attente du flux réel du récepteur\nTouchez pour réessayer",13f,lavender,true).apply{
             gravity=Gravity.CENTER
             setBackgroundColor(Color.BLACK)
-            setPadding(8.dp,12.dp,8.dp,12.dp)
         }
         videoFrame.addView(inlinePoster,FrameLayout.LayoutParams(-1,-1))
-        val videoHeight=((activity.resources.displayMetrics.widthPixels-68.dp)*9/16)
-            .coerceAtLeast(170.dp)
-        hero.addView(videoFrame,margin(height=videoHeight,top=12))
-        val inlineState=text("En attente du flux vidéo du récepteur…",12f,secondary)
-        hero.addView(inlineState,margin(top=8))
+        val videoHeight=((activity.resources.displayMetrics.widthPixels-53.dp)*9/16)
+            .coerceAtLeast(160.dp)
+        hero.addView(videoFrame,margin(height=videoHeight,top=10))
+
+        val liveRow=row().apply{setPadding(2.dp,10.dp,2.dp,3.dp)}
+        val inlineState=text("● LIVE • En attente du flux…",11f,lavender,true).apply{
+            maxLines=2
+        }
+        liveRow.addView(inlineState,LinearLayout.LayoutParams(0,-2,1f))
         fields["Lecture intégrée"]=inlineState
+        val connectionBadge=text("● Connexion…",10f,green,true).apply{
+            setPadding(8.dp,7.dp,8.dp,7.dp)
+            background=shape(Color.rgb(18,49,43),14,Color.rgb(52,132,84))
+            isClickable=true
+            setOnClickListener{goToSettings?.invoke()}
+        }
+        liveRow.addView(connectionBadge,margin(left=6))
+        fields["État connexion"]=connectionBadge
+        hero.addView(liveRow)
 
-        val channelNumber=text("Numéro en cours de lecture",13f,lavender,true)
-        hero.addView(channelNumber,margin(top=12))
+        val info=row().apply{
+            setPadding(8.dp,9.dp,8.dp,9.dp)
+            background=shape(Color.rgb(26,24,51),14,Color.rgb(75,57,119))
+        }
+        val channelNumber=text("Canal : lecture en cours…",11f,textColor).apply{
+            maxLines=2;gravity=Gravity.CENTER
+        }
+        info.addView(channelNumber,LinearLayout.LayoutParams(0,-2,1f))
         fields["Numéro de chaîne"]=channelNumber
-        val satName=text("Satellite en cours de lecture…",13f,textColor)
-        hero.addView(satName,margin(top=6))
+        val satName=text("Satellite : en attente",11f,lavender).apply{
+            maxLines=2;gravity=Gravity.CENTER
+        }
+        info.addView(satName,LinearLayout.LayoutParams(0,-2,1f))
         fields["Satellite actuel"]=satName
-        val tpInfo=text("Fréquence en attente…",12f,secondary)
-        hero.addView(tpInfo,margin(top=4))
+        val tpInfo=text("Fréquence : en attente",11f,textColor).apply{
+            maxLines=2;gravity=Gravity.CENTER
+        }
+        info.addView(tpInfo,LinearLayout.LayoutParams(0,-2,1f))
         fields["Transpondeur actuel"]=tpInfo
+        hero.addView(info,margin(top=9))
 
-        val epgRow=row()
-        epgRow.addView(text("EPG : ",12f,lavender,true))
-        val program=text("Non communiqué par le récepteur",12f,secondary)
-        epgRow.addView(program,LinearLayout.LayoutParams(0,-2,1f))
-        hero.addView(epgRow,margin(top=10))
+        val program=text("EPG : non communiqué par le récepteur",11f,secondary)
+        hero.addView(program,margin(top=8))
         fields["Programme en cours / EPG"]=program
-
-        val videoDiagnostic=text("",11f,secondary).apply { visibility=View.GONE }
-        hero.addView(videoDiagnostic,margin(top=6))
+        val videoDiagnostic=text("",10f,secondary).apply{visibility=View.GONE}
+        hero.addView(videoDiagnostic,margin(top=5))
         fields["Diagnostic vidéo"]=videoDiagnostic
 
-        // Mini remote on Accueil. Key codes 1/2 verified for navigation / channel selection
-        // on G-MScreen firmware; previous 69/70 were not consistently supported.
-        val mini = card(page, top = 14)
-        section(mini, "Mini télécommande", "CH • Volume • Navigation • Mute")
-        remoteRow(mini,listOf("CH −" to 70, "MUTE" to 23, "CH +" to 69))
-        remoteRow(mini,listOf("VOL −" to 36,"▲" to 1,"VOL +" to 35))
-        remoteRow(mini,listOf("◀" to 3,"OK" to 5,"▶" to 4))
-        remoteRow(mini,listOf("MENU" to 6,"▼" to 2,"EXIT" to 7))
-        val remoteFeedback = text("Dernière commande : aucune",12f,secondary)
-        mini.addView(remoteFeedback,margin(top=10))
+        // Purple remote card inspired by the supplied mockup, with a native hit-tested D-pad.
+        val mini=card(page,top=12).apply{
+            setPadding(11.dp,12.dp,11.dp,13.dp)
+            background=shape(Color.rgb(21,19,46),24,Color.rgb(86,55,142),
+                colors=intArrayOf(Color.rgb(37,29,68),Color.rgb(19,18,41)))
+        }
+        val padRow=row()
+        val leftButtons=stack()
+        fun remoteSide(parent:LinearLayout, label:String, code:Int){
+            val b=action(label,tileColor,textColor,40,Color.rgb(102,81,151),
+                onClick={remote(code)}).apply{textSize=12f}
+            parent.addView(b,margin(height=40,top=4,bottom=4))
+        }
+        remoteSide(leftButtons,"CH −",70)
+        remoteSide(leftButtons,"CH +",69)
+        remoteSide(leftButtons,"VOL −",36)
+        remoteSide(leftButtons,"VOL +",35)
+        padRow.addView(leftButtons,LinearLayout.LayoutParams(0,-2,0.90f))
+        val wheel=SatNovaRemoteWheel(activity,remote).apply{
+            contentDescription="Haut, bas, gauche, droite et OK"
+        }
+        padRow.addView(wheel,LinearLayout.LayoutParams(0,204.dp,1.68f).apply{
+            setMargins(5.dp,0,5.dp,0)
+        })
+        val rightButtons=stack()
+        remoteSide(rightButtons,"MUTE",23)
+        remoteSide(rightButtons,"MENU",6)
+        remoteSide(rightButtons,"EXIT",7)
+        padRow.addView(rightButtons,LinearLayout.LayoutParams(0,-2,0.90f))
+        mini.addView(padRow,margin(top=2))
+
+        val remoteFeedback=text("Télécommande connectée au récepteur",10f,secondary)
         fields["Retour télécommande"]=remoteFeedback
-        val extraInline=stack().apply {visibility=View.GONE}
+        mini.addView(remoteFeedback,margin(top=5))
+        val extraInline=stack().apply{visibility=View.GONE}
         remoteRow(extraInline,listOf("POWER" to 42,"EPG" to 32,"INFO" to 57))
-        listOf(listOf(1,2,3),listOf(4,5,6),listOf(7,8,9)).forEach { digits ->
-            remoteRow(extraInline,digits.map { it.toString() to (it+12) })
+        listOf(listOf(1,2,3),listOf(4,5,6),listOf(7,8,9)).forEach{digits->
+            remoteRow(extraInline,digits.map{it.toString() to (it+12)})
         }
         remoteRow(extraInline,listOf("FAV" to 33,"0" to 12,"RECALL" to 29))
         mini.addView(extraInline)
-        val expandRemote=action("⌄  Afficher plus de commandes",tileColor,lavender,46,
-            onClick={
-                val opening=extraInline.visibility!=View.VISIBLE
-                extraInline.visibility=if(opening)View.VISIBLE else View.GONE
+        val expandRemote=action("⌄  Afficher plus de commandes",tileColor,lavender,43,
+            Color.rgb(106,78,163),onClick={
+                val isOpen=extraInline.visibility!=View.VISIBLE
+                extraInline.visibility=if(isOpen)View.VISIBLE else View.GONE
             })
-        mini.addView(expandRemote,margin(top=12))
+        mini.addView(expandRemote,margin(top=8))
 
         // Move advanced connection settings away from the first screen.
         page.removeView(connection)
