@@ -769,7 +769,11 @@ class MainActivity : Activity() {
             report("Pas encore de lien vidéo du récepteur. Relancer le flux.")
             return
         }
-        inlinePlayer?.pause()
+        // The receiver may allow only one streaming HTTP client.
+        // Pause keeps VLC's socket open; release the inline session completely
+        // before opening the original known-working 0.8 player.
+        inlinePlayer?.stop()
+        screen.showInlineState("Mode VLC classique : fermeture du lecteur intégré…")
         startActivity(Intent(this,VlcLiveActivity::class.java).apply{
             putExtra("stream_url",url)
             putExtra("channel_title",channelNames[currentChannelId] ?: "Chaîne du récepteur")
