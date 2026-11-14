@@ -856,40 +856,93 @@ class MainActivity : Activity() {
             report("Touche "+value+" envoyée. Vérifier l'effet sur le récepteur.")
         } catch (e: Exception) { disconnect(); report("Failed to send key: ${e.message}") }
     }
-    private fun discover() = discoveryWork.execute {
-        report("Listening for receiver announcements (6 seconds) …")
-        try {
-            val wifi = applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
-            val lock = wifi.createMulticastLock("satnova").apply { setReferenceCounted(false) }
+    private fun wifiSubnet():String? {
+        return try {
+            val all=java.net.NetworkInterface.getNetworkInterfaces()
+            while(all.hasMoreElements()){
+                val iface=all.nextElement()
+                if(!iface.isUp || iface.isLoopback)continue
+                val addrs=iface.inetAddresses
+                while(addrs.hasMoreElements()){
+                    val addr=addrs.nextElement()
+                    val host=addr.hostAddress ?: continue
+                    if(addr is java.net.Inet4Address && isPrivate(host) && !host.startsWith("169.254.")){
+                        return host.substringBeforeLast('.')
+                    }
+                }
+            }
+            null
+        }catch(_:Exception){null}
+    }
+    private fun scanPrefix(prefix:String)=discoveryWork.execute {
+        scanPrefixBlocking(prefix)
+    }
+    /** Bounded LAN-only /24 discovery of TCP port 20000, no auto-login or phantom devices. */
+    private fun scanPrefixBlocking(prefix:String) {
+        val parts=prefix.split('.')
+        if(parts.size!=3 || parts.any{it.toIntOrNull()==null || it.toInt() !in 0..255} ||
+            !isPrivate("$prefix.1")){
+            screen.discoveryMessage("Préfixe privé invalide. Exemple : 192.168.1")
+            return
+        }
+        val executor=Executors.newFixedThreadPool(16)
+        val latch=java.util.concurrent.CountDownLatch(254)
+        val found=java.util.concurrent.atomic.AtomicInteger(0)
+        screen.discoveryMessage("Recherche en cours dans $prefix.1–254, port 20000…")
+        for(suffix in 1..254){
+            val host="$prefix.$suffix"
+            executor.execute {
+                try {
+                    Socket().use{probe->
+                        probe.connect(InetSocketAddress(host,20000),450)
+                        found.incrementAndGet()
+                        screen.addDiscovered(host,"Port 20000 joignable")
+                    }
+                }catch(_:Exception){}finally{latch.countDown()}
+            }
+        }
+        latch.await(18,TimeUnit.SECONDS)
+        executor.shutdownNow()
+        if(found.get()==0){
+            screen.discoveryMessage("Aucun récepteur joignable sur $prefix.0/24. "+
+                "Vérifiez le Wi-Fi ou utilisez l'IP manuelle.")
+        }
+    }
+    private fun discover()=discoveryWork.execute {
+        screen.discoveryMessage("Recherche automatique des annonces Echolink…")
+        try{
+            val wifi=applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+            val lock=wifi.createMulticastLock("satnova").apply{setReferenceCounted(false)}
             lock.acquire()
-            try {
-                DatagramSocket(null).use { udp ->
-                    udp.reuseAddress = true
+            try{
+                DatagramSocket(null).use{udp->
+                    udp.reuseAddress=true
                     udp.bind(InetSocketAddress(25860))
-                    udp.soTimeout = 900
-                    val until = System.nanoTime() + 6_000_000_000L
-                    var found = false
-                    while (!found && System.nanoTime() < until) {
-                        val bytes = ByteArray(256)
-                        val p = DatagramPacket(bytes,bytes.size)
-                        try {
-                            udp.receive(p)
-                            if (p.length == 108) {
-                                val decoded = decode(p.data.copyOfRange(p.offset,p.offset+p.length))
-                                val host = p.address.hostAddress ?: ""
-                                if (isPrivate(host)) {
-                                    found = true
-                                    runOnUiThread { ip.setText(host) }
-                                    report("Found ${decoded.first} at $host")
+                    udp.soTimeout=700
+                    val until=System.nanoTime()+2_500_000_000L
+                    while(System.nanoTime()<until){
+                        val data=ByteArray(256)
+                        val datagram=DatagramPacket(data,data.size)
+                        try{
+                            udp.receive(datagram)
+                            if(datagram.length==108){
+                                val host=datagram.address.hostAddress ?: ""
+                                if(isPrivate(host)){
+                                    val name=try{
+                                        decode(datagram.data.copyOfRange(
+                                            datagram.offset,datagram.offset+datagram.length)).first
+                                    }catch(_:Exception){"Echolink probable"}
+                                    screen.addDiscovered(host,name)
                                 }
                             }
-                        } catch (_: java.net.SocketTimeoutException) { }
-                        catch (_: IllegalStateException) { }
+                        }catch(_:java.net.SocketTimeoutException){}
                     }
-                    if (!found) report("No announcements found. Enter IP manually.")
                 }
-            } finally { if(lock.isHeld) lock.release() }
-        } catch (e: Exception) { report("Discovery unavailable: ${e.message}") }
+            }finally{if(lock.isHeld)lock.release()}
+        }catch(_:Exception){}
+        val prefix=wifiSubnet()
+        if(prefix!=null)scanPrefixBlocking(prefix)
+        else screen.discoveryMessage("Sous-réseau Wi-Fi inconnu. Saisir l'IP ou utiliser Recherche avancée.")
     }
     private fun disconnect() {
         verified = false
