@@ -65,6 +65,7 @@ class MainActivity : Activity() {
     @Volatile private var activeStreamUrl:String?=null
     @Volatile private var autoStreamRequestId=""
     @Volatile private var lastStreamChannelId=""
+    @Volatile private var queuedVideoChannelId=""
     @Volatile private var streamAttemptStartedAt=0L
     @Volatile private var automaticVideoRetryCount=0
     @Volatile private var metadataLoadedAfterStream=false
@@ -128,6 +129,7 @@ class MainActivity : Activity() {
             streamedChannel=""
             autoStreamRequestId=""
             lastStreamChannelId=""
+            queuedVideoChannelId=""
             metadataLoadedAfterStream=false
             automaticVideoRetryCount=0
             streamPending=false
@@ -530,9 +532,20 @@ class MainActivity : Activity() {
             return
         }
         if(kind==1009){
-            // A valid 1009 response can arrive after the local timeout.
-            // Never discard it solely because our timer cleared streamPending.
-            if(lastStreamChannelId.isBlank() || lastStreamChannelId!=currentChannelId)return
+            // The receiver does not provide a 1009 request ID. A zapping operation
+            // during a pending video request must not permanently block the new
+            // channel's URL: finish the old request, then request the new channel.
+            if(lastStreamChannelId.isBlank())return
+            if(lastStreamChannelId!=currentChannelId){
+                streamPending=false
+                val next=currentChannelId
+                queuedVideoChannelId=""
+                if(next.isNotBlank()){
+                    autoStreamRequestId=""
+                    autostartInlineStream(next)
+                }
+                return
+            }
             streamPending=false
             if(statusCode==0 && body.isNotEmpty())autoStreamRequestId=lastStreamChannelId
             if(statusCode!=0){
@@ -754,7 +767,15 @@ class MainActivity : Activity() {
     private fun autostartInlineStream(id:String){
         if(!verified || id.isBlank())return
         if(streamedChannel==id && activeStreamUrl!=null)return
-        if(autoStreamRequestId==id && streamPending)return
+        if(streamPending){
+            if(lastStreamChannelId!=id){
+                queuedVideoChannelId=id
+                screen.showInlineState("Changement de chaîne • mise en file du flux…")
+            }
+            return
+        }
+        if(autoStreamRequestId==id && activeStreamUrl!=null)return
+        queuedVideoChannelId=""
         streamedChannel=id
         activeStreamUrl=null
         autoStreamRequestId=id
@@ -797,7 +818,13 @@ class MainActivity : Activity() {
                 monitorWork.schedule({
                     if(streamPending && streamAttemptStartedAt==startedAt){
                         streamPending=false
-                        if(verified && automaticVideoRetryCount==0 &&
+                        if(verified && currentChannelId!=lastStreamChannelId &&
+                           currentChannelId.isNotBlank()){
+                            val next=currentChannelId
+                            queuedVideoChannelId=""
+                            autoStreamRequestId=""
+                            autostartInlineStream(next)
+                        }else if(verified && automaticVideoRetryCount==0 &&
                            currentChannelId==lastStreamChannelId){
                             automaticVideoRetryCount=1
                             videoStatus("1009 sans réponse • nouvelle tentative automatique…")
