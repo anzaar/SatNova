@@ -436,6 +436,7 @@ class MainActivity : Activity() {
         }
     }
     private fun restartApplicationConnection(){
+        if(!verified)return // A second tap must not queue a second login while disconnecting.
         val host=socket?.inetAddress?.hostAddress ?: ip.text.toString().trim().takeIf{isPrivate(it)}
             ?:getSharedPreferences("satnova",Context.MODE_PRIVATE).getString("last_receiver_ip",null)
         remoteKeySequence.incrementAndGet()
