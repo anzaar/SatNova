@@ -67,6 +67,9 @@ class SatNovaScreen(
     private lateinit var setupScroller: ScrollView
     private lateinit var discoveryResults: LinearLayout
     private val discoveredHosts=linkedSetOf<String>()
+    private val discoveredRows=linkedMapOf<String,TextView>()
+    private lateinit var receiverTitle: TextView
+    private lateinit var connectionState: TextView
     lateinit var inlineVideo: VLCVideoLayout
         private set
     private lateinit var inlinePoster: TextView
@@ -301,9 +304,11 @@ class SatNovaScreen(
         branding.addView(mark, margin(width = 56, height = 56, right = 12))
         val brandTexts = stack()
         brandTexts.addView(text("SATNOVA", 25f, Color.WHITE, true))
-        brandTexts.addView(text("CONTROL YOUR UNIVERSE", 10f, lavender, true), margin(top = 5))
+        val receiverModel=text("Récepteur non identifié",10f,lavender,true)
+        brandTexts.addView(receiverModel,margin(top=5))
+        fields["Modèle du récepteur"]=receiverModel
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 1.8", 12f, lavender, true).apply {
+        val version = text("α 1.8.1", 12f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(11.dp, 9.dp, 11.dp, 9.dp)
             background = shape(tileColor, 50, hairline)
@@ -321,14 +326,15 @@ class SatNovaScreen(
             13f,secondary),margin(bottom=18))
         val connection = card(page, top = 0)
         val connectionHeading = row()
-        connectionHeading.addView(text("◉  ECHOLINK ZEN 4", 13f, lavender, true),
+        receiverTitle=text("Récepteur non identifié",13f,lavender,true)
+        connectionHeading.addView(receiverTitle,
             LinearLayout.LayoutParams(0, -2, 1f))
-        connectionHeading.addView(text("● LOCAL", 11f, green, true))
+        connectionState=text("● Non connecté",11f,secondary,true)
+        connectionHeading.addView(connectionState)
         connection.addView(connectionHeading)
         status = text("Non connecté • Même réseau Wi-Fi requis", 13f, secondary)
         connection.addView(status, margin(top = 10))
         ip = EditText(activity).apply {
-            setText("192.168.1.2")
             setSingleLine(true)
             setTextColor(textColor)
             setHintTextColor(secondary)
@@ -504,7 +510,7 @@ class SatNovaScreen(
 
         // Essentials first; all original keycodes preserved.
         val control = card(remotePage, top = 14)
-        section(control, "Télécommande", "Contrôle direct • Echolink")
+        section(control, "Télécommande", "Commandes du récepteur connecté")
         remoteRow(control, listOf("⏻ Power" to 42, "Mute" to 23, "EPG" to 32))
         remoteRow(control, listOf("VOL −" to 36, "▲" to 1, "VOL +" to 35))
         remoteRow(control, listOf("◀" to 3, "OK" to 5, "▶" to 4))
@@ -611,10 +617,22 @@ class SatNovaScreen(
 
     /** Sole entry view until a verified TCP login has completed. */
     fun setReceiverOnline(online:Boolean) = activity.runOnUiThread {
+        connectionState.text=if(online)"● Connecté" else "● Non connecté"
+        connectionState.setTextColor(if(online)green else secondary)
+        if(!online)setReceiverIdentity(null)
         appScroller.visibility=if(online)View.VISIBLE else View.GONE
         appNav.visibility=if(online)View.VISIBLE else View.GONE
         setupScroller.visibility=if(online)View.GONE else View.VISIBLE
         if(online)goToHome?.invoke()
+    }
+    fun setReceiverIdentity(model:String?)=activity.runOnUiThread {
+        val identity=model?.trim()?.takeIf{it.isNotEmpty()} ?: "Récepteur non identifié"
+        receiverTitle.text=identity
+        fields["Modèle du récepteur"]?.text=identity
+    }
+    fun showConnectionAttempt()=activity.runOnUiThread {
+        connectionState.text="● Connexion…"
+        connectionState.setTextColor(lavender)
     }
     fun setVideoPlaying(playing:Boolean)=activity.runOnUiThread {
         if(playing)streamHasPlayed=true
@@ -627,11 +645,27 @@ class SatNovaScreen(
     fun showInlineState(message:String)=activity.runOnUiThread {
         fields["Lecture intégrée"]?.text=message
     }
+    fun beginDiscovery()=activity.runOnUiThread {
+        discoveredHosts.clear()
+        discoveredRows.clear()
+        discoveryResults.removeAllViews()
+        discoveryResults.addView(text("Recherche en cours…",13f,secondary))
+    }
+    fun markDiscoveryFailed(host:String)=activity.runOnUiThread {
+        discoveredRows[host]?.apply{
+            text="Connexion échouée • "+host+"\nToucher pour réessayer"
+            contentDescription=text.toString()
+            setTextColor(secondary)
+        }
+    }
     fun addDiscovered(host:String,model:String?=null)=activity.runOnUiThread {
         if(!discoveredHosts.add(host))return@runOnUiThread
         if(discoveredHosts.size==1)discoveryResults.removeAllViews()
-        val item=action((model?:"Appareil possible")+" • "+host+"   → Connecter",
-            tileColor,lavender,52,onClick={connectDiscovered(host)})
+        val seen=java.text.SimpleDateFormat("HH:mm:ss",java.util.Locale.FRANCE).format(java.util.Date())
+        val item=action((model?:"Appareil réseau à vérifier")+" • "+host+
+            "\nVu à "+seen+" • connexion non vérifiée",
+            tileColor,lavender,72,onClick={connectDiscovered(host)})
+        discoveredRows[host]=item
         discoveryResults.addView(item,margin(bottom=8))
     }
     fun discoveryMessage(message:String)=activity.runOnUiThread {

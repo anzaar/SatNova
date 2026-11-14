@@ -31,7 +31,7 @@ import java.nio.charset.StandardCharsets
 import java.util.UUID
 import java.util.concurrent.Executors
 
-// Prototype: compatibility with Echolink Zen 4 is NOT confirmed until real-device testing.
+// Receiver identity is learned from a validated protocol handshake.
 class MainActivity : Activity() {
     private val bg = Color.rgb(10, 16, 32)
     private val surface = Color.rgb(23, 32, 53)
@@ -186,7 +186,7 @@ class MainActivity : Activity() {
         status = screen.status
         ip = screen.ip
         ip.setText(getSharedPreferences("satnova",Context.MODE_PRIVATE)
-            .getString("last_receiver_ip","192.168.1.2"))
+            .getString("last_receiver_ip",""))
         connectButton = screen.connectButton
         diagnostics = screen.diagnostics
         fieldViews.putAll(screen.fields)
@@ -207,7 +207,7 @@ class MainActivity : Activity() {
             connect(rememberedIp)
         }else{
             showField("État connexion","● Non connecté • Options pour saisir l'IP")
-            showField("Chaîne actuelle","Connectez Echolink depuis Options")
+            showField("Chaîne actuelle","Connectez votre récepteur depuis Options")
         }
 
         monitorWork.scheduleWithFixedDelay({
@@ -644,7 +644,10 @@ class MainActivity : Activity() {
                 }
 
                 pick(info,"SoftwareVersion")?.let{showField("Firmware",it)}
-                pick(info,"ProductName","ModelName")?.let{runOnUiThread {diagnostics.text="Récepteur confirmé: "+it}}
+                pick(info,"ProductName","ModelName")?.let{
+                    if(verified)screen.setReceiverIdentity(it)
+                    runOnUiThread {diagnostics.text="Récepteur confirmé: "+it}
+                }
                 pick(info,"ChannelNum")?.let{ n->
                     showField("Nombre de chaînes",n+" (confirmé)")
                     val count=n.toIntOrNull()
@@ -716,7 +719,7 @@ class MainActivity : Activity() {
         startLiveTv()
     }
     private fun startLiveTv(){
-        if(!verified){videoStatus("Connecter Echolink avant le streaming.");return}
+        if(!verified){videoStatus("Connecter un récepteur avant le streaming.");return}
         if(streamPending){report("Demande de vidéo déjà en cours…");return}
         val id=currentChannelId
         if(id.isBlank()){
@@ -788,7 +791,7 @@ class MainActivity : Activity() {
         var index = 0
         while (index < count) {
             val n = input.read(data, index, count-index)
-            if (n < 0) throw IllegalStateException("Receiver closed the connection")
+            if (n < 0) throw IllegalStateException("Le service réseau a fermé la connexion")
             index += n
         }
         return data
@@ -805,14 +808,17 @@ class MainActivity : Activity() {
         return Triple(model,flags and 0x40 != 0,flags and 0x01 != 0)
     }
     private fun connect(host: String) = work.execute {
-        if (!isPrivate(host)) { report("Use a private LAN IPv4 address, e.g. 192.168.1.2"); return@execute }
+        if (!isPrivate(host)) { report("Saisissez l'adresse IP locale du récepteur."); return@execute }
         disconnect()
-        report("Connecting to $host:20000 …")
+        screen.showConnectionAttempt()
+        report("Connexion à $host…")
+        var candidate:Socket?=null
         try {
             val s = Socket()
+            candidate=s
             s.connect(InetSocketAddress(host, 20000), 3500)
             s.soTimeout = 4500
-            report("TCP is open. Verifying receiver login …")
+            report("Service réseau joignable. Identification du récepteur…")
             val xml = "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"998\"><data>SatNova Alpha</data><uuid>$clientId</uuid></Command>"
             sendFrame(s,xml)
             val loginBlock=read(s.getInputStream(),108)
@@ -820,12 +826,13 @@ class MainActivity : Activity() {
             satIpFlag=((loginBlock.reversedArray()[84].toInt() xor 0x5B) and 0x18) shr 3
             showField("Diagnostic vidéo","SAT>IP indicateur brut = "+satIpFlag+
                 " (firmware variable). Vérifier DVB To IPTV dans le menu Système.")
-            if (full) throw IllegalStateException("Client slots full. Close SAT Chef first.")
+            if (full) throw IllegalStateException("Le récepteur ne dispose plus de session disponible.")
             jsonMode = useJson
             getSharedPreferences("satnova",Context.MODE_PRIVATE).edit()
                 .putString("last_receiver_ip",host).apply()
             socket = s
             setVerified(true)
+            screen.setReceiverIdentity(model)
             report("LOGIN VERIFIED: $model · " + if(useJson) "JSON" else "XML")
             runOnUiThread { diagnostics.text = "Protocol login verified; test Volume+ while watching the TV. $model" }
             s.soTimeout = 0
@@ -861,8 +868,10 @@ class MainActivity : Activity() {
                 } finally { try { s.close() } catch (_: Exception) { } }
             }.apply { isDaemon = true; start() }
         } catch (e: Exception) {
+            try{candidate?.close()}catch(_:Exception){}
             disconnect()
-            report("Connection/login failed: ${e.message}")
+            screen.markDiscoveryFailed(host)
+            report("Identification non validée : ${e.message}")
             showField("État connexion","● Connexion échouée • Options réseau")
         }
     }
@@ -905,6 +914,7 @@ class MainActivity : Activity() {
         }catch(_:Exception){null}
     }
     private fun scanPrefix(prefix:String)=discoveryWork.execute {
+        screen.beginDiscovery()
         scanPrefixBlocking(prefix)
     }
     /** Bounded LAN-only /24 discovery of TCP port 20000, no auto-login or phantom devices. */
@@ -926,7 +936,7 @@ class MainActivity : Activity() {
                     Socket().use{probe->
                         probe.connect(InetSocketAddress(host,20000),450)
                         found.incrementAndGet()
-                        screen.addDiscovered(host,"Port 20000 joignable")
+                        screen.addDiscovered(host)
                     }
                 }catch(_:Exception){}finally{latch.countDown()}
             }
@@ -939,7 +949,8 @@ class MainActivity : Activity() {
         }
     }
     private fun discover()=discoveryWork.execute {
-        screen.discoveryMessage("Recherche automatique des annonces Echolink…")
+        screen.beginDiscovery()
+        screen.discoveryMessage("Recherche des appareils sur le réseau local…")
         try{
             val wifi=applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
             val lock=wifi.createMulticastLock("satnova").apply{setReferenceCounted(false)}
@@ -961,8 +972,8 @@ class MainActivity : Activity() {
                                     val name=try{
                                         decode(datagram.data.copyOfRange(
                                             datagram.offset,datagram.offset+datagram.length)).first
-                                    }catch(_:Exception){"Echolink probable"}
-                                    screen.addDiscovered(host,name)
+                                    }catch(_:Exception){null}
+                                    if(name!=null)screen.addDiscovered(host,name)
                                 }
                             }
                         }catch(_:java.net.SocketTimeoutException){}
