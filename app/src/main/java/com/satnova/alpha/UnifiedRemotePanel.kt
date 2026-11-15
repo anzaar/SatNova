@@ -316,10 +316,10 @@ internal class UnifiedRemotePanel(
         }
         shown.chunked(3).forEach { batch ->
             val row=horizontal()
-            batch.forEach { (name, versions) ->
-                val label=name.take(13) + if(versions.size>1)" ("+versions.size+")" else ""
-                val b=tap(label){versions(slot,name,versions)}
-                if(versions.any{it.id==currentId})b.background=background(Color.rgb(68,102,91))
+            batch.forEach { (name, channelVersions) ->
+                val label=name.take(13) + if(channelVersions.size>1)" ("+channelVersions.size+")" else ""
+                val b=tap(label){versions(slot,name,channelVersions)}
+                if(channelVersions.any{it.id==currentId})b.background=background(Color.rgb(68,102,91))
                 weight(row,b)
             }
             groupButtons.addView(row,margins(bottom=5))
@@ -441,14 +441,14 @@ internal class UnifiedRemotePanel(
 
     private fun manage(){
         val slots=favorites.list()
-        val options=slots.mapIndexed{index,slot->
+        val labels=slots.mapIndexed{index,slot->
             val title=slot.label.ifBlank{
                 ChannelGrouping.display(slot.key,groupChannels(slot).firstOrNull()?.name?:slot.key)
             }
             (index+1).toString()+". "+title
         } + listOf("＋ إضافة أو إنشاء مجموعة")
         AlertDialog.Builder(activity).setTitle(if(radioMode)"إدارة مجموعات RADIO" else "إدارة مجموعات TV")
-            .setItems(options.toTypedArray()){_,index->
+            .setItems(labels.toTypedArray()){_,index->
                 if(index==slots.size)addGroup() else options(slots[index])
             }.show()
     }
@@ -548,7 +548,7 @@ internal class UnifiedRemotePanel(
             .setNegativeButton("إغلاق",null).create()
         fun redraw(query:String){
             list.removeAllViews()
-            val matched=channels.filter{it.name.contains(query,true)}.take(45)
+            val matched=visibleChannels().filter{it.name.contains(query,true)}.take(45)
             list.addView(text("يعرض "+matched.size+" قناة • تابع البحث لبقية القائمة",11f,muted))
             matched.forEach{ch->
                 list.addView(tap(ch.position.toString()+" • "+ch.name){
@@ -557,7 +557,7 @@ internal class UnifiedRemotePanel(
                         .setItems(arrayOf("تبديل القناة","إضافة المجموعة للمفضلات")){_,index->
                             if(index==0)changeChannel(ch)
                             else{
-                                if(!favorites.add(ChannelGrouping.key(ch.name)))message("المجموعة موجودة أو المفضلات كاملة")
+                                if(!favorites.add(ChannelGrouping.key(ch)))message("المجموعة موجودة أو المفضلات كاملة")
                                 renderFavorites()
                             }
                         }.show()
