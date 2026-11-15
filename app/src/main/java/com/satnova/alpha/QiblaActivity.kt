@@ -237,14 +237,21 @@ class QiblaActivity : Activity(), SensorEventListener {
             canvas.drawCircle(cx,cy,rad*0.13f,paint)
             paint.style=Paint.Style.FILL
             paint.textAlign=Paint.Align.CENTER
-            paint.textSize=36f
+            paint.textSize=30f
             paint.color=white
-            canvas.drawText("N",cx,cy-rad+48f,paint)
-            canvas.drawText("S",cx,cy+rad-18f,paint)
-            canvas.drawText("E",cx+rad-28f,cy+12f,paint)
-            canvas.drawText("W",cx-rad+28f,cy+12f,paint)
-            val goal=target?:return
             val h=heading
+            // The compass rose rotates relative to the actual phone heading.
+            fun cardinal(letter:String,bearing:Double) {
+                val angle=Math.toRadians(if(h!=null)QiblaGeometry.relativeBearing(bearing,h) else bearing)
+                val x=cx+sin(angle).toFloat()*rad*0.77f
+                val y=cy-cos(angle).toFloat()*rad*0.77f
+                canvas.drawText(letter,x,y+10f,paint)
+            }
+            cardinal("N",0.0)
+            cardinal("E",90.0)
+            cardinal("S",180.0)
+            cardinal("W",270.0)
+            val goal=target?:return
             if(h==null){
                 paint.textSize=23f
                 canvas.drawText(String.format(Locale.FRANCE,"%.1f°",goal),cx,cy+rad*0.68f,paint)
