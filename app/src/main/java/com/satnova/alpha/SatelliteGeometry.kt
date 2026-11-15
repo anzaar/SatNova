@@ -51,6 +51,30 @@ object SatelliteGeometry {
         val el=Math.toDegrees(atan2(up,hypot(east,north)))
         return Look(az,el,sqrt(dx*dx+dy*dy+dz*dz))
     }
+    /** Theoretical linear-polarisation angle (degrees), signed by satellite minus site longitude. */
+    fun lnbSkew(latitude:Double,siteLongitude:Double,satelliteLongitude:Double):Double {
+        require(latitude in -90.0..90.0 && siteLongitude in -180.0..180.0 &&
+                satelliteLongitude in -180.0..180.0)
+        val delta=Math.toRadians(satelliteLongitude-siteLongitude)
+        val lat=Math.toRadians(latitude)
+        if(kotlin.math.abs(kotlin.math.tan(lat))<1e-10)
+            return when {
+                kotlin.math.sin(delta)>0.0 -> 90.0
+                kotlin.math.sin(delta)<0.0 -> -90.0
+                else -> 0.0
+            }
+        return Math.toDegrees(kotlin.math.atan(kotlin.math.sin(delta)/kotlin.math.tan(lat)))
+    }
+    /** Two camera sightlines at the same position to endpoints of a known vertical span. */
+    fun horizontalDistance(heightMetres:Double,topElevation:Double,bottomElevation:Double):Double? {
+        if(!heightMetres.isFinite() || heightMetres<=0.0 ||
+            !topElevation.isFinite() || !bottomElevation.isFinite())return null
+        if(kotlin.math.abs(topElevation)>=85.0 || kotlin.math.abs(bottomElevation)>=85.0)return null
+        val difference=kotlin.math.abs(kotlin.math.tan(Math.toRadians(topElevation))-
+            kotlin.math.tan(Math.toRadians(bottomElevation)))
+        if(difference<0.005)return null
+        return (heightMetres/difference).takeIf{it.isFinite() && it<10000.0}
+    }
     fun signedDelta(target:Double,current:Double):Double =
         ((target-current+540.0)%360.0)-180.0
 }
