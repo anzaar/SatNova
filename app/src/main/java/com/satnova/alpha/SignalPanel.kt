@@ -16,7 +16,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 /** Full-height dish-alignment panel with one live receiver reader and optional quality tone. */
-class SignalPanel(private val activity:Activity,private val onToggle:()->Unit) {
+class SignalPanel(private val activity:Activity,private val onToggle:()->Unit,private val openFinder:()->Unit) {
     private val Int.dp get()=(this*activity.resources.displayMetrics.density+.5f).toInt()
     val root=LinearLayout(activity).apply{orientation=LinearLayout.VERTICAL;setPadding(4.dp,4.dp,4.dp,8.dp)}
     private val green=Color.rgb(83,226,177)
@@ -71,6 +71,14 @@ class SignalPanel(private val activity:Activity,private val onToggle:()->Unit) {
         root.addView(deviceName,LinearLayout.LayoutParams(-1,-2).apply{topMargin=10.dp})
         root.addView(deviceDetails,LinearLayout.LayoutParams(-1,-2).apply{topMargin=4.dp})
         root.addView(contextText,LinearLayout.LayoutParams(-1,-2).apply{topMargin=8.dp;bottomMargin=6.dp})
+        val finder=label("◎  Caméra • direction satellite",14f).apply{
+            gravity=Gravity.CENTER
+            setPadding(12.dp,9.dp,12.dp,9.dp)
+            background=GradientDrawable().apply{setColor(Color.rgb(43,39,79));cornerRadius=14.dp.toFloat()}
+            isClickable=true;isFocusable=true
+            setOnClickListener{openFinder()}
+        }
+        root.addView(finder,LinearLayout.LayoutParams(-1,-2).apply{bottomMargin=6.dp})
         val landscape=activity.resources.configuration.orientation==Configuration.ORIENTATION_LANDSCAPE
         val gauges=LinearLayout(activity).apply{orientation=if(landscape)LinearLayout.HORIZONTAL else LinearLayout.VERTICAL}
         fun gauge(view:View){
