@@ -2,7 +2,7 @@ name: Build SatNova V2.3 Lifemaxx TLS Fix APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, external-download-v2.3]
 concurrency:
   group: satnova-v2-${{ github.ref }}
   cancel-in-progress: true
@@ -41,6 +41,37 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+
+      - name: Upload APK to external Catbox mirror
+        if: github.ref == 'refs/heads/external-download-v2.3'
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          echo "SHA256 of original compiled APK:"
+          sha256sum "$APK"
+          echo "Uploading 58 MB APK to external file host (Catbox)..."
+          URL="$(curl --show-error --silent --fail --location --retry 2 --retry-delay 4 --max-time 240 \
+            -F 'reqtype=fileupload' \
+            -F "fileToUpload=@$APK;filename=SatNova-V2.3-Lifemaxx.apk" \
+            'https://catbox.moe/user/api.php')" || URL=""
+          if [[ "$URL" =~ ^https://files[.]catbox[.]moe/[a-zA-Z0-9_-]+[.]apk$ ]]; then
+            echo "EXTERNAL_APK_URL=$URL"
+            echo "EXTERNAL_APK_URL=$URL" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Catbox failed or returned unexpected response."
+            echo "Attempting Filebin temporary backup..."
+            BIN="satnova23$(date +%s)"
+            curl --show-error --silent --fail --location --retry 1 --max-time 240 \
+              -X POST --data-binary "@$APK" \
+              -H 'Content-Type: application/vnd.android.package-archive' \
+              "https://filebin.net/$BIN/SatNova-V2.3-Lifemaxx.apk" >/dev/null
+            URL="https://filebin.net/$BIN/SatNova-V2.3-Lifemaxx.apk"
+            echo "EXTERNAL_APK_URL=$URL"
+            echo "EXTERNAL_APK_URL=$URL" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Publish direct APK via GitHub Releases
         if: github.ref == 'refs/heads/main'
