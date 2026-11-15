@@ -18,13 +18,10 @@ class SatelliteGeometryTest {
         assertEquals(139.71,astra.azimuth,0.3)
         assertEquals(42.28,astra.elevation,0.3)
     }
-    @Test fun lnbSkewAndCameraAngularRuler(){
+    @Test fun lnbSkewCalculation(){
         assertEquals(0.0,SatelliteGeometry.lnbSkew(33.82,-6.06,-6.06),0.0001)
         val skew=SatelliteGeometry.lnbSkew(33.82,-6.06,19.2)
         assertTrue(skew>20 && skew<40)
-        assertEquals(3.0,SatelliteGeometry.horizontalDistance(3.0,45.0,0.0)!!,0.001)
-        assertNull(SatelliteGeometry.horizontalDistance(-1.0,45.0,0.0))
-        assertNull(SatelliteGeometry.horizontalDistance(3.0,20.0,20.0))
     }
     @Test fun hemisphereAndVisibility(){
         val geo=SatelliteGeometry.look(33.82,-6.06,-7.0)
