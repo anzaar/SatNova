@@ -43,34 +43,43 @@ jobs:
           retention-days: 14
 
 
-      - name: Upload APK to external Catbox mirror
+
+      - name: Upload APK to independent external file host
         if: github.ref == 'refs/heads/external-download-v2.3'
         shell: bash
         run: |
           set -euo pipefail
           APK="app/build/outputs/apk/debug/app-debug.apk"
           test -s "$APK"
-          echo "SHA256 of original compiled APK:"
           sha256sum "$APK"
-          echo "Uploading 58 MB APK to external file host (Catbox)..."
-          URL="$(curl --show-error --silent --fail --location --retry 2 --retry-delay 4 --max-time 240 \
-            -F 'reqtype=fileupload' \
-            -F "fileToUpload=@$APK;filename=SatNova-V2.3-Lifemaxx.apk" \
-            'https://catbox.moe/user/api.php')" || URL=""
-          if [[ "$URL" =~ ^https://files[.]catbox[.]moe/[a-zA-Z0-9_-]+[.]apk$ ]]; then
+          URL=""
+          echo "Trying Uguu API (max 128 MB, valid 3 hours)..."
+          RESPONSE="$(curl --silent --show-error --fail --max-time 180 --retry 1 \
+            -F "files[]=@$APK;filename=SatNova-V2.3-Lifemaxx.apk" \
+            'https://uguu.se/upload')" || RESPONSE=""
+          if [[ -n "$RESPONSE" ]]; then
+            URL="$(printf '%s' "$RESPONSE" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["files"][0]["url"] if d.get("success") else "")' 2>/dev/null)" || URL=""
+          fi
+          if [[ ! "$URL" =~ ^https:// ]]; then
+            echo "Uguu unavailable; trying BashUpload Cloudflare R2..."
+            RESPONSE="$(curl --silent --show-error --fail --max-time 180 \
+              -H 'X-Expiration-Seconds: 86400' \
+              --upload-file "$APK" 'https://bashupload.app/SatNova-V2.3-Lifemaxx.apk')" || RESPONSE=""
+            URL="$(printf '%s' "$RESPONSE" | grep -oE 'https://[^[:space:]]+\.apk' | head -n 1 || true)"
+          fi
+          if [[ ! "$URL" =~ ^https:// ]]; then
+            echo "BashUpload unavailable; trying Qurl..."
+            RESPONSE="$(curl --silent --show-error --fail --max-time 180 \
+              -H 'X-TTL: 24h' -H 'X-Downloads: 100' \
+              --upload-file "$APK" 'https://qurl.sh/SatNova-V2.3-Lifemaxx.apk')" || RESPONSE=""
+            URL="$(printf '%s' "$RESPONSE" | grep -oE 'https://qurl[.]sh/[^[:space:]]+\.apk' | head -n 1 || true)"
+          fi
+          if [[ "$URL" =~ ^https://[^[:space:]]+[.]apk$ ]]; then
             echo "EXTERNAL_APK_URL=$URL"
             echo "EXTERNAL_APK_URL=$URL" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "Catbox failed or returned unexpected response."
-            echo "Attempting Filebin temporary backup..."
-            BIN="satnova23$(date +%s)"
-            curl --show-error --silent --fail --location --retry 1 --max-time 240 \
-              -X POST --data-binary "@$APK" \
-              -H 'Content-Type: application/vnd.android.package-archive' \
-              "https://filebin.net/$BIN/SatNova-V2.3-Lifemaxx.apk" >/dev/null
-            URL="https://filebin.net/$BIN/SatNova-V2.3-Lifemaxx.apk"
-            echo "EXTERNAL_APK_URL=$URL"
-            echo "EXTERNAL_APK_URL=$URL" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::No external file host accepted APK; cannot advertise an unverified link."
+            exit 1
           fi
 
       - name: Publish direct APK via GitHub Releases
