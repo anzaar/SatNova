@@ -11,7 +11,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
-    <application android:icon="@drawable/satnova_icon" android:roundIcon="@drawable/satnova_icon" android:label="SatNova V2.1" android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false" android:usesCleartextTraffic="true">
+    <application android:icon="@drawable/satnova_icon" android:roundIcon="@drawable/satnova_icon" android:label="SatNova V2.2" android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false" android:usesCleartextTraffic="true">
         <service android:name=".BackgroundLinkService" android:exported="false" android:foregroundServiceType="connectedDevice"/>
         <activity android:name=".TvRemoteActivity" android:exported="false" />
         <activity android:name=".QiblaActivity" android:exported="false" />
