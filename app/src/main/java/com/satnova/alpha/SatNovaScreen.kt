@@ -714,7 +714,7 @@ class SatNovaScreen(
         receiverOnline=online
         dashboard.receiverReady(online)
         offlineDashboard.receiverReady(online)
-        if(!online){resizeSignalArea(false);signalReceiverIp="";signalReceiverSerial=""}
+        if(!online){signalReceiverIp="";signalReceiverSerial=""}
         connectionState.text=if(online)"● Connecté" else "● Non connecté"
         connectionState.setTextColor(if(online)green else secondary)
         if(!online)setReceiverIdentity(null)
