@@ -364,11 +364,18 @@ internal class AndroidTvRemoteClient(
             if (socket != null && ready) try {
                 lastAppRequest = value
                 val playStoreLink = value.startsWith("https://play.google.com/apps/launch?id=")
-                val request = if (playStoreLink) TvRemoteWire.join(
-                    TvRemoteWire.string(1, value),
-                    TvRemoteWire.string(2, "com.android.vending"),
-                    TvRemoteWire.number(3, 1L))
-                else TvRemoteWire.string(1, value)
+                val request = when {
+                    // Target the installed Shahid app, never a generic browser.
+                    // This is a candidate app-link, not a verified Shahid deep-link.
+                    value == "https://shahid.mbc.net" -> TvRemoteWire.join(
+                        TvRemoteWire.string(1, value),
+                        TvRemoteWire.string(2, "net.mbc.shahidTV"))
+                    playStoreLink -> TvRemoteWire.join(
+                        TvRemoteWire.string(1, value),
+                        TvRemoteWire.string(2, "com.android.vending"),
+                        TvRemoteWire.number(3, 1L))
+                    else -> TvRemoteWire.string(1, value)
+                }
                 remoteMessage(socket, 90, request)
                 notify("Commande d'ouverture transmise à Lifemaxx.")
             } catch (e: Exception) {
