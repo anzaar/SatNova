@@ -49,11 +49,13 @@ internal class AndroidTvRemoteClient(
     private val codeQueue = LinkedBlockingQueue<String>(1)
     @Volatile private var active: SSLSocket? = null
     @Volatile private var ready = false
+    @Volatile private var appLinksEnabled = false
     @Volatile private var disposed = false
 
     private fun notify(message: String) { main.post { if (!disposed) status(message) } }
     private fun setReady(value: Boolean) {
         ready = value
+        if (!value) appLinksEnabled = false
         main.post { if (!disposed) readyChanged(value) }
     }
 
@@ -225,7 +227,8 @@ internal class AndroidTvRemoteClient(
                     input[1]?.firstOrNull()?.bytes != null -> {
                         val offer = input[1]!!.first().bytes!!
                         val offeredFeatures = TvRemoteWire.firstNumber(offer, 1) ?: 0L
-                        features = offeredFeatures and (1L or 2L or 32L or 64L)
+                        features = offeredFeatures and (1L or 2L or 32L or 64L or 512L)
+                        appLinksEnabled = (features and 512L) != 0L
                         if ((features and 2L) == 0L) throw IOException("La TV n'accepte pas les touches")
                         val info = TvRemoteWire.join(
                             TvRemoteWire.string(1, "SatNova"), TvRemoteWire.string(2, "SatNova"),
@@ -279,10 +282,20 @@ internal class AndroidTvRemoteClient(
             return
         }
         if (!ready) { notify("Connectez d'abord la télévision."); return }
+        if (!appLinksEnabled) {
+            notify("Lifemaxx ne propose pas le lancement direct d'applications via ce protocole.")
+            return
+        }
         writer.execute {
             val socket = active
             if (socket != null && ready) try {
-                remoteMessage(socket, 90, TvRemoteWire.string(1, value))
+                val playStoreLink = value.startsWith("https://play.google.com/apps/launch?id=")
+                val request = if (playStoreLink) TvRemoteWire.join(
+                    TvRemoteWire.string(1, value),
+                    TvRemoteWire.string(2, "com.android.vending"),
+                    TvRemoteWire.number(3, 1L))
+                else TvRemoteWire.string(1, value)
+                remoteMessage(socket, 90, request)
                 notify("Commande d'ouverture transmise à Lifemaxx.")
             } catch (e: Exception) {
                 notify("Raccourci TV : " + (e.message ?: "connexion interrompue"))
