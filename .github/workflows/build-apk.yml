@@ -1,8 +1,11 @@
-name: Build SatNova APK (Alpha)
+name: Build SatNova V2 APK (Beta)
 on:
   workflow_dispatch:
   push:
     branches: [main]
+concurrency:
+  group: satnova-v2-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: write
 jobs:
@@ -34,7 +37,7 @@ jobs:
         run: gradle --no-daemon --stacktrace :app:testDebugUnitTest :app:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: SatNova-Alpha-APK
+          name: SatNova-V2-Beta-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
@@ -51,14 +54,14 @@ jobs:
             echo "Skipping outdated APK publication: $GITHUB_SHA (latest $LATEST_SHA)"
             exit 0
           fi
-          cp app/build/outputs/apk/debug/app-debug.apk SatNova-Latest.apk
-          if ! gh release view alpha-latest >/dev/null 2>&1; then
-            gh release create alpha-latest \
-              --title "SatNova Alpha — Direct APK" \
-              --notes "Development preview: the APK installs directly on ARM64 Android phones. Experimental satellite receiver integration; not yet fully validated." \
+          cp app/build/outputs/apk/debug/app-debug.apk SatNova-V2-Beta.apk
+          if ! gh release view v2-beta >/dev/null 2>&1; then
+            gh release create v2-beta \
+              --title "SatNova V2 Beta — Télécommande Android TV" \
+              --notes "V2 beta: independent Android TV Wi-Fi remote with on-screen pairing. Receiver features retained from 1.25. TV pairing requires real-device validation." \
               --prerelease --target "${GITHUB_SHA}"
           fi
-          gh release upload alpha-latest SatNova-Latest.apk --clobber
-          echo "Direct APK URL: https://github.com/${GH_REPO}/releases/download/alpha-latest/SatNova-Latest.apk"
+          gh release upload v2-beta SatNova-Latest.apk --clobber
+          echo "Direct APK URL: https://github.com/${GH_REPO}/releases/download/v2-beta/SatNova-Latest.apk"
 
 
