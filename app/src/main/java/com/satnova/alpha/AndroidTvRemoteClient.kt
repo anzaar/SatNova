@@ -271,6 +271,34 @@ internal class AndroidTvRemoteClient(
         }
     }
 
+    /** Remote v2 protobuf field 90: app-link request, not a raw Android package launch. */
+    fun launchApp(link: String) {
+        val value = link.trim()
+        if (value.isEmpty() || value.length > 1800 || !value.contains("://")) {
+            notify("Raccourci TV : lien d'application invalide.")
+            return
+        }
+        if (!ready) { notify("Connectez d'abord la télévision."); return }
+        writer.execute {
+            val socket = active
+            if (socket != null && ready) try {
+                remoteMessage(socket, 90, TvRemoteWire.string(1, value))
+                notify("Commande d'ouverture transmise à Lifemaxx.")
+            } catch (e: Exception) {
+                notify("Raccourci TV : " + (e.message ?: "connexion interrompue"))
+                socket.closeQuietly()
+            }
+        }
+    }
+
+    fun isReady(): Boolean = ready
+
+    fun disconnect() {
+        active?.closeQuietly()
+        active = null
+        setReady(false)
+    }
+
     fun close() {
         disposed = true
         active?.closeQuietly()
