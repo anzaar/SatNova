@@ -95,14 +95,22 @@ internal class AndroidTvRemoteClient(
     private fun keyMaterial(): Pair<PrivateKey, X509Certificate> {
         val store = KeyStore.getInstance("AndroidKeyStore")
         store.load(null)
-        val alias = "satnova_tv_remote_rsa"
+        val alias = "satnova_tv_remote_rsa_tls_v2"
         if (!store.containsAlias(alias)) {
             val now = System.currentTimeMillis()
             val generator = KeyPairGenerator.getInstance("RSA", "AndroidKeyStore")
-            val spec = KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY)
+            val spec = KeyGenParameterSpec.Builder(alias,
+                KeyProperties.PURPOSE_SIGN or KeyProperties.PURPOSE_VERIFY or
+                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
                 .setAlgorithmParameterSpec(RSAKeyGenParameterSpec(2048, RSAKeyGenParameterSpec.F4))
-                .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA512)
-                .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
+                .setDigests(KeyProperties.DIGEST_NONE, KeyProperties.DIGEST_SHA1,
+                    KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA384,
+                    KeyProperties.DIGEST_SHA512)
+                .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1,
+                    KeyProperties.SIGNATURE_PADDING_RSA_PSS)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE,
+                    KeyProperties.ENCRYPTION_PADDING_RSA_PKCS1)
+                .setRandomizedEncryptionRequired(false)
                 .setCertificateSubject(X500Principal("CN=SatNova-" + UUID.randomUUID().toString()))
                 .setCertificateSerialNumber(java.math.BigInteger.valueOf(now.coerceAtLeast(1L)))
                 .setCertificateNotBefore(Date(now - 3600000L))
