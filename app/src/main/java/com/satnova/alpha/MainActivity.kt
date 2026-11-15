@@ -46,6 +46,17 @@ class MainActivity : Activity() {
     private lateinit var ip: EditText
     private lateinit var connectButton: Button
     private val work = ReceiverExecutor()
+    private val tvController by lazy {
+        AndroidTvRemoteClient(this,
+            status = { message -> if(::screen.isInitialized)showField("Retour télécommande", message) },
+            enterCode = { startActivity(Intent(this, TvRemoteActivity::class.java)) },
+            readyChanged = { online -> if(::screen.isInitialized)screen.setTvRemoteOnline(online) })
+    }
+    private fun reconnectTvRemote() {
+        val host = tvController.lastHost()
+        if(host.isNotBlank() && tvController.isPaired(host) && !tvController.isReady())tvController.connect(host)
+    }
+    private val controlOnlyV2 = true
     private val connectPending=java.util.concurrent.atomic.AtomicBoolean(false)
     @Volatile private var manualReconnectPaused=false
     @Volatile private var lastReconnectAttempt=0L
@@ -214,7 +225,7 @@ class MainActivity : Activity() {
                 if (verified) stopVideo{work.execute { disconnect(); report("Déconnecté") }}
                 else {manualReconnectPaused=false;connect(ip.text.toString().trim())}
             },
-            onWatch = { retryInlineStream() },
+            onWatch = { report("SatNova V2 : commande uniquement, vidéo désactivée") },
             onReadSatellites = { readSatellites() },
             onReadTransponders = { readTransponders() },
             onReadSignal = { readSignal() },
@@ -231,7 +242,7 @@ class MainActivity : Activity() {
                 selectedTab=tab
                 if(::screen.isInitialized && verified)when(tab){
                     0->chooseSignalMode()
-                    2->chooseWatchMode()
+                    2->chooseSignalMode()
                     else->chooseBrowseMode()
                 }
             },
@@ -249,7 +260,12 @@ class MainActivity : Activity() {
             },
             onKey = { code -> sendKey(code) },
             onDishFinder = { openSatelliteFinder() },
-            onTvRemote = { startActivity(Intent(this, TvRemoteActivity::class.java)) },
+            onTvRemote = {
+                tvController.disconnect()
+                startActivity(Intent(this, TvRemoteActivity::class.java))
+            },
+            onTvKey = { code -> tvController.press(code) },
+            onTvApp = { url -> tvController.launchApp(url) },
             onQibla = { startActivity(Intent(this,QiblaActivity::class.java)) },
             onBackgroundToggle = { toggleBackgroundLink() },
             onCatalogueReload = { refreshChannels(true) }
@@ -528,7 +544,7 @@ class MainActivity : Activity() {
         }catch(e:Exception){showField("Transpondeurs","Échec : "+e.message)}}
     }
     private fun readSignal(){
-        if(signalMonitoring)chooseWatchMode() else chooseSignalMode()
+        chooseSignalMode()
     }
     private fun stopVideo(onStopped:()->Unit){
         updateVideoReport(true) // Keep the last video state when Options/Signal replace its label.
@@ -811,6 +827,11 @@ class MainActivity : Activity() {
         if(id.isBlank())return
         val rec=channelRecords[id]
         screen.setCurrentChannel(id)
+        val (remoteSat, remoteTp) = currentSatelliteAndTp(rec)
+        screen.updateRemoteNow(id, channelNames[id] ?: "Chaîne $id",
+            receiverChannelNumber(id,rec),remoteSat,remoteTp,
+            key(rec,"EventName","EventTitle","CurrentEvent","NowPlaying","EpgTitle","EPGName"),
+            key(rec,"NextEvent","NextEventTitle","NextProgramme"))
         showField("Chaîne actuelle",channelNames[id] ?:
             "Chaîne en identification (ID "+id.take(16)+")")
         showField("Numéro de chaîne",receiverChannelNumber(id,rec))
@@ -1124,6 +1145,7 @@ class MainActivity : Activity() {
         }
     }
     private fun autostartInlineStream(id:String){
+        if(controlOnlyV2)return // No receiver 1009 stream request in V2 remote.
         if(useMode!=UseMode.WATCH || !receiverMode.mayStartVideo())return
         if(!verified || !foreground || !playbackLifecycle.ready() || recoveringStream || channelCommandPending || videoRequestTimedOut || id.isBlank())return
         if(recoveryChannel!=id){
@@ -1273,6 +1295,7 @@ class MainActivity : Activity() {
     }
     override fun onResume(){
         super.onResume()
+        reconnectTvRemote()
         foreground=true
         if(playbackLifecycle.foreground())reopenForegroundSession()
         if(!verified)reconnectWhenNetworkReturns()
@@ -1573,6 +1596,7 @@ class MainActivity : Activity() {
         setVerified(false)
     }
     override fun onDestroy() {
+        tvController.close()
         lanCallback?.let{cb->
             try{(getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager)
                 .unregisterNetworkCallback(cb)}catch(_:Exception){}
