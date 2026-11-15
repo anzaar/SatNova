@@ -33,4 +33,28 @@ class ChannelGroupingTest {
         assertEquals(2,group.getValue("channel:france 24").size)
         assertEquals(1,group.getValue("channel:france 2").size)
     }
+    @Test fun sportsNewsFamiliesAndRadioAreSeparate() {
+        val rows=listOf(
+            channel("a","Arryadia HD",1),
+            channel("b","Arriyadia SD",2),
+            channel("c","beIN Sports 1 HD",3),
+            channel("d","beIN SPORTS 2 HD",4),
+            channel("e","beIN Movies HD",5),
+            channel("f","beIN Series",6),
+            channel("g","Al Jazeera English",7),
+            channel("h","Al Jazeera Documentary",8),
+            channel("i","SSC 1 HD",9),
+            channel("j","SSC 2 HD",10),
+            RemoteChannel("k","Al Jazeera English",11,1,false,null,null)
+        )
+        val groups=ChannelGrouping.byGroup(rows)
+        assertEquals(6,groups.size)
+        assertEquals(2,groups.getValue("family:arryadia").size)
+        assertEquals(2,groups.getValue("family:bein-sports").size)
+        assertEquals(2,groups.getValue("family:bein-other").size)
+        assertEquals(2,groups.getValue("family:aljazeera").size)
+        assertEquals(2,groups.getValue("family:ssc").size)
+        assertEquals(1,groups.getValue("radio:family:aljazeera").size)
+    }
+
 }
