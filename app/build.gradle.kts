@@ -6,7 +6,7 @@ android {
     namespace = "com.satnova.alpha"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.satnova.alpha"
+        applicationId = "com.satnova.alpha.preview"
         minSdk = 26
         targetSdk = 35
         ndk { abiFilters += listOf("arm64-v8a") }
