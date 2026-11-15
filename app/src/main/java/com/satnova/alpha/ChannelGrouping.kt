@@ -102,6 +102,15 @@ internal class FavoriteProfile(context: Context) {
         if(raw!=null)save() // Save migrated TV profile on its new key.
     }
 
+    /** Reflect favorite edits made in the other (offline/online) remote surface. */
+    fun reload() {
+        if(profile.isBlank())return
+        val radio=profile.endsWith(":radio")
+        val host=profile.removeSuffix(":radio").removeSuffix(":tv")
+        profile=""
+        useReceiver(host,radio)
+    }
+
     fun sync(channels:List<RemoteChannel>) {
         if(initialized || channels.isEmpty())return
         val radio=profile.endsWith(":radio")
