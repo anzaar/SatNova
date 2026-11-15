@@ -51,6 +51,7 @@ class SatNovaScreen(
     onKey: (Int) -> Unit,
     onDishFinder: () -> Unit = {},
     onQibla: () -> Unit = {},
+    onTvRemote: () -> Unit = {},
     onBackgroundToggle: () -> Unit = {},
     onCatalogueReload: () -> Unit = {}
 ) {
@@ -333,7 +334,7 @@ class SatNovaScreen(
         brandTexts.addView(receiverModel,margin(top=5))
         fields["Modèle du récepteur"]=receiverModel
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 1.25", 10f, lavender, true).apply {
+        val version = text("V2 • bêta", 10f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(9.dp, 7.dp, 9.dp, 7.dp)
             background = shape(tileColor, 50, hairline)
@@ -352,6 +353,8 @@ class SatNovaScreen(
             onClick=onDishFinder),margin(top=8))
         setupPage.addView(action("☪  القبلة • Direction Qibla",tileColor,lavender,53,
             onClick=onQibla),margin(top=8))
+        setupPage.addView(action("▣  Télécommande Lifemaxx • Android TV",tileColor,lavender,58,
+            onClick=onTvRemote),margin(top=8))
         setupPage.addView(text("CONNEXION AU RÉCEPTEUR • FACULTATIVE",12f,lavender,true),
             margin(top=24,bottom=3))
         setupPage.addView(text("Connecter un récepteur",23f,lavender,true),
