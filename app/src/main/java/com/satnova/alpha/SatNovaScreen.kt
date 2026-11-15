@@ -706,7 +706,11 @@ class SatNovaScreen(
     fun setCurrentChannel(id:String)=activity.runOnUiThread{catalog.setCurrentChannel(id)}
 
     fun updateZapStatus(message:String){
-        activity.runOnUiThread{catalog.updateZapStatus(message)}
+        activity.runOnUiThread{
+            catalog.updateZapStatus(message)
+            dashboard.zapFeedback(message)
+            offlineDashboard.zapFeedback(message)
+        }
     }
 
     /** Sole entry view until a verified TCP login has completed. */
