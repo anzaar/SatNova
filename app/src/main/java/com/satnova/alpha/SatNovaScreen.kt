@@ -341,6 +341,8 @@ class SatNovaScreen(
         }
         branding.addView(version)
         page.addView(branding, margin(bottom = 15))
+        page.addView(action("▣  Télécommande Lifemaxx • indépendante du décodeur",tileColor,lavender,54,
+            onClick=onTvRemote),margin(bottom=13))
 
         // Receiver and LAN connection
         setupPage.addView(text("SATNOVA • CONNEXION",25f,textColor,true),
