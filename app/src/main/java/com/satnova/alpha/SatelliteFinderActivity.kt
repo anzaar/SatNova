@@ -47,6 +47,8 @@ class SatelliteFinderActivity:Activity(),SensorEventListener {
     private lateinit var overlay:FinderOverlay
     private lateinit var info:TextView
     private lateinit var hints:TextView
+    private lateinit var lnbInfo:TextView
+    private lateinit var altitudeInfo:TextView
     private lateinit var selection:Button
     private var satelliteName=""
     private var orbitalLongitude:Double?=null
@@ -89,9 +91,14 @@ class SatelliteFinderActivity:Activity(),SensorEventListener {
         info=text("Position en attente…",16f)
         hints=text("La direction est calculée à partir de votre position et de l'orbite du satellite.",12f)
         root.addView(info)
+        lnbInfo=text("Polarisation LNB : choisir un satellite",14f)
+        altitudeInfo=text("Altitude du site : position en attente",12f)
+        root.addView(lnbInfo)
+        root.addView(altitudeInfo)
         root.addView(hints)
         val footer=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL}
         footer.addView(button("Position manuelle"){manualPosition()},LinearLayout.LayoutParams(0,-2,1f))
+        footer.addView(button("Orbite libre"){customOrbital()},LinearLayout.LayoutParams(0,-2,1f))
         footer.addView(button("Calibrage"){calibrationHelp()},LinearLayout.LayoutParams(0,-2,1f))
         root.addView(footer)
         setContentView(root)
@@ -145,20 +152,20 @@ class SatelliteFinderActivity:Activity(),SensorEventListener {
         val providers=listOf(LocationManager.GPS_PROVIDER,LocationManager.NETWORK_PROVIDER).filter{
             try{locationManager.isProviderEnabled(it)}catch(_:Exception){false}
         }
-        position=providers.mapNotNull{provider->
+        val last=providers.mapNotNull{provider->
             try{locationManager.getLastKnownLocation(provider)}catch(_:Exception){null}
         }.minByOrNull{it.accuracy}
-        updateDisplay()
+        if(last!=null)setPosition(last) else updateDisplay()
         val provider=providers.firstOrNull()?:return
         try{
             if(android.os.Build.VERSION.SDK_INT>=30){
                 locationManager.getCurrentLocation(provider,null,mainExecutor){value->
-                    if(!closed && value!=null){position=value;updateDisplay()}
+                    if(!closed && value!=null)setPosition(value)
                 }
             }else{
                 locationManager.requestSingleUpdate(provider,object:android.location.LocationListener{
                     override fun onLocationChanged(value:Location){
-                        if(!closed){position=value;updateDisplay()}
+                        if(!closed)setPosition(value)
                     }
                 },Looper.getMainLooper())
             }
@@ -187,10 +194,53 @@ class SatelliteFinderActivity:Activity(),SensorEventListener {
                 val a=lat.text.toString().replace(',','.').toDoubleOrNull()
                 val b=lon.text.toString().replace(',','.').toDoubleOrNull()
                 if(a!=null && b!=null && a in -90.0..90.0 && b in -180.0..180.0){
-                    position=Location("manual").apply{latitude=a;longitude=b;accuracy=1000f}
-                    updateDisplay()
+                    setPosition(Location("manual").apply{latitude=a;longitude=b;accuracy=1000f})
                 }else android.widget.Toast.makeText(this,"Coordonnées invalides",android.widget.Toast.LENGTH_LONG).show()
             }.setNegativeButton("Annuler",null).show()
+    }
+    private fun customOrbital(){
+        val field=EditText(this).apply{
+            hint="Longitude orbitale : -7 ou 19.2"
+            inputType=android.text.InputType.TYPE_CLASS_NUMBER or
+                android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL or
+                android.text.InputType.TYPE_NUMBER_FLAG_SIGNED
+        }
+        AlertDialog.Builder(this).setTitle("Position orbitale en degrés (Est + / Ouest −)")
+            .setView(field).setPositiveButton("Utiliser"){_,_->
+                val orbital=field.text.toString().replace(',','.').toDoubleOrNull()
+                if(orbital!=null && orbital in -180.0..180.0){
+                    orbitalLongitude=orbital
+                    satelliteName=String.format(Locale.FRANCE,"%.1f° %s",abs(orbital),
+                        if(orbital<0)"Ouest" else "Est")
+                    updateDisplay()
+                }else android.widget.Toast.makeText(this,"Orbite invalide",android.widget.Toast.LENGTH_SHORT).show()
+            }.setNegativeButton("Annuler",null).show()
+    }
+    private fun setPosition(value:Location){
+        position=value
+        updateDisplay()
+        if(android.os.Build.VERSION.SDK_INT>=34 && value.hasAltitude() && !value.hasMslAltitude()){
+            Thread{
+                try{
+                    android.location.altitude.AltitudeConverter()
+                        .addMslAltitudeToLocation(applicationContext,value)
+                    runOnUiThread{if(!closed && position===value)updateDisplay()}
+                }catch(_:Exception){}
+            }.apply{isDaemon=true;start()}
+        }
+    }
+    private fun altitudeText(pos:Location?):String {
+        if(pos==null)return "Altitude du site : position GPS en attente"
+        if(pos.provider=="manual")return "Altitude du site : non fournie (position manuelle)"
+        return when {
+            android.os.Build.VERSION.SDK_INT>=34 && pos.hasMslAltitude() ->
+                String.format(Locale.FRANCE,"Altitude au-dessus de la mer : %.0f m%s",
+                    pos.mslAltitudeMeters,if(pos.hasMslAltitudeAccuracy())
+                        String.format(Locale.FRANCE," (±%.0f m)",pos.mslAltitudeAccuracyMeters) else " • précision non fournie")
+            pos.hasAltitude() ->
+                String.format(Locale.FRANCE,"Altitude GPS WGS84 : %.0f m • pas encore convertie en niveau marin",pos.altitude)
+            else -> "Altitude du site indisponible (GPS sans altitude)"
+        }
     }
     private fun calibrationHelp(){
         AlertDialog.Builder(this).setTitle("Calibrage de la boussole")
@@ -225,6 +275,11 @@ class SatelliteFinderActivity:Activity(),SensorEventListener {
         selection.text="Satellite : "+(satelliteName.ifBlank{"Sélectionner"})+"  ▾"
         val sat=orbitalLongitude
         val pos=position
+        altitudeInfo.text=altitudeText(pos)
+        lnbInfo.text=if(sat!=null && pos!=null)
+            String.format(Locale.FRANCE,"Inclinaison LNB (skew théorique) : %+.1f°",
+                SatelliteGeometry.lnbSkew(pos.latitude,pos.longitude,sat))
+            else "Inclinaison LNB : choisir une orbite et une position"
         if(sat==null){
             info.text="Satellite actuel non identifiable automatiquement."
             hints.text="Sélectionnez sa position orbitale dans la liste du haut."
@@ -251,7 +306,8 @@ class SatelliteFinderActivity:Activity(),SensorEventListener {
                 if(height>=0)"monter" else "descendre",abs(height))
         }else "Boussole indisponible : utilisez les angles numériques."
         hints.text=(if(target.elevation<0)"Satellite sous l'horizon ! " else "")+
-            direction+"\n"+(if(pos.provider=="manual")"Position manuelle" else "Position GPS")+" • Ajustez avec la qualité du signal."
+            direction+"\n"+(if(pos.provider=="manual")"Position manuelle" else "Position GPS")+
+            " • Skew signé : vérifiez le sens selon l'échelle du LNB et confirmez le signal."
     }
     @SuppressLint("MissingPermission")
     private fun openCamera(){
