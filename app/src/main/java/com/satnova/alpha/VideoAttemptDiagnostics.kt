@@ -11,7 +11,7 @@ class VideoAttemptDiagnostics {
     private var frozen=false
     private var configuration="Lecteur en préparation"
     @Synchronized fun begin(receiver:String,channel:String,at:String){
-        header="SatNova 1.22 • $at\nRécepteur : $receiver\nChaîne : $channel"
+        header="SatNova V2 • $at\nRécepteur : $receiver\nChaîne : $channel"
         endpoint="En attente du lien 1009";stage="Demande de lecture en cours";counts="Compteurs VLC : en attente";configuration="Lecteur en préparation";frozen=false
     }
     @Synchronized fun source(url:String){
