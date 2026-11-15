@@ -3,6 +3,9 @@ package com.satnova.alpha
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.content.Context
 import android.graphics.Color
 import android.graphics.Typeface
@@ -43,6 +46,10 @@ class MainActivity : Activity() {
     private lateinit var ip: EditText
     private lateinit var connectButton: Button
     private val work = ReceiverExecutor()
+    private val connectPending=java.util.concurrent.atomic.AtomicBoolean(false)
+    @Volatile private var manualReconnectPaused=false
+    @Volatile private var lastReconnectAttempt=0L
+    private var lanCallback:ConnectivityManager.NetworkCallback?=null
     private val remoteWork=Executors.newSingleThreadExecutor()
     private val remoteKeySequence=java.util.concurrent.atomic.AtomicLong()
     private val writeLock = Any()
@@ -195,15 +202,17 @@ class MainActivity : Activity() {
             onDiscover = { discover() },
             onAdvancedScan = { prefix -> scanPrefix(prefix) },
             onSelectReceiver = { host ->
+                manualReconnectPaused=false
                 ip.setText(host)
                 connect(host)
             },
             onDisconnect = {
+                manualReconnectPaused=true
                 stopVideo{work.execute{disconnect();report("Récepteur déconnecté")}}
             },
             onConnect = {
                 if (verified) stopVideo{work.execute { disconnect(); report("Déconnecté") }}
-                else connect(ip.text.toString().trim())
+                else {manualReconnectPaused=false;connect(ip.text.toString().trim())}
             },
             onWatch = { retryInlineStream() },
             onReadSatellites = { readSatellites() },
@@ -239,6 +248,8 @@ class MainActivity : Activity() {
                 }
             },
             onKey = { code -> sendKey(code) },
+            onDishFinder = { openSatelliteFinder() },
+            onBackgroundToggle = { toggleBackgroundLink() },
             onCatalogueReload = { refreshChannels(true) }
         )
         status = screen.status
@@ -292,6 +303,8 @@ class MainActivity : Activity() {
 
         })
         screen.setReceiverOnline(false)
+        registerLanCallback()
+        if(backgroundLinkEnabled())startBackgroundLink()
         // Auto-connect only to an IP previously verified by SatNova.
         val rememberedIp=getSharedPreferences("satnova",Context.MODE_PRIVATE)
             .getString("last_receiver_ip",null)
@@ -304,6 +317,7 @@ class MainActivity : Activity() {
         }
 
         monitorWork.scheduleWithFixedDelay({
+            if(!verified)reconnectWhenNetworkReturns()
             if(verified && System.currentTimeMillis()-lastRemotePressAt>4500L) work.execute{
                 if(!verified || System.currentTimeMillis()-lastRemotePressAt<=4500L)return@execute
                 try{
@@ -1174,6 +1188,72 @@ class MainActivity : Activity() {
             }
         }
     }
+    private fun backgroundLinkEnabled()=
+        getSharedPreferences("satnova",Context.MODE_PRIVATE).getBoolean("background_link",false)
+
+    private fun startBackgroundLink(){
+        try{
+            val intent=Intent(this,BackgroundLinkService::class.java)
+            startForegroundService(intent)
+        }catch(e:Exception){
+            getSharedPreferences("satnova",Context.MODE_PRIVATE).edit()
+                .putBoolean("background_link",false).apply()
+            report("Arrière-plan non autorisé : "+e.javaClass.simpleName)
+        }
+    }
+    private fun toggleBackgroundLink(){
+        val enable=!backgroundLinkEnabled()
+        getSharedPreferences("satnova",Context.MODE_PRIVATE).edit()
+            .putBoolean("background_link",enable).apply()
+        if(enable)startBackgroundLink()
+        else stopService(Intent(this,BackgroundLinkService::class.java))
+        if(enable)reconnectWhenNetworkReturns()
+    }
+    private fun openSatelliteFinder(){
+        val satellite=currentSatelliteAndTp(channelRecords[currentChannelId]).first
+        val names=satelliteRecords.mapNotNull{
+            pick(it,"SatelliteName","SatName","Name","Satellite")
+        }.distinct()
+        startActivity(Intent(this,SatelliteFinderActivity::class.java).apply{
+            putExtra("satellite",satellite)
+            putStringArrayListExtra("satellites",ArrayList(names))
+        })
+    }
+    private fun wifiIsConnected():Boolean {
+        return try{
+            val manager=getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val network=manager.activeNetwork?:return false
+            val caps=manager.getNetworkCapabilities(network)?:return false
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+        }catch(_:Exception){false}
+    }
+    private fun reconnectWhenNetworkReturns(){
+        if(verified || connectPending.get() || manualReconnectPaused || isFinishing || isDestroyed)return
+        if(!foreground && !backgroundLinkEnabled())return
+        if(!wifiIsConnected())return
+        val host=getSharedPreferences("satnova",Context.MODE_PRIVATE)
+            .getString("last_receiver_ip",null)?:return
+        if(!isPrivate(host))return
+        val now=android.os.SystemClock.elapsedRealtime()
+        synchronized(this){
+            if(now-lastReconnectAttempt<9000L)return
+            lastReconnectAttempt=now
+        }
+        connect(host)
+    }
+    private fun registerLanCallback(){
+        val manager=getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val cb=object:ConnectivityManager.NetworkCallback(){
+            override fun onAvailable(network:Network){reconnectWhenNetworkReturns()}
+            override fun onCapabilitiesChanged(network:Network,capabilities:NetworkCapabilities){
+                if(capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                   capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET))
+                    reconnectWhenNetworkReturns()
+            }
+        }
+        try{manager.registerDefaultNetworkCallback(cb);lanCallback=cb}catch(_:Exception){}
+    }
     private fun reopenForegroundSession(){
         if(!foreground || isFinishing || isDestroyed)return
         val host=resumeReceiverHost
@@ -1193,6 +1273,7 @@ class MainActivity : Activity() {
         super.onResume()
         foreground=true
         if(playbackLifecycle.foreground())reopenForegroundSession()
+        if(!verified)reconnectWhenNetworkReturns()
     }
     override fun onStop(){
         foreground=false
@@ -1250,7 +1331,10 @@ class MainActivity : Activity() {
         val flags = bytes[84].toInt() and 255
         return Triple(model,flags and 0x40 != 0,flags and 0x01 != 0)
     }
-    private fun connect(host: String) = work.execute {
+    private fun connect(host: String) {
+        if(!connectPending.compareAndSet(false,true))return
+        work.execute {
+          try {
         if (!isPrivate(host)) { report("Saisissez l'adresse IP locale du récepteur."); return@execute }
         disconnect()
         catalogueKey=""
@@ -1342,6 +1426,8 @@ class MainActivity : Activity() {
             screen.markDiscoveryFailed(host)
             report("Identification non validée : ${e.message}")
             showField("État connexion","● Connexion échouée • Options réseau")
+        }
+          } finally {connectPending.set(false)}
         }
     }
     // Working 1.2 key payload and dedicated serial writer; state reads are coalesced after a press burst.
@@ -1485,6 +1571,10 @@ class MainActivity : Activity() {
         setVerified(false)
     }
     override fun onDestroy() {
+        lanCallback?.let{cb->
+            try{(getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager)
+                .unregisterNetworkCallback(cb)}catch(_:Exception){}
+        }
         inlinePlayer?.close()
         disconnect()
         screen.close()
