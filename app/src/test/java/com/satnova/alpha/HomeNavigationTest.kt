@@ -44,7 +44,7 @@ class HomeNavigationTest {
             fun text(label:String)=texts(screen.root).first{it.text.toString()==label}
             screen.setReceiverOnline(false)
             assertTrue(text("◎  Satellite • caméra / GPS").isShown)
-            assertTrue(text("☪  القبلة • Direction Qibla").isShown)
+            assertTrue(texts(screen.root).any{it.text.toString()=="☪  القبلة • Direction Qibla" && it.isShown})
             assertFalse(texts(screen.root).any{
                 it.text.toString().contains("Niveau et inclinomètre") ||
                     it.text.toString().contains("Mesurer une distance")
