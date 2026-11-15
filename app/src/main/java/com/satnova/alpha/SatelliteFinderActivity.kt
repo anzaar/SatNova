@@ -101,6 +101,10 @@ class SatelliteFinderActivity:Activity(),SensorEventListener {
         footer.addView(button("Orbite libre"){customOrbital()},LinearLayout.LayoutParams(0,-2,1f))
         footer.addView(button("Calibrage"){calibrationHelp()},LinearLayout.LayoutParams(0,-2,1f))
         root.addView(footer)
+        val extras=LinearLayout(this).apply{orientation=LinearLayout.HORIZONTAL}
+        extras.addView(button("Obstacle / horizon"){obstacleCheck()},LinearLayout.LayoutParams(0,-2,1f))
+        extras.addView(button("Partager fiche"){shareSiteReport()},LinearLayout.LayoutParams(0,-2,1f))
+        root.addView(extras)
         setContentView(root)
         cameraPreview.surfaceTextureListener=object:TextureView.SurfaceTextureListener {
             override fun onSurfaceTextureAvailable(surface:SurfaceTexture,width:Int,height:Int){openCamera()}
@@ -241,6 +245,66 @@ class SatelliteFinderActivity:Activity(),SensorEventListener {
                 String.format(Locale.FRANCE,"Altitude GPS WGS84 : %.0f m • pas encore convertie en niveau marin",pos.altitude)
             else -> "Altitude du site indisponible (GPS sans altitude)"
         }
+    }
+    private fun obstacleCheck(){
+        val sat=orbitalLongitude
+        val pos=position
+        if(sat==null || pos==null){
+            AlertDialog.Builder(this).setTitle("Visibilité").setMessage(
+                "Choisissez le satellite et votre position avant de contrôler un obstacle.")
+                .setPositiveButton("OK",null).show()
+            return
+        }
+        val box=LinearLayout(this).apply{
+            orientation=LinearLayout.VERTICAL;setPadding(28,8,28,6)
+        }
+        fun entry(hintText:String)=EditText(this).apply{
+            hint=hintText
+            inputType=android.text.InputType.TYPE_CLASS_NUMBER or
+                android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL or
+                android.text.InputType.TYPE_NUMBER_FLAG_SIGNED
+        }
+        val height=entry("Dénivelé du sommet (m, relatif au LNB)")
+        val distance=entry("Distance horizontale à l'obstacle (m)")
+        box.addView(height);box.addView(distance)
+        AlertDialog.Builder(this).setTitle("Ligne de visée / obstacle").setView(box)
+            .setPositiveButton("Calculer"){_,_->
+                val h=height.text.toString().replace(',','.').toDoubleOrNull()
+                val d=distance.text.toString().replace(',','.').toDoubleOrNull()
+                if(h==null || d==null || d<=0.0){
+                    android.widget.Toast.makeText(this,"Indiquez un dénivelé et une distance positive.",
+                        android.widget.Toast.LENGTH_LONG).show()
+                }else{
+                    val angle=Math.toDegrees(atan2(h,d))
+                    val elevation=SatelliteGeometry.look(pos.latitude,pos.longitude,sat).elevation
+                    val margin=elevation-angle
+                    val message=String.format(Locale.FRANCE,
+                        "Obstacle : %.1f° au-dessus du plan horizontal du LNB.\nSatellite : %.1f°.\nMarge verticale théorique : %.1f°.\n%s",
+                        angle,elevation,margin,
+                        if(margin<=2.0)"RISQUE D'OCCULTATION ou marge insuffisante."
+                        else "Visée probablement dégagée si aucune branche/obstacle supplémentaire.")
+                    AlertDialog.Builder(this).setTitle("Résultat indicatif")
+                        .setMessage(message+"\nLa mesure ne remplace pas une inspection de la parabole.")
+                        .setPositiveButton("OK",null).show()
+                }
+            }.setNegativeButton("Annuler",null).show()
+    }
+    private fun shareSiteReport(){
+        val pos=position
+        val satellite=orbitalLongitude
+        if(pos==null || satellite==null){
+            android.widget.Toast.makeText(this,"Choisir position et satellite",android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        val target=SatelliteGeometry.look(pos.latitude,pos.longitude,satellite)
+        val skew=SatelliteGeometry.lnbSkew(pos.latitude,pos.longitude,satellite)
+        val report=String.format(Locale.FRANCE,
+            "SATNOVA • Fiche de pointage\nSatellite : %s\nPosition : %.6f, %.6f\nAzimut vrai : %.2f°\nÉlévation satellite : %.2f°\nSkew théorique LNB : %+.2f°\n%s\nPointage indicatif : vérifier orientation LNB et qualité de signal.",
+            satelliteName,pos.latitude,pos.longitude,target.azimuth,target.elevation,skew,altitudeText(pos))
+        val intent=android.content.Intent(android.content.Intent.ACTION_SEND).apply{
+            type="text/plain";putExtra(android.content.Intent.EXTRA_TEXT,report)
+        }
+        startActivity(android.content.Intent.createChooser(intent,"Partager la fiche SatNova"))
     }
     private fun calibrationHelp(){
         AlertDialog.Builder(this).setTitle("Calibrage de la boussole")
