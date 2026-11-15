@@ -52,6 +52,8 @@ class SatNovaScreen(
     onDishFinder: () -> Unit = {},
     onQibla: () -> Unit = {},
     onTvRemote: () -> Unit = {},
+    onTvKey: (Int) -> Unit = {},
+    onTvApp: (String) -> Unit = {},
     onBackgroundToggle: () -> Unit = {},
     onCatalogueReload: () -> Unit = {}
 ) {
@@ -68,6 +70,8 @@ class SatNovaScreen(
 
     val root: LinearLayout = LinearLayout(activity)
     private lateinit var catalog: CatalogPanel
+    private lateinit var dashboard: UnifiedRemotePanel
+    private lateinit var offlineDashboard: UnifiedRemotePanel
     private var goToChannels: (() -> Unit)? = null
     private var goToRemote: (() -> Unit)? = null
     private var goToSettings: (() -> Unit)? = null
@@ -265,6 +269,9 @@ class SatNovaScreen(
             content.addView(view)
         }
         catalog = CatalogPanel(activity, onChannelTune, onReadTransponders, onReadSignal, onEpgRemote, {goToChannels?.invoke()},onCatalogueReload,onDishFinder)
+        dashboard = UnifiedRemotePanel(activity,onChannelTune,onKey,onTvKey,onTvApp,onTvRemote,onCatalogueReload)
+        offlineDashboard = UnifiedRemotePanel(activity,onChannelTune,onKey,onTvKey,onTvApp,onTvRemote,onCatalogueReload)
+        homePage.addView(dashboard.root,margin())
         satellitePage.addView(catalog.satellitePage,margin())
         satellitePage.addView(action("⟳  Actualiser les satellites", tileColor, lavender, 46,
             onClick=onReadSatellites),margin(top=12))
@@ -274,12 +281,13 @@ class SatNovaScreen(
             setPadding(8.dp,7.dp,8.dp,7.dp)
             setBackgroundColor(panelColor)
         }
-        val titles=listOf("⌂\nAccueil","◈\nSatellites","▷\nRegarder","⚙\nOptions")
+        val titles=listOf("⌂\nAccueil","◈\nSatellites","▣\nTélécommande","⚙\nOptions")
         val navButtons=mutableListOf<TextView>()
         fun showTab(tab:Int){
             section=tab
             catalog.showTab(if(tab==1)2 else 0)
-            pages.forEachIndexed{i,p->p.visibility=if(i==tab)View.VISIBLE else View.GONE}
+            pages.forEachIndexed{i,p->p.visibility=if(i==tab || (tab==2 && i==0))View.VISIBLE else View.GONE}
+            if(tab==2)page.visibility=View.GONE
             navButtons.forEachIndexed{i,b->
                 b.setTextColor(if(i==tab)lavender else secondary)
                 b.background=shape(if(i==tab)tileColor else panelColor,13)
@@ -308,6 +316,7 @@ class SatNovaScreen(
         root.addView(nav,LinearLayout.LayoutParams(-1,-2))
         // An independent, full-height connection screen replaces all navigation while offline.
         val setupPage=pageBox()
+        setupPage.addView(offlineDashboard.root,margin(bottom=12))
         setupScroller=ScrollView(activity).apply {
             setBackgroundColor(navy)
             isFillViewport=true
@@ -458,6 +467,7 @@ class SatNovaScreen(
         // Mode selection lives in the bottom navigation; no duplicate restart shortcuts.
         modeHint=text("",12f,lavender).apply{visibility=View.GONE}
         pinnedPlayer.addView(videoFrame,margin(height=videoHeight.coerceAtMost(190.dp)))
+        pinnedPlayer.visibility=View.GONE
         root.addView(pinnedPlayer,0,margin())
         page.removeView(branding)
         root.addView(branding,0,margin(height=52,left=16,right=16))
@@ -488,7 +498,9 @@ class SatNovaScreen(
 
         // Mini remote on Accueil. Key codes 1/2 verified for navigation / channel selection
         // on G-MScreen firmware; previous 69/70 were not consistently supported.
+        hero.visibility=View.GONE // V2: metadata is on the unified remote, not in the old video page.
         val mini = card(page, top = 14)
+        mini.visibility=View.GONE
         lateinit var applyMode:(Boolean,Boolean)->Unit
         val switcher=row()
         val remoteMode=action("Télécommande",height=44,onClick={applyMode(false,true)})
@@ -635,7 +647,11 @@ class SatNovaScreen(
         setUseMode("none")
     }
     fun updateChannels(rows:List<JSONObject>,complete:Boolean){
-        activity.runOnUiThread{catalog.updateChannels(rows,complete)}
+        activity.runOnUiThread{
+            catalog.updateChannels(rows,complete)
+            dashboard.channels(rows,complete)
+            offlineDashboard.channels(rows,complete)
+        }
     }
     fun updateSatellites(rows:List<JSONObject>){
         activity.runOnUiThread{catalog.updateSatellites(rows)}
@@ -647,54 +663,46 @@ class SatNovaScreen(
         activity.runOnUiThread{catalog.updateSignal(message)}
     }
 
+    /** V2 is control-only: the receiver tuner may be measured without opening a stream. */
     fun setUseMode(mode:String)=activity.runOnUiThread {
         chosenMode=mode
-        if(mode=="watch"){
-            resizeSignalArea(false)
-            catalog.signalView.visibility=View.GONE
-            pinnedPlayer.visibility=if(receiverOnline)View.VISIBLE else View.GONE
-            previewFrame.visibility=View.VISIBLE
-            fields["Lecture intégrée"]?.visibility=View.VISIBLE
-        }
-        appScroller.visibility=if(receiverOnline && section!=0)View.VISIBLE else View.GONE
+        pinnedPlayer.visibility=View.GONE
+        appScroller.visibility=if(receiverOnline)View.VISIBLE else View.GONE
         appNav.visibility=if(receiverOnline)View.VISIBLE else View.GONE
-        // Leave the native surface visible until its reader reports that it has closed.
     }
-    private fun resizeSignalArea(full:Boolean){
-        signalFullScreen=full
-        pinnedPlayer.layoutParams=if(full)LinearLayout.LayoutParams(-1,0,1f) else LinearLayout.LayoutParams(-1,-2)
-        catalog.signalView.layoutParams=if(full)LinearLayout.LayoutParams(-1,0,1f) else LinearLayout.LayoutParams(-1,-2)
-        fields["Lecture intégrée"]?.visibility=if(full)View.GONE else View.VISIBLE
+    fun showBrowseReady()=activity.runOnUiThread {
+        pinnedPlayer.visibility=View.GONE
+        appScroller.visibility=if(receiverOnline)View.VISIBLE else View.GONE
     }
-    fun showBrowseReady()=activity.runOnUiThread{
-        if(chosenMode=="none"){
-            resizeSignalArea(false)
-            previewFrame.visibility=View.GONE
-            catalog.signalView.visibility=View.GONE
-            pinnedPlayer.visibility=View.GONE
-            appScroller.visibility=if(receiverOnline)View.VISIBLE else View.GONE
-        }
-    }
-    fun showSignalReady()=activity.runOnUiThread{
-        if(chosenMode=="signal" && section==0){
-            previewFrame.visibility=View.GONE
-            catalog.signalView.visibility=View.VISIBLE
-            pinnedPlayer.visibility=if(receiverOnline)View.VISIBLE else View.GONE
-            resizeSignalArea(true)
-            appScroller.visibility=View.GONE
-            appNav.visibility=if(receiverOnline)View.VISIBLE else View.GONE
-        }
+    fun showSignalReady()=activity.runOnUiThread {
+        pinnedPlayer.visibility=View.GONE
+        catalog.signalView.visibility=View.GONE
+        appScroller.visibility=if(receiverOnline)View.VISIBLE else View.GONE
+        appNav.visibility=if(receiverOnline)View.VISIBLE else View.GONE
     }
     fun updateSignalContext(channel:String,sat:String,tp:String)=activity.runOnUiThread{catalog.updateSignalContext(channel,sat,tp)}
     fun setReceiverDetails(host:String,serial:String?=null,resetSerial:Boolean=false)=activity.runOnUiThread{
         signalReceiverIp=host
+        dashboard.useReceiver(host)
+        offlineDashboard.useReceiver(host)
         if(resetSerial)signalReceiverSerial=""
         if(!serial.isNullOrBlank())signalReceiverSerial=serial
         catalog.updateSignalDevice(signalReceiverName,signalReceiverIp,signalReceiverSerial)
     }
     fun setSignalMonitoring(active:Boolean)=activity.runOnUiThread{catalog.setSignalMonitoring(active)}
-    fun updateTunerSignal(value:ReceiverTelemetry.Signal,at:Long)=activity.runOnUiThread{catalog.updateTunerSignal(value,at)}
-    fun close(){catalog.close()}
+    fun updateTunerSignal(value:ReceiverTelemetry.Signal,at:Long)=activity.runOnUiThread{
+        catalog.updateTunerSignal(value,at)
+        dashboard.strength(value)
+        offlineDashboard.strength(value)
+    }
+    fun close(){catalog.close();dashboard.close();offlineDashboard.close()}
+    fun setTvRemoteOnline(online:Boolean)=activity.runOnUiThread{
+        dashboard.tvReady(online);offlineDashboard.tvReady(online)
+    }
+    fun updateRemoteNow(id:String,name:String,number:String,satellite:String,tp:String,programme:String?,upNext:String?)=activity.runOnUiThread{
+        dashboard.current(id,name,number,satellite,tp,programme,upNext)
+        offlineDashboard.current(id,name,number,satellite,tp,programme,upNext)
+    }
     fun setCurrentChannel(id:String)=activity.runOnUiThread{catalog.setCurrentChannel(id)}
 
     fun updateZapStatus(message:String){
@@ -704,12 +712,14 @@ class SatNovaScreen(
     /** Sole entry view until a verified TCP login has completed. */
     fun setReceiverOnline(online:Boolean) = activity.runOnUiThread {
         receiverOnline=online
+        dashboard.receiverReady(online)
+        offlineDashboard.receiverReady(online)
         if(!online){resizeSignalArea(false);signalReceiverIp="";signalReceiverSerial=""}
         connectionState.text=if(online)"● Connecté" else "● Non connecté"
         connectionState.setTextColor(if(online)green else secondary)
         if(!online)setReceiverIdentity(null)
-        pinnedPlayer.visibility=if(online && chosenMode!="none")View.VISIBLE else View.GONE
-        appScroller.visibility=if(online && section!=0)View.VISIBLE else View.GONE
+        pinnedPlayer.visibility=View.GONE
+        appScroller.visibility=if(online)View.VISIBLE else View.GONE
         appNav.visibility=if(online)View.VISIBLE else View.GONE
         setupScroller.visibility=if(online)View.GONE else View.VISIBLE
         if(online)goToHome?.invoke()
