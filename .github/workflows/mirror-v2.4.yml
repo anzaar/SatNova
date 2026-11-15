@@ -1,0 +1,39 @@
+name: One-off verified SatNova V2.4 APK external mirror
+on:
+  push:
+    branches: [external-download-v2.4]
+permissions:
+  contents: read
+jobs:
+  mirror-exact-release-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Download the exact published APK (do not rebuild or re-sign)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh release download v2.4-shortcuts --repo "$GH_REPO" \
+            --pattern 'SatNova-V2.4-Remote.apk' --dir "$RUNNER_TEMP"
+          APK="$RUNNER_TEMP/SatNova-V2.4-Remote.apk"
+          test -s "$APK"
+          echo "EXACT RELEASE BINARY $(stat -c %s "$APK") bytes"
+          sha256sum "$APK"
+          echo "APK=$APK" >> "$GITHUB_ENV"
+      - name: Upload exact release binary to an independent external host
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESPONSE="$(curl --show-error --silent --fail --max-time 220 \
+            -H 'X-TTL: 24h' -H 'X-Downloads: 100' \
+            --upload-file "$APK" 'https://qurl.sh/SatNova-V2.4-Remote.apk')"
+          printf 'Host returned: %s\n' "$RESPONSE"
+          URL="$(printf '%s' "$RESPONSE" | grep -oE 'https://qurl[.]sh/[^[:space:]]+[.]apk' | head -n 1 || true)"
+          if [[ ! "$URL" =~ ^https://qurl[.]sh/[^[:space:]]+[.]apk$ ]]; then
+            echo "::error::No verified external APK URL returned"
+            exit 1
+          fi
+          echo "EXTERNAL_APK_URL=$URL"
+          echo "EXTERNAL_APK_URL=$URL" >> "$GITHUB_STEP_SUMMARY"
