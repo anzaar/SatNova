@@ -45,7 +45,27 @@ class TvRemoteActivity : Activity() {
             enterCode = { codeRow.visibility = View.VISIBLE },
             readyChanged = { ready -> remoteKeys.forEach { it.isEnabled = ready } }
         )
-        val outer = ScrollView(this).apply { setBackgroundColor(this@TvRemoteActivity.background); isFillViewport = true }
+        val outer = ScrollView(this).apply {
+            setBackgroundColor(this@TvRemoteActivity.background)
+            isFillViewport = true
+            // Android 15/16 edge-to-edge: keep pairing text below the status bar.
+            setOnApplyWindowInsetsListener { view, insets ->
+                val top: Int
+                val bottom: Int
+                if (android.os.Build.VERSION.SDK_INT >= 30) {
+                    val bars = insets.getInsets(android.view.WindowInsets.Type.systemBars())
+                    top = bars.top
+                    bottom = bars.bottom
+                } else {
+                    @Suppress("DEPRECATION")
+                    top = insets.systemWindowInsetTop
+                    @Suppress("DEPRECATION")
+                    bottom = insets.systemWindowInsetBottom
+                }
+                view.setPadding(0, top, 0, bottom)
+                insets
+            }
+        }
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(16.dp, 20.dp, 16.dp, 24.dp)
@@ -53,7 +73,7 @@ class TvRemoteActivity : Activity() {
         outer.addView(content, ViewGroup.LayoutParams(-1, -2))
         setContentView(outer)
 
-        content.addView(label("SATNOVA V2  •  TÉLÉCOMMANDE TV", 22f, Color.WHITE, true))
+        content.addView(label("SATNOVA V2.3  •  TÉLÉCOMMANDE TV", 22f, Color.WHITE, true))
         content.addView(label("Lifemaxx / Android TV 14 • commande Wi-Fi indépendante du récepteur satellite.",
             13f, primary), margin(top = 10, bottom = 14))
         val connectCard = group(content)
