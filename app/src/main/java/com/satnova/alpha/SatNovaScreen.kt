@@ -49,6 +49,8 @@ class SatNovaScreen(
     onEpgRemote: () -> Unit,
     onTabChanged: (Int) -> Unit,
     onKey: (Int) -> Unit,
+    onDishFinder: () -> Unit,
+    onBackgroundToggle: () -> Unit,
     onCatalogueReload: () -> Unit = {}
 ) {
     private val navy = Color.rgb(8, 12, 25)
@@ -260,7 +262,7 @@ class SatNovaScreen(
             view.visibility=if(index==0)View.VISIBLE else View.GONE
             content.addView(view)
         }
-        catalog = CatalogPanel(activity, onChannelTune, onReadTransponders, onReadSignal, onEpgRemote, {goToChannels?.invoke()},onCatalogueReload)
+        catalog = CatalogPanel(activity, onChannelTune, onReadTransponders, onReadSignal, onEpgRemote, {goToChannels?.invoke()},onCatalogueReload,onDishFinder)
         satellitePage.addView(catalog.satellitePage,margin())
         satellitePage.addView(action("⟳  Actualiser les satellites", tileColor, lavender, 46,
             onClick=onReadSatellites),margin(top=12))
@@ -328,7 +330,7 @@ class SatNovaScreen(
         brandTexts.addView(receiverModel,margin(top=5))
         fields["Modèle du récepteur"]=receiverModel
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 1.22", 10f, lavender, true).apply {
+        val version = text("α 1.23", 10f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(9.dp, 7.dp, 9.dp, 7.dp)
             background = shape(tileColor, 50, hairline)
@@ -453,6 +455,8 @@ class SatNovaScreen(
         fields["Satellite actuel"]=satName
         val tpInfo=text("Fréquence en attente…",12f,secondary)
         hero.addView(tpInfo,margin(top=4))
+        hero.addView(action("◎  Pointer le satellite avec la caméra",tileColor,lavender,43,
+            onClick=onDishFinder),margin(top=9))
         fields["Transpondeur actuel"]=tpInfo
 
         pinnedPlayer.addView(catalog.signalView,margin(top=2,bottom=8))
@@ -544,6 +548,20 @@ class SatNovaScreen(
         changeReceiver.addView(action("Déconnecter / changer de récepteur",tileColor,lavender,47,
             onClick=onDisconnect))
 
+        val networkCard=card(settingsPage,top=14)
+        section(networkCard,"Connexion automatique","Le Wi-Fi relance la connexion au dernier récepteur validé.")
+        val keepBackground=action(
+            if(activity.getSharedPreferences("satnova",0).getBoolean("background_link",false))
+                "✓  Maintien en arrière-plan : activé" else "Maintien en arrière-plan : désactivé",
+            tileColor,lavender,48,onClick={})
+        keepBackground.setOnClickListener{
+            onBackgroundToggle()
+            keepBackground.text=if(activity.getSharedPreferences("satnova",0)
+                .getBoolean("background_link",false))"✓  Maintien en arrière-plan : activé"
+                else "Maintien en arrière-plan : désactivé"
+        }
+        networkCard.addView(keepBackground)
+        networkCard.addView(text("Optionnel. La vidéo s'arrête en arrière-plan ; la connexion locale peut être restaurée au retour du Wi-Fi.",11f,secondary),margin(top=8))
         val restartCard=card(settingsPage,top=14)
         restartCard.addView(action("⟳  Redémarrer",tileColor,lavender,50,onClick={
             AlertDialog.Builder(activity).setTitle("Redémarrer")
@@ -570,7 +588,7 @@ class SatNovaScreen(
         diagBody.addView(transportDiagnostic,margin(top=8))
         diagBody.addView(action("Copier le diagnostic vidéo",tileColor,lavender,44,onClick={
             val value=retainedDiagnostic.text.toString().takeIf{it.isNotBlank()}?:
-                ("SatNova 1.22\n"+fields["Chaîne actuelle"]?.text+"\n"+
+                ("SatNova 1.23\n"+fields["Chaîne actuelle"]?.text+"\n"+
                 fields["Lecture intégrée"]?.text+"\n"+videoDiagnostic.text+"\n"+transportDiagnostic.text)
             val clipboard=activity.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
             clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Diagnostic SatNova",value))
