@@ -1,4 +1,4 @@
-name: Build SatNova V2.3 Lifemaxx TLS Fix APK
+name: Build SatNova V2.4 Shahid Shortcuts APK
 on:
   workflow_dispatch:
   push:
@@ -54,14 +54,14 @@ jobs:
             echo "Skipping outdated APK publication: $GITHUB_SHA (latest $LATEST_SHA)"
             exit 0
           fi
-          cp app/build/outputs/apk/debug/app-debug.apk SatNova-V2.3-Lifemaxx.apk
-          if ! gh release view v2.3-lifemaxx >/dev/null 2>&1; then
-            gh release create v2.3-lifemaxx \
-              --title "SatNova V2.3 — Correctif TLS Lifemaxx" \
-              --notes "V2.3 beta: Android TV Remote pairing TLS RSA/PSS compatibility fix for Lifemaxx Android TV 14. Keeps V2.2 groups, signal, receiver commands. Hardware validation required." \
+          cp app/build/outputs/apk/debug/app-debug.apk SatNova-V2.4-Remote.apk
+          if ! gh release view v2.4-shortcuts >/dev/null 2>&1; then
+            gh release create v2.4-shortcuts \
+              --title "SatNova V2.4 — Shahid & reconnexion TV" \
+              --notes "V2.4 beta: recover paired TLS after app-link errors; migrate unsupported Shahid market URI to official-domain candidate, preserving working YouTube. Shahid direct open unverified on Lifemaxx." \
               --prerelease --target "${GITHUB_SHA}"
           fi
-          gh release upload v2.3-lifemaxx SatNova-V2.3-Lifemaxx.apk --clobber
-          echo "Direct APK URL: https://github.com/${GH_REPO}/releases/download/v2.3-lifemaxx/SatNova-V2.3-Lifemaxx.apk"
+          gh release upload v2.4-shortcuts SatNova-V2.4-Remote.apk --clobber
+          echo "Direct APK URL: https://github.com/${GH_REPO}/releases/download/v2.4-shortcuts/SatNova-V2.4-Remote.apk"
 
 
