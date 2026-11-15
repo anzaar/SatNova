@@ -161,20 +161,37 @@ internal class AndroidTvRemoteClient(
         val ssl = SSLContext.getInstance("TLS").apply {
             init(arrayOf(manager), arrayOf(verifier), java.security.SecureRandom())
         }
-        val tcp = Socket()
-        try {
-            tcp.connect(InetSocketAddress(host, port), 5000)
-            tcp.soTimeout = 20000
-            val socket = ssl.socketFactory.createSocket(tcp, host, port, true) as SSLSocket
-            socket.soTimeout = 20000
-            stage = "négociation TLS : $host:$port"
-            socket.startHandshake()
-            stage = "TLS authentifié : port $port"
-            return socket
-        } catch (e: Exception) {
-            tcp.closeQuietly()
-            throw e
+        var firstError: javax.net.ssl.SSLException? = null
+        for (tls12Only in listOf(false, true)) {
+            if (tls12Only && firstError == null) break
+            val tcp = Socket()
+            try {
+                tcp.connect(InetSocketAddress(host, port), 5000)
+                tcp.soTimeout = 20000
+                val socket = ssl.socketFactory.createSocket(tcp, host, port, true) as SSLSocket
+                socket.soTimeout = 20000
+                if (tls12Only) socket.enabledProtocols = arrayOf("TLSv1.2")
+                stage = if (tls12Only) "nouvel essai TLS 1.2 : $host:$port"
+                    else "négociation TLS : $host:$port"
+                socket.startHandshake()
+                stage = "TLS authentifié : port $port • " + socket.session.protocol
+                return socket
+            } catch (e: javax.net.ssl.SSLException) {
+                tcp.closeQuietly()
+                // Older Android TV firmware can require RSA-PKCS1 over TLS 1.2.
+                // Retry only once and only after a native RSA handshake failure.
+                val rsaIssue = e.message?.let {
+                    it.contains("RSA", true) || it.contains("OPENSSL_internal", true)
+                } ?: false
+                if (tls12Only || !rsaIssue) throw e
+                firstError = e
+                setStage("Signature RSA refusée • nouvel essai sécurisé TLS 1.2")
+            } catch (e: Exception) {
+                tcp.closeQuietly()
+                throw e
+            }
         }
+        throw firstError ?: IOException("Connexion TLS impossible")
     }
 
     private fun exchange(socket: SSLSocket, field: Int, message: ByteArray) {
