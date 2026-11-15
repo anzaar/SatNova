@@ -45,7 +45,7 @@ class TvRemoteActivity : Activity() {
             enterCode = { codeRow.visibility = View.VISIBLE },
             readyChanged = { ready -> remoteKeys.forEach { it.isEnabled = ready } }
         )
-        val outer = ScrollView(this).apply { setBackgroundColor(background); isFillViewport = true }
+        val outer = ScrollView(this).apply { setBackgroundColor(this@TvRemoteActivity.background); isFillViewport = true }
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(16.dp, 20.dp, 16.dp, 24.dp)
