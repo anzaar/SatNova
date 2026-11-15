@@ -351,8 +351,9 @@ internal class UnifiedRemotePanel(
 
     private fun openGroup(slot:FavoriteSlot){
         val grouped=groupChannels(slot)
+        if(activeGroupKey!=slot.key)selectedInGroupId=null
         activeGroupKey=slot.key
-        selectedInGroupId=if(grouped.any{it.id==currentId})currentId else selectedInGroupId
+        if(grouped.any{it.id==currentId})selectedInGroupId=currentId
         renderGroupDeck()
         if(grouped.isEmpty()){message("مجموعة بلا قنوات فالقائمة الحالية");return}
         val channelNames=ChannelGrouping.variants(grouped)
