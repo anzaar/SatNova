@@ -588,13 +588,17 @@ internal class UnifiedRemotePanel(
 
     private fun defaultLink(key:String)=when(key){
         "youtube"->"vnd.youtube://"
-        "shahid"->"https://play.google.com/apps/launch?id=net.mbc.shahidTV"
+        "shahid"->"https://shahid.mbc.net"
         else->""
     }
     private fun editShortcut(key:String){
         val input=EditText(activity).apply{setSingleLine(true)
             hint="Deep-link / Android TV app link"
-            setText(links.getString(key,defaultLink(key)))}
+            val saved = links.getString(key,defaultLink(key)).orEmpty()
+            val legacy = key == "shahid" && (
+                saved.startsWith("market://launch?id=net.mbc.shahidTV",true) ||
+                saved == "https://play.google.com/apps/launch?id=net.mbc.shahidTV")
+            setText(if(legacy) "https://shahid.mbc.net" else saved)}
         AlertDialog.Builder(activity).setTitle("فتح "+key+" على Lifemaxx")
             .setMessage("البروتوكول يعتمد على رابط تتعرف عليه TV. التطبيق لازم يكون مثبتاً ويقبل الرابط.")
             .setView(input).setPositiveButton("حفظ"){_,_->
@@ -602,7 +606,11 @@ internal class UnifiedRemotePanel(
             }.setNegativeButton("إلغاء",null).show()
     }
     private fun launchShortcut(key:String){
-        val link=links.getString(key,defaultLink(key)).orEmpty()
+        val stored=links.getString(key,defaultLink(key)).orEmpty()
+        val legacyShahid=key=="shahid" && (
+            stored.startsWith("market://launch?id=net.mbc.shahidTV",true) ||
+            stored == "https://play.google.com/apps/launch?id=net.mbc.shahidTV")
+        val link=if(legacyShahid)"https://shahid.mbc.net" else stored
         if(key=="altaplay" && link.isBlank()){
             AlertDialog.Builder(activity).setTitle("AltaPlay")
                 .setMessage("رابط 4645817 كيساعد على التثبيت، ماشي أمر فتح التطبيق. باش تخدم النقرة المباشرة خاصنا رابط Deep Link أو مُعرّف إطلاق التطبيق اللي يقبلو Lifemaxx.")
