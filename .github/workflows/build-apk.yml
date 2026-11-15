@@ -1,4 +1,4 @@
-name: Build SatNova V2.1 Remote APK (Beta)
+name: Build SatNova V2.2 Groups APK (Beta)
 on:
   workflow_dispatch:
   push:
@@ -54,14 +54,14 @@ jobs:
             echo "Skipping outdated APK publication: $GITHUB_SHA (latest $LATEST_SHA)"
             exit 0
           fi
-          cp app/build/outputs/apk/debug/app-debug.apk SatNova-V2.1-Remote.apk
-          if ! gh release view v2.1-remote >/dev/null 2>&1; then
-            gh release create v2.1-remote \
-              --title "SatNova V2.1 — Télécommande unifiée" \
-              --notes "V2.1 remote-only: Zen 4 current channel and signal, MBC family favorites, Android TV remote and verified Shahid shortcut; AltaPlay installer link kept separate. Device validation required." \
+          cp app/build/outputs/apk/debug/app-debug.apk SatNova-V2.2-Remote.apk
+          if ! gh release view v2.2-groups >/dev/null 2>&1; then
+            gh release create v2.2-groups \
+              --title "SatNova V2.2 — Groupes personnalisés" \
+              --notes "V2.2 remote-only beta: improved in-group tuning and CH fallback, MBC/Arryadia/beIN/Al Jazeera/SSC families, independent TV/radio favorites, editable manual groups. Hardware behavior still needs validation." \
               --prerelease --target "${GITHUB_SHA}"
           fi
-          gh release upload v2.1-remote SatNova-V2.1-Remote.apk --clobber
-          echo "Direct APK URL: https://github.com/${GH_REPO}/releases/download/v2.1-remote/SatNova-V2.1-Remote.apk"
+          gh release upload v2.2-groups SatNova-V2.2-Remote.apk --clobber
+          echo "Direct APK URL: https://github.com/${GH_REPO}/releases/download/v2.2-groups/SatNova-V2.2-Remote.apk"
 
 
