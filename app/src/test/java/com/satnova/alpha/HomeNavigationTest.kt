@@ -42,6 +42,11 @@ class HomeNavigationTest {
         try {
             activity.setContentView(screen.root)
             fun text(label:String)=texts(screen.root).first{it.text.toString()==label}
+            screen.setReceiverOnline(false)
+            assertTrue(text("◎  Trouver un satellite • caméra / GPS").isShown)
+            assertTrue(text("◉  Niveau et inclinomètre").isShown)
+            assertTrue(text("⌖  Mesurer une distance • caméra").isShown)
+            assertFalse(text("CH +").isShown)
             screen.setReceiverOnline(true)
             screen.showSignalReady()
             screen.setReceiverIdentity("ECHOLINK ZEN 4")
