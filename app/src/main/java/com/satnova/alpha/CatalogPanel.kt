@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicLong
 /** Native, bounded channel picker embedded in the home controls. All indexing runs on a worker. */
 class CatalogPanel(private val activity:Activity,private val tune:(String,Int)->Unit,
     private val refreshTp:()->Unit,measureSignal:()->Unit,private val openEpg:()->Unit,
-    private val openChannelTab:()->Unit,private val reloadCatalogue:()->Unit={}) {
+    private val openChannelTab:()->Unit,private val reloadCatalogue:()->Unit={},private val openFinder:()->Unit={}) {
     private val surface=Color.rgb(28,36,58)
     private val light=Color.rgb(247,249,255)
     private val muted=Color.rgb(159,174,199)
@@ -49,7 +49,7 @@ class CatalogPanel(private val activity:Activity,private val tune:(String,Int)->
     private val filter=EditText(activity)
     private val satChip=tile("Tous les satellites ▾"){chooseSatellite()}
     private val tpChip=tile("Toutes les fréquences ▾"){chooseTp()}
-    private val signal=SignalPanel(activity,measureSignal)
+    private val signal=SignalPanel(activity,measureSignal,openFinder)
     val signalView:View get()=signal.root
     private val worker=Executors.newSingleThreadExecutor()
     private val main=Handler(Looper.getMainLooper())
