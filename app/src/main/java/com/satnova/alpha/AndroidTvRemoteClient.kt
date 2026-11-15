@@ -8,6 +8,7 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.view.KeyEvent
 import java.io.IOException
+import java.io.EOFException
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.security.KeyPairGenerator
@@ -51,6 +52,8 @@ internal class AndroidTvRemoteClient(
     @Volatile private var ready = false
     @Volatile private var appLinksEnabled = false
     @Volatile private var disposed = false
+    @Volatile private var generation = 0L
+    @Volatile private var lastAppRequest: String? = null
     @Volatile private var stage = "initialisation"
 
     private fun notify(message: String) { main.post { if (!disposed) status(message) } }
@@ -76,16 +79,33 @@ internal class AndroidTvRemoteClient(
 
     private fun open(host: String, pairing: Boolean) {
         if (disposed) return
+        val ticket = ++generation
         // Never treat satellite receiver IP/state as TV discovery or authentication.
         active?.closeQuietly()
         codeQueue.clear()
         setReady(false)
         reader.execute {
             try {
+                if (ticket != generation || disposed) return@execute
                 if (pairing) doPair(host)
-                doRemote(host)
+                var attempts = 0
+                while (!disposed && ticket == generation) {
+                    try {
+                        doRemote(host)
+                        if (!disposed && ticket == generation) throw EOFException("Connexion TV fermée")
+                    } catch (e: Exception) {
+                        if (disposed || ticket != generation) break
+                        if (!isPaired(host) || attempts >= 3 ||
+                            (e is CertificateException)) throw e
+                        attempts++
+                        val reason = e.message ?: e.javaClass.simpleName
+                        notify("Lifemaxx • connexion interrompue ($reason)." +
+                            " Reconnexion avec l'association existante ($attempts/3)…")
+                        Thread.sleep(attempts * 850L)
+                    }
+                }
             } catch (e: Exception) {
-                if (!disposed) {
+                if (!disposed && ticket == generation) {
                     val cause = if (e is javax.net.ssl.SSLException)
                         "TLS/RSA • certificat client ou protocole"
                     else (e.message ?: "connexion impossible")
@@ -93,9 +113,11 @@ internal class AndroidTvRemoteClient(
                         (e.message ?: e.javaClass.simpleName).take(240))
                 }
             } finally {
-                active?.closeQuietly()
-                active = null
-                setReady(false)
+                if (ticket == generation) {
+                    active?.closeQuietly()
+                    active = null
+                    setReady(false)
+                }
             }
         }
     }
@@ -290,7 +312,12 @@ internal class AndroidTvRemoteClient(
                     }
                     input[3]?.firstOrNull()?.bytes != null -> {
                         val error = TvRemoteWire.firstNumber(input[3]!!.first().bytes!!, 1)
-                        throw IOException("Commande refusée par la TV (code $error)")
+                        val appLink = lastAppRequest
+                        lastAppRequest = null
+                        val detail = if (error == 7L && appLink != null)
+                            "Lien d'application refusé (erreur 7). Aucun nouvel appairage nécessaire."
+                        else "Commande refusée par la TV (code $error)"
+                        throw IOException(detail)
                     }
                 }
             }
@@ -318,6 +345,11 @@ internal class AndroidTvRemoteClient(
     /** Remote v2 protobuf field 90: app-link request, not a raw Android package launch. */
     fun launchApp(link: String) {
         val value = link.trim()
+        if (value.startsWith("market://launch?id=", true)) {
+            notify("Ce raccourci market:// est refusé sur plusieurs Android TV récents. " +
+                "Utilisez un lien que l’application sait ouvrir, sinon passez par HOME.")
+            return
+        }
         if (value.isEmpty() || value.length > 1800 || !value.contains("://")) {
             notify("Raccourci TV : lien d'application invalide.")
             return
@@ -330,6 +362,7 @@ internal class AndroidTvRemoteClient(
         writer.execute {
             val socket = active
             if (socket != null && ready) try {
+                lastAppRequest = value
                 val playStoreLink = value.startsWith("https://play.google.com/apps/launch?id=")
                 val request = if (playStoreLink) TvRemoteWire.join(
                     TvRemoteWire.string(1, value),
@@ -348,6 +381,7 @@ internal class AndroidTvRemoteClient(
     fun isReady(): Boolean = ready
 
     fun disconnect() {
+        generation++
         active?.closeQuietly()
         active = null
         setReady(false)
@@ -355,6 +389,7 @@ internal class AndroidTvRemoteClient(
 
     fun close() {
         disposed = true
+        generation++
         active?.closeQuietly()
         active = null
         codeQueue.offer("")
