@@ -128,8 +128,8 @@ internal class AndroidTvRemoteClient(
             override fun getPrivateKey(alias: String?): PrivateKey? = if (alias == "satnova") key else null
             override fun chooseEngineClientAlias(keyType: Array<out String>?, issuers: Array<out Principal>?, engine: SSLEngine?): String = "satnova"
         }
-        val trusted = if (pairing) null else preferences.getString("tv_cert_$host", null)
-            ?: throw IOException("Téléviseur non associé. Appuyez sur Associer.")
+        val trusted = if (pairing) null else (preferences.getString("tv_cert_$host", null)
+            ?: throw IOException("Téléviseur non associé. Appuyez sur Associer."))
         val verifier = object : X509TrustManager {
             override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
             override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
