@@ -65,16 +65,6 @@ object SatelliteGeometry {
             }
         return Math.toDegrees(kotlin.math.atan(kotlin.math.sin(delta)/kotlin.math.tan(lat)))
     }
-    /** Two camera sightlines at the same position to endpoints of a known vertical span. */
-    fun horizontalDistance(heightMetres:Double,topElevation:Double,bottomElevation:Double):Double? {
-        if(!heightMetres.isFinite() || heightMetres<=0.0 ||
-            !topElevation.isFinite() || !bottomElevation.isFinite())return null
-        if(kotlin.math.abs(topElevation)>=85.0 || kotlin.math.abs(bottomElevation)>=85.0)return null
-        val difference=kotlin.math.abs(kotlin.math.tan(Math.toRadians(topElevation))-
-            kotlin.math.tan(Math.toRadians(bottomElevation)))
-        if(difference<0.005)return null
-        return (heightMetres/difference).takeIf{it.isFinite() && it<10000.0}
-    }
     fun signedDelta(target:Double,current:Double):Double =
         ((target-current+540.0)%360.0)-180.0
 }
