@@ -50,6 +50,8 @@ class SatNovaScreen(
     onTabChanged: (Int) -> Unit,
     onKey: (Int) -> Unit,
     onDishFinder: () -> Unit = {},
+    onInclinometer: () -> Unit = {},
+    onCameraMeasure: () -> Unit = {},
     onBackgroundToggle: () -> Unit = {},
     onCatalogueReload: () -> Unit = {}
 ) {
@@ -330,7 +332,7 @@ class SatNovaScreen(
         brandTexts.addView(receiverModel,margin(top=5))
         fields["Modèle du récepteur"]=receiverModel
         branding.addView(brandTexts, LinearLayout.LayoutParams(0, -2, 1f))
-        val version = text("α 1.23", 10f, lavender, true).apply {
+        val version = text("α 1.24", 10f, lavender, true).apply {
             gravity = Gravity.CENTER
             setPadding(9.dp, 7.dp, 9.dp, 7.dp)
             background = shape(tileColor, 50, hairline)
@@ -341,6 +343,18 @@ class SatNovaScreen(
         // Receiver and LAN connection
         setupPage.addView(text("SATNOVA • CONNEXION",25f,textColor,true),
             margin(top=16,bottom=6))
+        setupPage.addView(text("OUTILS D'INSTALLATION • SANS RÉCEPTEUR",15f,green,true),
+            margin(top=12,bottom=10))
+        setupPage.addView(text("Direction du satellite, LNB, altitude, niveau et distance. Aucune connexion TV n'est requise.",
+            13f,secondary),margin(bottom=8))
+        setupPage.addView(action("◎  Trouver un satellite • caméra / GPS",tileColor,lavender,58,
+            onClick=onDishFinder),margin(top=8))
+        setupPage.addView(action("◉  Niveau et inclinomètre",tileColor,lavender,53,
+            onClick=onInclinometer),margin(top=8))
+        setupPage.addView(action("⌖  Mesurer une distance • caméra",tileColor,lavender,53,
+            onClick=onCameraMeasure),margin(top=8))
+        setupPage.addView(text("CONNEXION AU RÉCEPTEUR • FACULTATIVE",12f,lavender,true),
+            margin(top=24,bottom=3))
         setupPage.addView(text("Connecter un récepteur",23f,lavender,true),
             margin(top=18,bottom=10))
         setupPage.addView(text("Si aucun décodeur n'est connecté, la vidéo et les commandes sont masquées. "+
@@ -457,6 +471,13 @@ class SatNovaScreen(
         hero.addView(tpInfo,margin(top=4))
         hero.addView(action("◎  Pointer le satellite avec la caméra",tileColor,lavender,43,
             onClick=onDishFinder),margin(top=9))
+        hero.addView(action("◉ Niveau / ⌖ mesure par caméra",tileColor,lavender,43,
+            onClick={
+                android.app.AlertDialog.Builder(activity).setTitle("Outils sans récepteur")
+                    .setItems(arrayOf("Niveau et inclinomètre","Distance par caméra")){_,i->
+                        if(i==0)onInclinometer() else onCameraMeasure()
+                    }.show()
+            }),margin(top=6))
         fields["Transpondeur actuel"]=tpInfo
 
         pinnedPlayer.addView(catalog.signalView,margin(top=2,bottom=8))
@@ -588,7 +609,7 @@ class SatNovaScreen(
         diagBody.addView(transportDiagnostic,margin(top=8))
         diagBody.addView(action("Copier le diagnostic vidéo",tileColor,lavender,44,onClick={
             val value=retainedDiagnostic.text.toString().takeIf{it.isNotBlank()}?:
-                ("SatNova 1.23\n"+fields["Chaîne actuelle"]?.text+"\n"+
+                ("SatNova 1.24\n"+fields["Chaîne actuelle"]?.text+"\n"+
                 fields["Lecture intégrée"]?.text+"\n"+videoDiagnostic.text+"\n"+transportDiagnostic.text)
             val clipboard=activity.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
             clipboard.setPrimaryClip(android.content.ClipData.newPlainText("Diagnostic SatNova",value))
