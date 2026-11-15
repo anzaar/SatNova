@@ -313,6 +313,27 @@ class SatelliteFinderActivity:Activity(),SensorEventListener {
             val target=look?:return
             val h=heading?:return
             val el=elevation?:return
+            val p=position
+            if(p!=null){
+                // Other visible GEO satellites appear as reference circles, never as tuning commands.
+                for(item in SatelliteGeometry.common){
+                    val next=SatelliteGeometry.look(p.latitude,p.longitude,item.longitude)
+                    if(next.elevation<0.0)continue
+                    val a=SatelliteGeometry.signedDelta(next.azimuth,h)
+                    val e=next.elevation-el
+                    if(abs(a)>29.0 || abs(e)>24.0)continue
+                    val px=(cx+a/30.0*cx).toFloat()
+                    val py=(cy-e/25.0*cy).toFloat()
+                    paint.color=Color.rgb(126,201,255)
+                    paint.strokeWidth=3f
+                    paint.style=Paint.Style.STROKE
+                    canvas.drawCircle(px,py,17f,paint)
+                    paint.style=Paint.Style.FILL
+                    paint.textSize=24f;paint.textAlign=Paint.Align.CENTER
+                    canvas.drawText(item.label.substringAfter("•").trim(),px,py-22f,paint)
+                }
+            }
+            paint.style=Paint.Style.STROKE
             val dAz=SatelliteGeometry.signedDelta(target.azimuth,h)
             val dEl=target.elevation-el
             // Approximate wide-angle camera field of view; align centre then refine on receiver.
