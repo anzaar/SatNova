@@ -51,8 +51,10 @@ internal class AndroidTvRemoteClient(
     @Volatile private var ready = false
     @Volatile private var appLinksEnabled = false
     @Volatile private var disposed = false
+    @Volatile private var stage = "initialisation"
 
     private fun notify(message: String) { main.post { if (!disposed) status(message) } }
+    private fun setStage(next: String) { stage = next; notify(next) }
     private fun setReady(value: Boolean) {
         ready = value
         if (!value) appLinksEnabled = false
@@ -83,7 +85,13 @@ internal class AndroidTvRemoteClient(
                 if (pairing) doPair(host)
                 doRemote(host)
             } catch (e: Exception) {
-                if (!disposed) notify("Télécommande TV : " + (e.message ?: "connexion impossible"))
+                if (!disposed) {
+                    val cause = if (e is javax.net.ssl.SSLException)
+                        "TLS/RSA • certificat client ou protocole"
+                    else (e.message ?: "connexion impossible")
+                    notify("Lifemaxx • $stage\n$cause\nDétails : " +
+                        (e.message ?: e.javaClass.simpleName).take(240))
+                }
             } finally {
                 active?.closeQuietly()
                 active = null
@@ -128,6 +136,7 @@ internal class AndroidTvRemoteClient(
 
     /** Pairing trusts the visible on-TV PIN; connected sessions trust the pinned certificate. */
     private fun secureSocket(host: String, port: Int, pairing: Boolean): SSLSocket {
+        stage = "préparation du certificat local"
         val (key, cert) = keyMaterial()
         val manager = object : X509ExtendedKeyManager() {
             override fun getClientAliases(keyType: String?, issuers: Array<out Principal>?): Array<String> = arrayOf("satnova")
@@ -158,7 +167,9 @@ internal class AndroidTvRemoteClient(
             tcp.soTimeout = 20000
             val socket = ssl.socketFactory.createSocket(tcp, host, port, true) as SSLSocket
             socket.soTimeout = 20000
+            stage = "négociation TLS : $host:$port"
             socket.startHandshake()
+            stage = "TLS authentifié : port $port"
             return socket
         } catch (e: Exception) {
             tcp.closeQuietly()
@@ -183,12 +194,13 @@ internal class AndroidTvRemoteClient(
     }
 
     private fun doPair(host: String) {
-        notify("Connexion à $host • association Android TV…")
+        setStage("Connexion à $host • association Android TV…")
         val socket = secureSocket(host, 6467, true)
         active = socket
         try {
             val request = TvRemoteWire.join(TvRemoteWire.string(1, "SatNova TV Remote"),
                 TvRemoteWire.string(2, "SatNova"))
+            setStage("TLS établi • demande d’association")
             exchange(socket, 10, request)
             requirePairReply(socket, 11)
 
@@ -199,7 +211,7 @@ internal class AndroidTvRemoteClient(
             exchange(socket, 30, TvRemoteWire.join(TvRemoteWire.bytes(1, encoding), TvRemoteWire.number(2, 1)))
             requirePairReply(socket, 31)
 
-            notify("Saisissez le code affiché sur Lifemaxx.")
+            setStage("Lifemaxx • code affiché sur la télévision")
             main.post { if (!disposed) enterCode() }
             val code = codeQueue.poll(120, TimeUnit.SECONDS) ?: throw IOException("Délai du code TV dépassé")
             val own = keyMaterial().second.publicKey as RSAPublicKey
@@ -224,7 +236,7 @@ internal class AndroidTvRemoteClient(
     }
 
     private fun doRemote(host: String) {
-        notify("Connexion télécommande TV : $host…")
+        setStage("Connexion télécommande TV : $host…")
         val socket = secureSocket(host, 6466, false)
         active = socket
         var features = 0L
@@ -247,8 +259,12 @@ internal class AndroidTvRemoteClient(
                     }
                     input[2]?.firstOrNull()?.bytes != null -> {
                         remoteMessage(socket, 2, TvRemoteWire.number(1, features))
+                        setStage("Lifemaxx • activation de la session")
+                    }
+                    input[40]?.firstOrNull()?.bytes != null -> {
+                        socket.soTimeout = 0
                         setReady(true)
-                        notify("● Lifemaxx connectée • télécommande prête")
+                        setStage("● Lifemaxx connectée • télécommande prête")
                     }
                     input[8]?.firstOrNull()?.bytes != null -> {
                         val ping = input[8]!!.first().bytes!!
