@@ -240,6 +240,11 @@ internal class UnifiedRemotePanel(
             }
         }
     }
+    fun zapFeedback(message:String) {
+        if(activeGroupKey!=null && selectedInGroupId!=null && currentId!=selectedInGroupId){
+            groupStatus.text=message
+        }
+    }
     private fun neighbors(){
         val rows=if(channels.any{it.id==currentId}){
             val playing=channels.first{it.id==currentId}
@@ -329,6 +334,11 @@ internal class UnifiedRemotePanel(
         },margins(top=2))
         if(slot.key.startsWith("custom:"))groupButtons.addView(
             tap("✎ تعديل قنوات المجموعة"){editMembers(slot)},margins(top=5))
+        val fallback=horizontal()
+        weight(fallback,tap("CH − Zen"){zenKey(70)})
+        weight(fallback,tap("CH + Zen"){zenKey(69)})
+        groupButtons.addView(fallback,margins(top=6))
+        groupButtons.addView(text("CH −/+ كيتبعو ترتيب الريسيفر، ماشي ترتيب المجموعة.",10f,muted),margins(top=4))
     }
 
     private fun stepInGroup(slot:FavoriteSlot,step:Int) {
