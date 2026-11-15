@@ -281,6 +281,74 @@ internal class UnifiedRemotePanel(
             favGrid.addView(row,margins(bottom=5))
         }
     }
+    /** Persistent group dock: encryption does not affect remote navigation. */
+    private fun renderGroupDeck() {
+        val slot=favorites.list().firstOrNull{it.key==activeGroupKey}
+        if(slot==null){groupDeck.visibility=View.GONE;return}
+        val rows=groupChannels(slot)
+        groupDeck.visibility=View.VISIBLE
+        val title=slot.label.ifBlank{
+            ChannelGrouping.display(slot.key,rows.firstOrNull()?.name ?: slot.key)
+        }
+        groupTitle.text="◈  "+title+"  •  "+ChannelGrouping.variants(rows).size+" قنوات"
+        groupButtons.removeAllViews()
+        if(rows.isEmpty()){
+            groupStatus.text="المجموعة خاوية. اضغط تعديل لإضافة القنوات."
+            groupButtons.addView(tap("＋ إضافة قناة"){editMembers(slot)},margins(top=4))
+            return
+        }
+        groupStatus.text=when {
+            selectedInGroupId==null -> "اختار قناة من هاد المجموعة"
+            currentId==selectedInGroupId -> "● تغيير القناة تأكد من Zen 4"
+            else -> "◌ آخر اختيار لم يتأكد بعد من Zen 4"
+        }
+        val named=ChannelGrouping.variants(rows)
+        val active=selectedInGroupId ?: currentId
+        val found=named.indexOfFirst{entry->entry.second.any{it.id==active}}
+        val stepRow=horizontal()
+        weight(stepRow,tap("◀ السابقة فالمجموعة"){stepInGroup(slot,-1)})
+        weight(stepRow,tap("التالية فالمجموعة ▶"){stepInGroup(slot,1)})
+        groupButtons.addView(stepRow,margins(bottom=7))
+        val shown=when {
+            named.size<=6 -> named
+            found>=0 -> named.drop((found-2).coerceIn(0,(named.size-6).coerceAtLeast(0))).take(6)
+            else -> named.take(6)
+        }
+        shown.chunked(3).forEach { batch ->
+            val row=horizontal()
+            batch.forEach { (name, versions) ->
+                val label=name.take(13) + if(versions.size>1)" ("+versions.size+")" else ""
+                val b=tap(label){versions(slot,name,versions)}
+                if(versions.any{it.id==currentId})b.background=background(Color.rgb(68,102,91))
+                weight(row,b)
+            }
+            groupButtons.addView(row,margins(bottom=5))
+        }
+        groupButtons.addView(tap("☷ كل قنوات "+title+"  •  "+named.size){
+            openGroup(slot)
+        },margins(top=2))
+        if(slot.key.startsWith("custom:"))groupButtons.addView(
+            tap("✎ تعديل قنوات المجموعة"){editMembers(slot)},margins(top=5))
+    }
+
+    private fun stepInGroup(slot:FavoriteSlot,step:Int) {
+        val named=ChannelGrouping.variants(groupChannels(slot))
+        if(named.isEmpty())return
+        val index=named.indexOfFirst{entry->entry.second.any{
+            it.id==(selectedInGroupId ?: currentId)
+        }}
+        val next=if(index<0)0 else index+step
+        if(next !in named.indices)return
+        val options=named[next].second
+        val preferred=options.firstOrNull{it.id==slot.preferredId}
+        val playing=channels.firstOrNull{it.id==(selectedInGroupId?:currentId)}
+        val sameQuality=playing?.let{cur->
+            val quality=if(cur.name.contains("HD",true))"HD" else if(cur.name.contains("SD",true))"SD" else ""
+            options.firstOrNull{quality.isNotEmpty() && it.name.contains(quality,true)}
+        }
+        changeChannel(preferred?:sameQuality?:options.first())
+    }
+
     private fun openGroup(slot:FavoriteSlot){
         val grouped=groupChannels(slot)
         activeGroupKey=slot.key
