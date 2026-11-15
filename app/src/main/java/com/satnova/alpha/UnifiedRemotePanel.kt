@@ -190,6 +190,9 @@ internal class UnifiedRemotePanel(
         neighbors()
     }
     fun receiverReady(value:Boolean){
+        favorites.reload()
+        renderFavorites()
+        renderGroupDeck()
         receiverConnected=value
         zenStatus.text=if(value)"● Zen 4 • connecté" else "○ Zen 4 • hors ligne"
         zenStatus.setTextColor(if(value)green else muted)
