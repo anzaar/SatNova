@@ -42,6 +42,16 @@ internal class UnifiedRemotePanel(
     private var channels = emptyList<RemoteChannel>()
     private var families = emptyMap<String,List<RemoteChannel>>()
     private var currentId = ""
+    private var receiverHost = activity.getSharedPreferences("satnova",0)
+        .getString("last_receiver_ip","unassigned") ?: "unassigned"
+    private var radioMode = false
+    private var activeGroupKey: String? = null
+    private var selectedInGroupId: String? = null
+    private val groupDeck=card().apply { visibility=View.GONE }
+    private val groupTitle=text("مجموعة القنوات",14f,white,true)
+    private val groupStatus=text("",12f,muted)
+    private val groupButtons=vertical()
+    private val favoriteHeading=text("★  مجموعاتي • TV",15f,white,true)
     private var receiverConnected = false
     private var tvConnected = false
     private var modeTv = false
@@ -88,8 +98,7 @@ internal class UnifiedRemotePanel(
     private val modeLifemaxx=tap("Lifemaxx"){selectMode(true)}
 
     init {
-        favorites.useReceiver(activity.getSharedPreferences("satnova",0)
-            .getString("last_receiver_ip","unassigned")?:"unassigned")
+        favorites.useReceiver(receiverHost, radioMode)
         val devices=horizontal()
         weight(devices,zenStatus);weight(devices,tvStatus)
         root.addView(devices,margins(bottom=11))
@@ -122,15 +131,23 @@ internal class UnifiedRemotePanel(
 
         val favoriteCard=card()
         val heading=horizontal()
-        weight(heading,text("★  10 مجموعات مفضلة",15f,white,true))
+        weight(heading,favoriteHeading)
         heading.addView(tap("تعديل"){manage()})
         favoriteCard.addView(heading,margins(bottom=9))
+        val filter=horizontal()
+        weight(filter,tap("📺  TV"){chooseMediaMode(false)})
+        weight(filter,tap("♫  RADIO"){chooseMediaMode(true)})
+        favoriteCard.addView(filter,margins(bottom=9))
         favoriteCard.addView(favGrid)
         val search=horizontal()
         weight(search,tap("⌕ بحث"){searchChannels()})
         weight(search,tap("☷ جميع القنوات"){searchChannels()})
         favoriteCard.addView(search,margins(top=9))
         root.addView(favoriteCard,margins(bottom=12))
+        groupDeck.addView(groupTitle,margins(bottom=8))
+        groupDeck.addView(groupStatus,margins(bottom=8))
+        groupDeck.addView(groupButtons)
+        root.addView(groupDeck,margins(bottom=12))
 
         val remote=card()
         val modes=horizontal()
@@ -142,7 +159,36 @@ internal class UnifiedRemotePanel(
         renderFavorites();selectMode(false)
     }
 
-    fun useReceiver(host:String){favorites.useReceiver(host);favorites.sync(channels);renderFavorites()}
+    fun useReceiver(host:String){
+        receiverHost=host
+        favorites.useReceiver(receiverHost,radioMode)
+        favorites.sync(channels)
+        activeGroupKey=null
+        groupDeck.visibility=View.GONE
+        renderFavorites()
+    }
+
+    private fun visibleChannels()=channels.filter{(it.tvState==1)==radioMode}
+
+    private fun groupChannels(slot:FavoriteSlot):List<RemoteChannel>{
+        if(slot.key.startsWith("custom:")){
+            val ids=favorites.members(slot.key)
+            return visibleChannels().filter{it.id in ids}
+        }
+        return families[slot.key].orEmpty().filter{(it.tvState==1)==radioMode}
+    }
+
+    private fun chooseMediaMode(radio:Boolean){
+        if(radioMode==radio)return
+        radioMode=radio
+        favorites.useReceiver(receiverHost,radioMode)
+        favorites.sync(channels)
+        activeGroupKey=null;selectedInGroupId=null
+        groupDeck.visibility=View.GONE
+        favoriteHeading.text=if(radioMode)"★  مجموعاتي • RADIO" else "★  مجموعاتي • TV"
+        renderFavorites()
+        neighbors()
+    }
     fun receiverReady(value:Boolean){
         receiverConnected=value
         zenStatus.text=if(value)"● Zen 4 • connecté" else "○ Zen 4 • hors ligne"
@@ -159,7 +205,9 @@ internal class UnifiedRemotePanel(
         metadata.text=listOf(number,satellite,tp).filter{it.isNotBlank()}.joinToString(" • ")
         epg.text=if(programme.isNullOrBlank())"EPG : non communiqué" else "En cours : "+programme
         if(!upNext.isNullOrBlank())epg.text=epg.text.toString()+"\nEnsuite : "+upNext
+        if(id==selectedInGroupId)groupStatus.text="● Zen 4 أكد تغيير القناة"
         neighbors()
+        renderGroupDeck()
     }
     fun strength(value:ReceiverTelemetry.Signal){
         val parts=listOfNotNull(value.strength?.let{"Niveau ${it}%"},
@@ -193,14 +241,20 @@ internal class UnifiedRemotePanel(
         }
     }
     private fun neighbors(){
-        val index=channels.indexOfFirst{it.id==currentId}
-        previous.text=channels.getOrNull(index-1).takeIf{index>0}?.let{"‹ "+it.name}?:"‹ السابقة"
-        next.text=channels.getOrNull(index+1)?.let{it.name+" ›"}?:"التالية ›"
+        val rows=if(channels.any{it.id==currentId}){
+            val playing=channels.first{it.id==currentId}
+            channels.filter{it.tvState==playing.tvState}
+        }else visibleChannels()
+        val index=rows.indexOfFirst{it.id==currentId}
+        previous.text=rows.getOrNull(index-1).takeIf{index>0}?.let{"‹ "+it.name}?:"‹ السابقة"
+        next.text=rows.getOrNull(index+1)?.let{it.name+" ›"}?:"التالية ›"
     }
     private fun adjacent(delta:Int){
         if(!receiverConnected)return
-        val at=channels.indexOfFirst{it.id==currentId}
-        val channel=if(at>=0)channels.getOrNull(at+delta) else null
+        val playing=channels.firstOrNull{it.id==currentId}
+        val rows=channels.filter{it.tvState==(playing?.tvState ?: if(radioMode)1 else 0)}
+        val at=rows.indexOfFirst{it.id==currentId}
+        val channel=if(at>=0)rows.getOrNull(at+delta) else null
         if(channel!=null)tune(channel.id,channel.tvState)
         else zenKey(if(delta>0)69 else 70)
     }
@@ -211,10 +265,10 @@ internal class UnifiedRemotePanel(
             val row=horizontal()
             for(x in 0..4){
                 val slot=list.getOrNull(y*5+x)
-                val names=if(slot==null)emptyList() else families[slot.key].orEmpty()
+                val names=if(slot==null)emptyList() else groupChannels(slot)
                 val title=slot?.label?.takeIf{it.isNotBlank()}?:
                     if(slot==null)"＋" else ChannelGrouping.display(slot.key,names.firstOrNull()?.name?:slot.key)
-                val count=if(names.size>1)"\n"+ChannelGrouping.variants(names).size+" قنوات" else ""
+                val count=if(names.isNotEmpty())"\n"+ChannelGrouping.variants(names).size+" قنوات" else ""
                 val view=tap(title.take(13)+count){
                     if(slot==null)addGroup() else openGroup(slot)
                 }
@@ -228,7 +282,10 @@ internal class UnifiedRemotePanel(
         }
     }
     private fun openGroup(slot:FavoriteSlot){
-        val grouped=families[slot.key].orEmpty()
+        val grouped=groupChannels(slot)
+        activeGroupKey=slot.key
+        selectedInGroupId=if(grouped.any{it.id==currentId})currentId else selectedInGroupId
+        renderGroupDeck()
         if(grouped.isEmpty()){message("مجموعة بلا قنوات فالقائمة الحالية");return}
         val channelNames=ChannelGrouping.variants(grouped)
         if(channelNames.size==1)versions(slot,channelNames[0].first,channelNames[0].second)
@@ -252,8 +309,12 @@ internal class UnifiedRemotePanel(
             }.setNegativeButton("إغلاق",null).show()
     }
     private fun changeChannel(channel:RemoteChannel){
-        if(receiverConnected)tune(channel.id,channel.tvState)
-        else message("Zen 4 غير متصل، ما نقدرش نبدل القناة")
+        if(receiverConnected){
+            selectedInGroupId=channel.id
+            groupStatus.text="◌ طلب تغيير القناة مرسل • في انتظار تأكيد Zen 4"
+            tune(channel.id,channel.tvState)
+            renderGroupDeck()
+        }else message("Zen 4 غير متصل، ما نقدرش نبدل القناة")
     }
     private fun message(value:String){AlertDialog.Builder(activity).setMessage(value)
         .setPositiveButton("OK",null).show()}
