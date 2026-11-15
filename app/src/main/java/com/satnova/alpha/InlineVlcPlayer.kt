@@ -44,7 +44,7 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
             if(ticket!=generation.get())return@execute
             try {
                 val vlc=LibVLC(context.applicationContext,arrayListOf(
-                    "--network-caching=1500","--live-caching=1500","--no-video-title-show"))
+                    "--network-caching=1500","--live-caching=1500","--http-continuous","--no-video-title-show"))
                 engine=vlc
                 val mp=MediaPlayer(vlc)
                 player=mp
@@ -82,10 +82,13 @@ class InlineVlcPlayer(private val context:Context, private val view:VLCVideoLayo
                         }
                     }
                 }
-                main.post{if(ticket==generation.get())diagnostic("Lecture directe VLC • tampon 1,5 s • "+if(softwareDecoder)"décodage logiciel" else "décodage automatique")}
+                main.post{if(ticket==generation.get())diagnostic("VLC • lecture directe continue • tampon 1,5 s • "+if(softwareDecoder)"décodage logiciel" else "décodage automatique")}
                 val media=Media(vlc,Uri.parse(url))
                 try {
                     if(softwareDecoder)media.setHWDecoderEnabled(false,false)
+                    // Receiver HTTP endpoints are continuous live streams, never seekable recordings.
+                    if(url.startsWith("http://",true) || url.startsWith("https://",true))
+                        media.addOption(":http-continuous")
                     media.addOption(":network-caching=1500")
                     media.addOption(":live-caching=1500")
                     mp.media=media

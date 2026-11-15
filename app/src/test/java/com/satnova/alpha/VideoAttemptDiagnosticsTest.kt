@@ -4,6 +4,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class VideoAttemptDiagnosticsTest {
+    @Test fun copiedConfigurationTracksTheActualAttempt(){
+        val report=VideoAttemptDiagnostics()
+        report.begin("192.168.1.2","2M","00:00:00")
+        report.configuration("HTTP continu • logiciel")
+        assertTrue(report.render().contains("HTTP continu • logiciel"))
+        report.begin("192.168.1.2","Al Aoula","00:00:10")
+        assertFalse(report.render().contains("logiciel"))
+    }
+
     @Test fun videoEndpointAndRealCountersSurviveAnErrorAndLaterModeMessages(){
         val report=VideoAttemptDiagnostics()
         report.begin("192.168.1.2","Al Aoula • ID 00020013500007","20:18:38")

@@ -9,9 +9,10 @@ class VideoAttemptDiagnostics {
     private var stage=""
     private var counts="Compteurs VLC : en attente"
     private var frozen=false
+    private var configuration="Lecteur en préparation"
     @Synchronized fun begin(receiver:String,channel:String,at:String){
-        header="SatNova 1.21 • $at\nRécepteur : $receiver\nChaîne : $channel"
-        endpoint="En attente du lien 1009";stage="Demande de lecture en cours";counts="Compteurs VLC : en attente";frozen=false
+        header="SatNova 1.22 • $at\nRécepteur : $receiver\nChaîne : $channel"
+        endpoint="En attente du lien 1009";stage="Demande de lecture en cours";counts="Compteurs VLC : en attente";configuration="Lecteur en préparation";frozen=false
     }
     @Synchronized fun source(url:String){
         if(header.isEmpty() || frozen)return
@@ -21,8 +22,9 @@ class VideoAttemptDiagnostics {
             "Source vidéo : ${u.scheme}://${u.host}:$port"
         }catch(_:Exception){"Source vidéo non reconnue"}
     }
+    @Synchronized fun configuration(value:String){if(header.isNotEmpty() && !frozen)configuration=value}
     @Synchronized fun state(value:String){if(header.isNotEmpty() && !frozen)stage=value}
     @Synchronized fun counters(value:String){if(header.isNotEmpty() && !frozen)counts=value}
     @Synchronized fun finish(reason:String){if(header.isNotEmpty() && !frozen){stage=reason;frozen=true}}
-    @Synchronized fun render():String=if(header.isEmpty())"" else "$header\n$endpoint\nLecture directe VLC • tampon stabilité 1,5 s\n$stage\n$counts"
+    @Synchronized fun render():String=if(header.isEmpty())"" else "$header\n$endpoint\n$configuration\n$stage\n$counts"
 }

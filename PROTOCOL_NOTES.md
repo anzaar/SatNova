@@ -72,3 +72,25 @@ latest preparation generation, channel, connection and work mode. The original
 Tests exercise frozen output with continuing decode/audio, startup timeout,
 radio, advancing still-picture frames and fresh-session counters. Receiver
 hardware validation is still required; these tests do not reproduce firmware.
+
+## 1.22 — foreground return and continuous HTTP
+
+The user confirms live playback works initially, then replays old pictures after
+leaving and returning, while receiver TV output remains live. Two attempts each
+reported 2,031,616 received bytes; this suggests a repeatable transport boundary,
+but is not evidence proving a receiver buffer/cache bug.
+
+VLC 3 modules/access/http/access.c selects file-style HTTP by default. Explicit
+http-continuous selects LiveRead/NoSeek instead of FileRead/FileSeek. Enable it
+in the engine and HTTP media options, without rewriting the receiver URL or
+adding a proxy, guessed endpoint or undocumented receiver command.
+Primary source: https://github.com/videolan/vlc/blob/3.0.x/modules/access/http/access.c
+
+A quick Activity return previously requested state before asynchronous native
+teardown completed. PlaybackLifecycle now gates all starts/URL acceptance until
+the latest shutdown completes. Foreground return then renews the control login,
+discarding old unnumbered URL replies; cached catalogues remain persisted. No
+hardware reboot or finder command is sent. Copied diagnostics now use the actual
+player configuration rather than a fixed 1.20 description. Regression tests
+cover quick return, normal return, repeated exits, duplicate callbacks, initial
+launch and per-attempt configuration. Hardware validation remains necessary.

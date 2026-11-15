@@ -106,6 +106,7 @@ class MainActivity : Activity() {
     private val channelCommandSequence=java.util.concurrent.atomic.AtomicLong()
     private val playbackPreparation=java.util.concurrent.atomic.AtomicLong()
     private var resumeReceiverHost:String?=null
+    private val playbackLifecycle=PlaybackLifecycle()
     @Volatile private var videoRequestTimedOut=false
     @Volatile private var selectedTab=0
     @Volatile private var channelPageRequestAt=0L
@@ -268,6 +269,7 @@ class MainActivity : Activity() {
                     videoTransport.takeIf{it.isNotBlank()}?:"Flux interrompu • toucher pour relancer")
             }
         },diagnostic={info->
+            videoAttempt.configuration(info);updateVideoReport()
             val uri=activeStreamUrl?.let{Uri.parse(it)}
             val endpoint=uri?.let{u->
                 val port=if(u.port>=0)u.port else when(u.scheme){"rtsp"->554;"https"->443;else->80}
@@ -899,7 +901,7 @@ class MainActivity : Activity() {
             // not for the direct HTTP path used by this receiver.
             if(resolved.startsWith("rtsp://",true))receiverStream.opened()
             runOnUiThread{
-                if(socket!==source || !verified || !foreground || useMode!=UseMode.WATCH || !receiverMode.mayStartVideo() || recoveringStream ||
+                if(socket!==source || !verified || !foreground || !playbackLifecycle.ready() || useMode!=UseMode.WATCH || !receiverMode.mayStartVideo() || recoveringStream ||
                     currentChannelId!=ticket.channel || !streamGate.isActive(ticket))return@runOnUiThread
                 activeStreamUrl=resolved
                 videoTransport="Connexion au service vidéo…"
@@ -1107,7 +1109,7 @@ class MainActivity : Activity() {
     }
     private fun autostartInlineStream(id:String){
         if(useMode!=UseMode.WATCH || !receiverMode.mayStartVideo())return
-        if(!verified || !foreground || recoveringStream || channelCommandPending || videoRequestTimedOut || id.isBlank())return
+        if(!verified || !foreground || !playbackLifecycle.ready() || recoveringStream || channelCommandPending || videoRequestTimedOut || id.isBlank())return
         if(recoveryChannel!=id){
             recoveryChannel=id;streamRecoveryAttempts=0;softwareVideoDecoder=false
         }
@@ -1134,7 +1136,7 @@ class MainActivity : Activity() {
     }
     private fun startLiveTv(id:String,source:Socket){
         if(useMode!=UseMode.WATCH || !receiverMode.mayStartVideo())return
-        if(!verified || !foreground || socket!==source || currentChannelId!=id)return
+        if(!verified || !foreground || !playbackLifecycle.ready() || socket!==source || currentChannelId!=id)return
         val ticket=streamGate.begin()?:return
         streamPending=true
         videoAttempt.begin(source.inetAddress.hostAddress?:"inconnu",
@@ -1172,31 +1174,38 @@ class MainActivity : Activity() {
             }
         }
     }
-    override fun onResume(){
-        super.onResume()
-        val returning=!foreground
-        foreground=true
+    private fun reopenForegroundSession(){
+        if(!foreground || isFinishing || isDestroyed)return
         val host=resumeReceiverHost
         resumeReceiverHost=null
-        if(returning && verified){
+        if(host!=null){
+            verified=false // Block late old-session state while reconnect is queued.
+            // A fresh control login also discards unnumbered 1009 replies from the old session.
             activeStreamUrl=null;streamedChannel="";autoStreamRequestId="";currentChannelId=""
-            streamGate.invalidatePlayback()
-            work.execute{try{requestState(3)}catch(_:Exception){}}
-        }else if(returning && host!=null){
-            streamRecoveryAttempts=0;connect(host)
+            streamRecoveryAttempts=0;recoveryChannel="";softwareVideoDecoder=false
+            videoRequestTimedOut=false
+            screen.resetVideoPlaceholder()
+            screen.showInlineState("Nouvelle session du direct…")
+            connect(host)
         }
-        if(verified && useMode==UseMode.SIGNAL)setSignalMonitoring(true)
-        if(verified && catalogWanted)continueChannelMetadata()
+    }
+    override fun onResume(){
+        super.onResume()
+        foreground=true
+        if(playbackLifecycle.foreground())reopenForegroundSession()
     }
     override fun onStop(){
         foreground=false
-        resumeReceiverHost=if(verified)socket?.inetAddress?.hostAddress else null
+        val stopTicket=playbackLifecycle.background()
+        resumeReceiverHost=if(verified)socket?.inetAddress?.hostAddress else resumeReceiverHost
         recoveringStream=false
+        playbackPreparation.incrementAndGet()
         streamWatchdog.reset();streamGate.invalidatePlayback();receiverMode.videoStopped()
         activeStreamUrl=null
         if(::screen.isInitialized)setSignalMonitoring(false)
-        stopVideo{}
-        // Do not drop the receiver's working remote/signal connection to repair HTTP playback.
+        stopVideo{
+            if(playbackLifecycle.closed(stopTicket))reopenForegroundSession()
+        }
         super.onStop()
     }
     private fun isPrivate(host: String): Boolean {
