@@ -49,8 +49,8 @@ class SatNovaScreen(
     onEpgRemote: () -> Unit,
     onTabChanged: (Int) -> Unit,
     onKey: (Int) -> Unit,
-    onDishFinder: () -> Unit,
-    onBackgroundToggle: () -> Unit,
+    onDishFinder: () -> Unit = {},
+    onBackgroundToggle: () -> Unit = {},
     onCatalogueReload: () -> Unit = {}
 ) {
     private val navy = Color.rgb(8, 12, 25)
