@@ -61,7 +61,7 @@ jobs:
               --notes "V2 beta: independent Android TV Wi-Fi remote with on-screen pairing. Receiver features retained from 1.25. TV pairing requires real-device validation." \
               --prerelease --target "${GITHUB_SHA}"
           fi
-          gh release upload v2-beta SatNova-Latest.apk --clobber
-          echo "Direct APK URL: https://github.com/${GH_REPO}/releases/download/v2-beta/SatNova-Latest.apk"
+          gh release upload v2-beta SatNova-V2-Beta.apk --clobber
+          echo "Direct APK URL: https://github.com/${GH_REPO}/releases/download/v2-beta/SatNova-V2-Beta.apk"
 
 
