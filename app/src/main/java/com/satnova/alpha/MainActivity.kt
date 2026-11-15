@@ -249,8 +249,7 @@ class MainActivity : Activity() {
             },
             onKey = { code -> sendKey(code) },
             onDishFinder = { openSatelliteFinder() },
-            onInclinometer = { startActivity(Intent(this,InclinometerActivity::class.java)) },
-            onCameraMeasure = { startActivity(Intent(this,CameraMeasureActivity::class.java)) },
+            onQibla = { startActivity(Intent(this,QiblaActivity::class.java)) },
             onBackgroundToggle = { toggleBackgroundLink() },
             onCatalogueReload = { refreshChannels(true) }
         )
