@@ -43,9 +43,12 @@ class HomeNavigationTest {
             activity.setContentView(screen.root)
             fun text(label:String)=texts(screen.root).first{it.text.toString()==label}
             screen.setReceiverOnline(false)
-            assertTrue(text("◎  Trouver un satellite • caméra / GPS").isShown)
-            assertTrue(text("◉  Niveau et inclinomètre").isShown)
-            assertTrue(text("⌖  Mesurer une distance • caméra").isShown)
+            assertTrue(text("◎  Satellite • caméra / GPS").isShown)
+            assertTrue(text("☪  القبلة • Direction Qibla").isShown)
+            assertFalse(texts(screen.root).any{
+                it.text.toString().contains("Niveau et inclinomètre") ||
+                    it.text.toString().contains("Mesurer une distance")
+            })
             assertFalse(text("CH +").isShown)
             screen.setReceiverOnline(true)
             screen.showSignalReady()
