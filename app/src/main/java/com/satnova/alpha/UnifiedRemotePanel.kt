@@ -387,45 +387,155 @@ internal class UnifiedRemotePanel(
     private fun message(value:String){AlertDialog.Builder(activity).setMessage(value)
         .setPositiveButton("OK",null).show()}
     private fun options(slot:FavoriteSlot){
-        val actions=arrayOf("فتح المجموعة","تغيير الاسم","تحريك خطوة لليسار","تحريك خطوة لليمين",
-            "حذف من المفضلات")
-        AlertDialog.Builder(activity).setTitle(slot.label.ifBlank{slot.key})
-            .setItems(actions){_,idx->when(idx){
+        val custom=slot.key.startsWith("custom:")
+        val actions=if(custom)arrayOf(
+            "فتح المجموعة","تغيير الاسم","إضافة قناة للمجموعة","حذف قناة من المجموعة",
+            "تحريك لليسار","تحريك لليمين","حذف المجموعة"
+        ) else arrayOf(
+            "فتح المجموعة","تغيير الاسم","تحريك لليسار","تحريك لليمين","إزالة من المفضلات"
+        )
+        AlertDialog.Builder(activity).setTitle(slot.label.ifBlank{
+            ChannelGrouping.display(slot.key,groupChannels(slot).firstOrNull()?.name ?: slot.key)
+        }).setItems(actions){_,index->
+            if(custom)when(index){
                 0->openGroup(slot)
-                1->{
-                    val input=EditText(activity).apply{setSingleLine(true);setText(slot.label.ifBlank{
-                        ChannelGrouping.display(slot.key,families[slot.key]?.firstOrNull()?.name?:slot.key)})}
-                    AlertDialog.Builder(activity).setTitle("اسم الزر")
-                        .setView(input).setPositiveButton("حفظ"){_,_->
-                            favorites.rename(slot.key,input.text.toString());renderFavorites()
-                        }.setNegativeButton("إلغاء",null).show()
-                }
+                1->renameSlot(slot)
+                2->editMembers(slot,false)
+                3->editMembers(slot,true)
+                4->{favorites.move(slot.key,-1);renderFavorites()}
+                5->{favorites.move(slot.key,1);renderFavorites()}
+                6->deleteSlot(slot)
+            }else when(index){
+                0->openGroup(slot)
+                1->renameSlot(slot)
                 2->{favorites.move(slot.key,-1);renderFavorites()}
                 3->{favorites.move(slot.key,1);renderFavorites()}
-                4->{favorites.remove(slot.key);renderFavorites()}
-            }}.show()
+                4->deleteSlot(slot)
+            }
+        }.show()
     }
-    private fun manage(){
-        val slots=favorites.list()
-        val names=slots.mapIndexed{idx,slot->
-            (idx+1).toString()+". "+slot.label.ifBlank{ChannelGrouping.display(slot.key,
-                families[slot.key]?.firstOrNull()?.name?:slot.key)}
-        }+listOf("＋ إضافة مجموعة")
-        AlertDialog.Builder(activity).setTitle("إدارة 10 مفضلات")
-            .setItems(names.toTypedArray()){_,idx->
-                if(idx==slots.size)addGroup() else options(slots[idx])
-            }.show()
+
+    private fun renameSlot(slot:FavoriteSlot) {
+        val input=EditText(activity).apply{
+            setSingleLine(true)
+            setText(slot.label.ifBlank{
+                ChannelGrouping.display(slot.key,groupChannels(slot).firstOrNull()?.name ?: slot.key)
+            })
+        }
+        AlertDialog.Builder(activity).setTitle("اسم المجموعة أو زر المفضلات")
+            .setView(input).setPositiveButton("حفظ"){_,_->
+                favorites.rename(slot.key,input.text.toString())
+                renderFavorites();renderGroupDeck()
+            }.setNegativeButton("إلغاء",null).show()
     }
-    private fun addGroup(){
-        val list=families.entries.filter{f->favorites.list().none{it.key==f.key}}
-            .sortedBy{it.value.minOfOrNull{c->c.position}?:Int.MAX_VALUE}.take(400)
-        AlertDialog.Builder(activity).setTitle("إضافة مجموعة")
-            .setItems(list.map{ChannelGrouping.display(it.key,it.value.first().name)+
-                " • "+it.value.size}.toTypedArray()){_,idx->
-                if(!favorites.add(list[idx].key))message("10 مجموعات كحد أقصى")
+
+    private fun deleteSlot(slot:FavoriteSlot) {
+        AlertDialog.Builder(activity).setTitle("حذف المجموعة؟")
+            .setMessage("غادي تتحيد من المفضلات ديال SatNova فقط؛ ما غادي تتبدل حتى قناة فالريسيفر.")
+            .setPositiveButton("حذف"){_,_->
+                favorites.remove(slot.key)
+                if(activeGroupKey==slot.key){activeGroupKey=null;groupDeck.visibility=View.GONE}
                 renderFavorites()
             }.setNegativeButton("إلغاء",null).show()
     }
+
+    private fun manage(){
+        val slots=favorites.list()
+        val options=slots.mapIndexed{index,slot->
+            val title=slot.label.ifBlank{
+                ChannelGrouping.display(slot.key,groupChannels(slot).firstOrNull()?.name?:slot.key)
+            }
+            (index+1).toString()+". "+title
+        } + listOf("＋ إضافة أو إنشاء مجموعة")
+        AlertDialog.Builder(activity).setTitle(if(radioMode)"إدارة مجموعات RADIO" else "إدارة مجموعات TV")
+            .setItems(options.toTypedArray()){_,index->
+                if(index==slots.size)addGroup() else options(slots[index])
+            }.show()
+    }
+
+    private fun addGroup(){
+        if(favorites.list().size>=10){message("المفضلات كاملة. حذف مجموعة أو بدل ترتيبها أولاً.");return}
+        AlertDialog.Builder(activity).setTitle("مجموعة جديدة")
+            .setItems(arrayOf("＋ إنشاء مجموعة وتسميتها بنفسي","＋ إضافة مجموعة تلقائية من القنوات")){_,index->
+                if(index==0)createCustomGroup() else addAutoGroup()
+            }.setNegativeButton("إلغاء",null).show()
+    }
+
+    private fun createCustomGroup(){
+        val input=EditText(activity).apply{hint=if(radioMode)"مثال: إذاعاتي" else "مثال: قنوات العائلة"}
+        AlertDialog.Builder(activity).setTitle("اسم المجموعة الجديدة")
+            .setMessage(if(radioMode)"هاد المجموعة خاصة بالراديو فقط" else "هاد المجموعة خاصة بالقنوات التلفزية فقط")
+            .setView(input).setPositiveButton("إنشاء"){_,_->
+                val key=favorites.createCustom(input.text.toString())
+                if(key==null){message("خاص اسم للمجموعة وتكون هناك بلاصة ضمن العشرة");return@setPositiveButton}
+                val slot=favorites.list().firstOrNull{it.key==key}?:return@setPositiveButton
+                renderFavorites()
+                activeGroupKey=key
+                renderGroupDeck()
+                editMembers(slot,false)
+            }.setNegativeButton("إلغاء",null).show()
+    }
+
+    private fun addAutoGroup(){
+        val available=families.entries.filter{entry->
+            val sameType=entry.value.any{(it.tvState==1)==radioMode}
+            sameType && favorites.list().none{it.key==entry.key}
+        }.sortedBy{it.value.minOfOrNull{row->row.position} ?: Int.MAX_VALUE}
+        if(available.isEmpty()){message("ما كايناش مجموعات إضافية فالقائمة الحالية");return}
+        val selected=available.take(500)
+        AlertDialog.Builder(activity).setTitle("مجموعات "+if(radioMode)"RADIO" else "TV")
+            .setItems(selected.map{entry->
+                ChannelGrouping.display(entry.key,entry.value.first().name)+" • "+entry.value.size+" قنوات/نسخ"
+            }.toTypedArray()){_,index->
+                if(!favorites.add(selected[index].key))message("المجموعة موجودة أو ما بقاتش بلاصة")
+                renderFavorites()
+            }.setNegativeButton("إلغاء",null).show()
+    }
+
+    /** Custom membership editor with real receiver service IDs; never modifies the Zen 4 channel list. */
+    private fun editMembers(slot:FavoriteSlot,remove:Boolean=false){
+        if(!slot.key.startsWith("custom:")){message("هاد المجموعة تلقائية؛ تقدر دير مجموعة خاصة وتختار القنوات يدوياً.");return}
+        val body=vertical().apply{setPadding(12.dp,10.dp,12.dp,8.dp)}
+        val search=EditText(activity).apply{
+            setSingleLine(true);hint="ابحث بالاسم أو رقم القناة"
+        }
+        val list=vertical()
+        val scroll=ScrollView(activity).apply{addView(list)}
+        body.addView(search,margins(bottom=10))
+        body.addView(scroll,LinearLayout.LayoutParams(-1,350.dp))
+        val dialog=AlertDialog.Builder(activity)
+            .setTitle((if(remove)"حذف من " else "إضافة إلى ")+slot.label)
+            .setView(body)
+            .setPositiveButton("تم",null)
+            .create()
+        fun render(query:String){
+            list.removeAllViews()
+            val members=favorites.members(slot.key)
+            val possible=visibleChannels().filter{
+                (if(remove)it.id in members else it.id !in members) &&
+                    (it.name.contains(query,true) || it.position.toString().contains(query))
+            }
+            list.addView(text("النتائج: "+possible.size+" • المعروض أول 60",11f,muted),margins(bottom=7))
+            possible.take(60).forEach {channel ->
+                val button=tap(channel.position.toString()+" • "+channel.name){
+                    if(remove)favorites.removeMember(slot.key,channel.id)
+                    else favorites.addMember(slot.key,channel.id)
+                    renderFavorites();renderGroupDeck()
+                    render(search.text.toString())
+                }
+                list.addView(button,margins(bottom=4))
+            }
+        }
+        search.addTextChangedListener(object:TextWatcher{
+            override fun beforeTextChanged(s:CharSequence?,start:Int,count:Int,after:Int){}
+            override fun onTextChanged(s:CharSequence?,start:Int,before:Int,count:Int){
+                render(s?.toString().orEmpty())
+            }
+            override fun afterTextChanged(s:Editable?){}
+        })
+        dialog.show();render("")
+    }
+
     private fun searchChannels(){
         val body=vertical().apply{setPadding(10.dp,8.dp,10.dp,8.dp)}
         val entry=EditText(activity).apply{hint="ابحث عن قناة";setSingleLine(true)}
