@@ -249,6 +249,7 @@ class MainActivity : Activity() {
             },
             onKey = { code -> sendKey(code) },
             onDishFinder = { openSatelliteFinder() },
+            onTvRemote = { startActivity(Intent(this, TvRemoteActivity::class.java)) },
             onQibla = { startActivity(Intent(this,QiblaActivity::class.java)) },
             onBackgroundToggle = { toggleBackgroundLink() },
             onCatalogueReload = { refreshChannels(true) }
