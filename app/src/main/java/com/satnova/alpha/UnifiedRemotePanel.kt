@@ -350,6 +350,17 @@ internal class UnifiedRemotePanel(
     }
     private fun launchShortcut(key:String){
         val link=links.getString(key,defaultLink(key)).orEmpty()
+        if(key=="altaplay" && link.isBlank()){
+            AlertDialog.Builder(activity).setTitle("AltaPlay")
+                .setMessage("رابط 4645817 كيساعد على التثبيت، ماشي أمر فتح التطبيق. باش تخدم النقرة المباشرة خاصنا رابط Deep Link أو مُعرّف إطلاق التطبيق اللي يقبلو Lifemaxx.")
+                .setPositiveButton("رابط التثبيت"){_,_->
+                    if(tvConnected)tvApp("https://aftv.news/4645817")
+                    else tvPairing()
+                }
+                .setNeutralButton("إعداد الفتح المباشر"){_,_->editShortcut(key)}
+                .setNegativeButton("إلغاء",null).show()
+            return
+        }
         if(link.isBlank()){editShortcut(key);return}
         if(!tvConnected){
             AlertDialog.Builder(activity).setMessage("اربط Lifemaxx قبل فتح التطبيقات")
@@ -359,7 +370,6 @@ internal class UnifiedRemotePanel(
     }
     private fun selectMode(tv:Boolean){
         modeTv=tv;modeTitle.text=if(tv)"● Télécommande Lifemaxx Android TV" else "● Télécommande Zen 4"
-        modeTv.let{}
         modeZen.background=background(if(tv)tile else Color.rgb(104,67,176))
         modeLifemaxx.background=background(if(tv)Color.rgb(104,67,176) else tile)
         commands.removeAllViews()
@@ -371,7 +381,7 @@ internal class UnifiedRemotePanel(
             values.forEach{(label,t,z)->weight(r,remote(label,t,z))}
             commands.addView(r,margins(bottom=6))
         }
-        line(Triple("HOME",KeyEvent.KEYCODE_HOME,7),
+        line(Triple("TV HOME",KeyEvent.KEYCODE_HOME,7),
              Triple("VOL −",KeyEvent.KEYCODE_VOLUME_DOWN,36),
              Triple("MUTE",KeyEvent.KEYCODE_VOLUME_MUTE,23),
              Triple("VOL +",KeyEvent.KEYCODE_VOLUME_UP,35))
@@ -386,6 +396,7 @@ internal class UnifiedRemotePanel(
         line(Triple("CH −",KeyEvent.KEYCODE_CHANNEL_DOWN,70),
              Triple("EPG",KeyEvent.KEYCODE_GUIDE,32),
              Triple("CH +",KeyEvent.KEYCODE_CHANNEL_UP,69))
+        commands.addView(tap("⌂  Android Home • Lifemaxx"){tvKey(KeyEvent.KEYCODE_HOME)},margins(top=6))
         commands.addView(tap("123  •  Clavier numérique"){
             val parent=vertical()
             for(numbers in listOf(listOf(1,2,3),listOf(4,5,6),listOf(7,8,9),listOf(0))){
