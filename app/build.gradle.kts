@@ -10,8 +10,8 @@ android {
         minSdk = 26
         targetSdk = 35
         ndk { abiFilters += listOf("arm64-v8a") }
-        versionCode = 44
-        versionName = "2.1.0-beta"
+        versionCode = 45
+        versionName = "2.2.0-beta"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
