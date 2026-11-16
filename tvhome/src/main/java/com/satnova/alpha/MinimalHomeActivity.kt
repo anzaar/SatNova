@@ -43,8 +43,10 @@ open class MinimalHomeActivity : Activity() {
     private val border = Color.rgb(126, 159, 208)
     private val prefs by lazy { getSharedPreferences("satnova_minimal_home", Context.MODE_PRIVATE) }
     private val logos by lazy { ChannelLogoStore(this) }
+    private val families by lazy { ChannelFamilies(prefs) }
     private val fileProbeWorker = Executors.newSingleThreadExecutor()
     private var channels: List<ZenChannel> = emptyList()
+    private var radios: List<ZenChannel> = emptyList()
     private var online = false
     private var receiverMessage = "Récepteur non connecté"
     private var activePage = 0
@@ -62,6 +64,7 @@ open class MinimalHomeActivity : Activity() {
             }
             override fun catalogue(channels: List<ZenChannel>) {
                 this@MinimalHomeActivity.channels = channels.filter { !it.radio }.sortedBy { it.position }
+                this@MinimalHomeActivity.radios = channels.filter { it.radio }.sortedBy { it.position }
                 if (::content.isInitialized) render()
             }
             override fun playing(channelId: String) {
@@ -223,6 +226,7 @@ open class MinimalHomeActivity : Activity() {
         setContentView(root)
         showApps()
         showTv()
+        showRadios()
         if (prefs.getBoolean("show_history", false)) showHistory()
         showFavorites()
     }
@@ -298,10 +302,28 @@ open class MinimalHomeActivity : Activity() {
                 if (online) "Lecture des chaînes" else "Connexion Wi-Fi",
                 getDrawable(android.R.drawable.ic_menu_info_details), { settings() })
         } else {
-            channels.take(20).forEach { channel ->
-                addCard(row, channel.name, "N° ${channel.position}",
+            families.tiles(channels).take(20).forEach { tile ->
+                addCard(row, tile.label,
+                    if (tile.isGroup) "${tile.members.size} chaînes" else ChannelDescription.summary(tile.first),
                     getDrawable(android.R.drawable.ic_media_play),
-                    { openChannel(channel) }, { addChannelToPage(channel) }, channel)
+                    { if (tile.isGroup) showFamily(tile) else openChannel(tile.first) },
+                    { if (tile.isGroup) editFamily(tile) else channelActions(tile.first) }, tile.first)
+            }
+        }
+        content.addView(scroll)
+    }
+
+    private fun showRadios() {
+        section("Radios")
+        val (scroll, row) = horizontalRow()
+        if (radios.isEmpty()) {
+            addCard(row, "Aucune radio", "En attente du catalogue",
+                getDrawable(android.R.drawable.ic_media_play), { settings() })
+        } else {
+            radios.take(20).forEach { radio ->
+                addCard(row, radio.name, ChannelDescription.summary(radio),
+                    getDrawable(android.R.drawable.ic_media_play),
+                    { openChannel(radio) }, { addChannelToPage(radio) }, radio)
             }
         }
         content.addView(scroll)
@@ -311,8 +333,8 @@ open class MinimalHomeActivity : Activity() {
         section("Récemment regardées")
         val (scroll, row) = horizontalRow()
         val ids = history().take(20)
-        ids.mapNotNull { id -> channels.firstOrNull { it.id == id } }.forEach { channel ->
-            addCard(row, channel.name, "N° ${channel.position}",
+        ids.mapNotNull { id -> (channels + radios).firstOrNull { it.id == id } }.forEach { channel ->
+            addCard(row, channel.name, ChannelDescription.summary(channel),
                 getDrawable(android.R.drawable.ic_media_play), { openChannel(channel) },
                 logoChannel = channel)
         }
@@ -385,14 +407,14 @@ open class MinimalHomeActivity : Activity() {
         }
         content.addView(tabs)
         val (scroll, favorites) = horizontalRow()
-        val channelMap = channels.associateBy { it.id }
+        val channelMap = (channels + radios).associateBy { it.id }
         val ids = list[activePage].ids
         if (ids.isEmpty()) {
             addCard(favorites, "Aucune chaîne", "Appui long sur une chaîne TV",
                 getDrawable(android.R.drawable.ic_menu_info_details), { settings() })
         } else {
             ids.mapNotNull(channelMap::get).forEach { channel ->
-                addCard(favorites, channel.name, "N° ${channel.position}",
+                addCard(favorites, channel.name, ChannelDescription.summary(channel),
                     getDrawable(android.R.drawable.ic_media_play),
                     { openChannel(channel) }, { removeFavorite(channel.id) }, channel)
             }
@@ -542,7 +564,8 @@ open class MinimalHomeActivity : Activity() {
             "Renommer la page Favoris", "Adresse IP de Zen 4",
             "Afficher / masquer l'historique", "Entrée HDMI : détection automatique",
             "Actualiser les logos", "Télécharger diagnostic Zen 4 (JSON)",
-            "Vérifier accès aux fichiers Zen 4 (Wi-Fi)")
+            "Vérifier accès aux fichiers Zen 4 (Wi-Fi)",
+            "Réinitialiser les groupes TV")
         AlertDialog.Builder(this).setTitle("Paramètres")
             .setItems(options) { _, index ->
                 when (index) {
@@ -559,6 +582,10 @@ open class MinimalHomeActivity : Activity() {
                     6 -> { logos.retryFailed(); render() }
                     7 -> saveReceiverDiagnostic()
                     8 -> checkReceiverFileAccess()
+                    9 -> AlertDialog.Builder(this).setTitle("Réinitialiser les groupes ?")
+                        .setMessage("Restaure les regroupements automatiques de l'application, sans modifier le récepteur.")
+                        .setPositiveButton("Réinitialiser") { _, _ -> families.resetAll(); render() }
+                        .setNegativeButton("Annuler", null).show()
                 }
             }.show()
     }
