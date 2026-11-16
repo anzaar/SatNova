@@ -370,7 +370,7 @@ class MinimalHomeActivity : Activity() {
             val manager = getSystemService(Context.TV_INPUT_SERVICE) as? TvInputManager
             val hdmi = manager?.tvInputList?.firstOrNull { input ->
                 input.type == TvInputInfo.TYPE_HDMI && (
-                    input.hdmiDeviceInfo?.portId == 1 ||
+                    input.loadLabel(this).toString().replace(" ", "").equals("HDMI1", ignoreCase = true) ||
                     input.id.contains("HDMI1", ignoreCase = true) ||
                     input.id.contains("HDMI_1", ignoreCase = true)
                 )
