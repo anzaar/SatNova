@@ -10,8 +10,8 @@ import java.util.Locale
  * Matches channel names only; never changes the receiver's order or metadata.
  */
 internal class Badr26Picons(context: Context) {
-    private val aliases: Map<String, String> = try {
-        context.assets.open("badr26-picons.tsv").bufferedReader(Charsets.UTF_8).useLines { lines ->
+    private fun loadIndex(context: Context, name: String): Map<String, String> = try {
+        context.assets.open(name).bufferedReader(Charsets.UTF_8).useLines { lines ->
             lines.filter { it.isNotBlank() && !it.startsWith("#") }
                 .mapNotNull { line ->
                     val pair = line.split('\t', limit = 2)
@@ -22,6 +22,9 @@ internal class Badr26Picons(context: Context) {
         }
     } catch (_: Exception) { emptyMap() }
 
+    private val aliases = loadIndex(context, "badr26-picons.tsv")
+    private val globalAliases = loadIndex(context, "all-picons.tsv")
+
     private fun key(name: String) = Normalizer.normalize(name, Normalizer.Form.NFD)
         .replace(Regex("\\p{M}+"), "").lowercase(Locale.ROOT)
         .replace(Regex("[^a-z0-9]+"), "")
@@ -29,11 +32,12 @@ internal class Badr26Picons(context: Context) {
     fun url(channel: ZenChannel): String? {
         val key = key(channel.name)
         if (key.isBlank()) return null
-        // Exact published aliases before a conservative quality-suffix fallback.
-        val file = aliases[key]
-            ?: key.removeSuffix("hd").takeIf { it != key }?.let(aliases::get)
-            ?: key.removeSuffix("sd").takeIf { it != key }?.let(aliases::get)
-            ?: key.removeSuffix("4k").takeIf { it != key }?.let(aliases::get)
+        // Exact asset name first (including HD PNG artwork). Badr-specific
+        // satellite aliases remain the fallback; never guess by partial name.
+        val file = globalAliases[key] ?: aliases[key]
+            ?: key.removeSuffix("hd").takeIf { it != key }?.let { aliases[it] ?: globalAliases[it] }
+            ?: key.removeSuffix("sd").takeIf { it != key }?.let { aliases[it] ?: globalAliases[it] }
+            ?: key.removeSuffix("4k").takeIf { it != key }?.let { aliases[it] ?: globalAliases[it] }
             ?: return null
         return "https://raw.githubusercontent.com/picons/picons/master/build-source/logos/$file"
     }
