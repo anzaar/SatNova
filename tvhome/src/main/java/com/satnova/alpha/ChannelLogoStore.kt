@@ -151,15 +151,44 @@ internal class ChannelLogoStore(context: Context) {
         return File(root, "$hash.img")
     }
 
+    /** Crops invisible padding, never the actual graphic. This helps tall
+     * or sparse picons to fill their allocated ImageView without clipping. */
+    private fun trimTransparent(source: Bitmap): Bitmap {
+        if (!source.hasAlpha()) return source
+        val w = source.width; val h = source.height
+        if (w <= 8 || h <= 8) return source
+        val pixels = IntArray(w * h)
+        source.getPixels(pixels, 0, w, 0, 0, w, h)
+        var left = w; var top = h; var right = -1; var bottom = -1
+        for (y in 0 until h) for (x in 0 until w) {
+            if ((pixels[y * w + x] ushr 24) > 12) {
+                if (x < left) left = x
+                if (x > right) right = x
+                if (y < top) top = y
+                if (y > bottom) bottom = y
+            }
+        }
+        if (right < left || bottom < top) return source
+        val pad = (minOf(w, h) * 0.045f).toInt().coerceAtLeast(2)
+        left = (left - pad).coerceAtLeast(0)
+        top = (top - pad).coerceAtLeast(0)
+        right = (right + pad).coerceAtMost(w - 1)
+        bottom = (bottom + pad).coerceAtMost(h - 1)
+        if (left == 0 && top == 0 && right == w - 1 && bottom == h - 1) return source
+        val result = Bitmap.createBitmap(source, left, top, right - left + 1, bottom - top + 1)
+        if (result !== source) source.recycle()
+        return result
+    }
+
     private fun decode(data: ByteArray, sourceUrl: String): Bitmap? {
         if (data.isEmpty() || data.size > 700_000) return null
         if (sourceUrl.substringBefore('?').endsWith(".svg", ignoreCase = true)) {
             return try {
                 val svg = SVG.getFromString(String(data, Charsets.UTF_8))
-                val image = Bitmap.createBitmap(320, 200, Bitmap.Config.ARGB_8888)
+                val image = Bitmap.createBitmap(320, 320, Bitmap.Config.ARGB_8888)
                 val canvas = Canvas(image)
-                canvas.drawPicture(svg.renderToPicture(320, 200))
-                image
+                canvas.drawPicture(svg.renderToPicture(320, 320))
+                trimTransparent(image)
             } catch (_: Exception) { null }
         }
         // Do not decode unexpectedly huge bitmap images into the UI heap.
@@ -173,8 +202,9 @@ internal class ChannelLogoStore(context: Context) {
                 else -> 1
             }
         }
-        return try { BitmapFactory.decodeByteArray(data, 0, data.size, opts) }
-            catch (_: Exception) { null }
+        return try {
+            BitmapFactory.decodeByteArray(data, 0, data.size, opts)?.let(::trimTransparent)
+        } catch (_: Exception) { null }
     }
 
     private fun readDisk(url: String): Bitmap? = try {
