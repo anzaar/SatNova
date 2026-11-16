@@ -27,7 +27,11 @@ internal class ChannelFamilies(private val prefs: SharedPreferences) {
     private fun labels(): JSONObject = try { JSONObject(prefs.getString(labelsKey, "{}") ?: "{}") }
         catch (_: Exception) { JSONObject() }
 
-    fun nameOf(key: String) = defaults[key] ?: labels().optString(key, key.removePrefix("custom:"))
+    fun nameOf(key: String): String {
+        if (key.startsWith("duplicate:"))
+            return key.removePrefix("duplicate:").replaceFirstChar { it.titlecase(Locale.ROOT) }
+        return defaults[key] ?: labels().optString(key, key.removePrefix("custom:"))
+    }
 
     private fun normalized(raw: String): String = Normalizer.normalize(raw, Normalizer.Form.NFD)
         .replace(Regex("\\p{M}+"), "").lowercase(Locale.ROOT)
@@ -55,13 +59,37 @@ internal class ChannelFamilies(private val prefs: SharedPreferences) {
         else -> assigned
     }
 
+    /**
+     * Works for ALL programmes, not only names in the built-in family list.
+     * Only format markers are removed: beIN SPORTS 1 and 2 remain different
+     * subchannels within their known family; unrelated base names never merge.
+     */
+    private fun duplicateBase(name: String): String {
+        val base = normalized(name)
+            .replace(Regex("\\b(?:hd|sd|uhd|4k|fhd|fullhd|h265|hevc|mpeg4|tnt)\\b"), " ")
+            .replace(Regex("\\s+"), " ").trim()
+        return base.takeIf { it.length >= 3 && it !in setOf("tv", "test", "radio", "channel") } ?: ""
+    }
+
     fun tiles(channels: List<ZenChannel>): List<Tile> {
-        val sorted = channels.sortedBy { it.position }
+        val sorted = channels.filter { !it.radio }.sortedBy { it.position }
         val assignments = assignments()
-        fun key(c: ZenChannel): String? = when (val v = assignments.optString(c.id, "")) {
-            solo -> null
-            "" -> familyOf(c)
-            else -> v
+        val bases = sorted.groupingBy { duplicateBase(it.name) }.eachCount()
+        fun key(c: ZenChannel): String? {
+            return when (val assigned = assignments.optString(c.id, "")) {
+                solo -> null
+                "" -> {
+                    val predefined = familyOf(c)
+                    if (predefined != null) predefined
+                    else {
+                        val base = duplicateBase(c.name)
+                        if (base.isNotEmpty() && (bases[base] ?: 0) >= 2)
+                            "duplicate:$base"
+                        else null
+                    }
+                }
+                else -> assigned
+            }
         }
         val grouped = sorted.groupBy(::key)
         val seen = mutableSetOf<String>()
@@ -81,8 +109,10 @@ internal class ChannelFamilies(private val prefs: SharedPreferences) {
 
     fun keys(channels: List<ZenChannel>): List<Pair<String, String>> {
         val present = channels.mapNotNull(::keyFor).toSet()
+        val active = tiles(channels).mapNotNull(Tile::key)
         val custom = labels().keys().asSequence().toList()
-        return (defaults.keys + custom).distinct().filter { it in present || it.startsWith("custom:") }
+        return (defaults.keys + custom + active).distinct()
+            .filter { it in present || it in active || it.startsWith("custom:") }
             .map { it to nameOf(it) }.sortedBy { it.second.lowercase(Locale.ROOT) }
     }
 
