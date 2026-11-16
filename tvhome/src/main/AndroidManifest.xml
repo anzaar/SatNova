@@ -16,6 +16,13 @@
     </queries>
     <application android:label="SatNova Home Alpha" android:theme="@android:style/Theme.Material.NoActionBar"
         android:icon="@drawable/satnova_home_icon" android:allowBackup="false" android:usesCleartextTraffic="false">
+        <activity android:name=".MobilePreviewActivity" android:label="SatNova Home · Test"
+            android:exported="true" android:screenOrientation="landscape">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
         <activity android:name=".MinimalHomeActivity" android:exported="true"
             android:screenOrientation="landscape">
             <intent-filter>
