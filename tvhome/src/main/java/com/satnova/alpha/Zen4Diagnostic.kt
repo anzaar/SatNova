@@ -31,7 +31,7 @@ internal class Zen4Diagnostic {
     )
     private val relevantKey = Regex(
         "(?i)(logo|icon|picon|chmax|image|picture|artwork|thumbnail|path|" +
-            "name|channel|service|program|fav|number|index|provider|group|radio|" +
+            "name|channel|service|program|fav|number|index|provider|group|radio|scrambl|hd|definition|frequency|tpindex|" +
             "type|id|model|version|count|total|format|data)"
     )
 
