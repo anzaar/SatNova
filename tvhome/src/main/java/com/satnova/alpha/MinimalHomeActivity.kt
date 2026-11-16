@@ -39,6 +39,7 @@ open class MinimalHomeActivity : Activity() {
     private val muted = Color.rgb(165, 175, 191)
     private val border = Color.rgb(126, 159, 208)
     private val prefs by lazy { getSharedPreferences("satnova_minimal_home", Context.MODE_PRIVATE) }
+    private val logos by lazy { ChannelLogoStore(this) }
     private var channels: List<ZenChannel> = emptyList()
     private var online = false
     private var receiverMessage = "Récepteur non connecté"
@@ -84,6 +85,7 @@ open class MinimalHomeActivity : Activity() {
 
     override fun onDestroy() {
         client.stop()
+        logos.close()
         super.onDestroy()
     }
 
@@ -135,7 +137,8 @@ open class MinimalHomeActivity : Activity() {
     }
 
     private fun addCard(row: LinearLayout, label: String, subtitle: String?,
-        icon: android.graphics.drawable.Drawable?, click: () -> Unit, longClick: (() -> Unit)? = null) {
+        icon: android.graphics.drawable.Drawable?, click: () -> Unit,
+        longClick: (() -> Unit)? = null, logoChannel: ZenChannel? = null) {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -143,11 +146,16 @@ open class MinimalHomeActivity : Activity() {
             background = rounded(surface)
             contentDescription = listOfNotNull(label, subtitle).joinToString(", ")
         }
-        if (icon != null) {
-            card.addView(ImageView(this).apply {
+        if (icon != null || logoChannel != null) {
+            val logoImage = ImageView(this).apply {
                 setImageDrawable(icon)
                 scaleType = ImageView.ScaleType.FIT_CENTER
-            }, LinearLayout.LayoutParams(dp(46), dp(46)).apply { bottomMargin = dp(5) })
+                contentDescription = if (logoChannel != null) "Logo de $label" else label
+            }
+            card.addView(logoImage, LinearLayout.LayoutParams(dp(54), dp(48)).apply {
+                bottomMargin = dp(5)
+            })
+            if (logoChannel != null) logos.bind(logoImage, logoChannel)
         }
         card.addView(text(label, 14f, true).apply { gravity = Gravity.CENTER },
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
@@ -263,7 +271,7 @@ open class MinimalHomeActivity : Activity() {
             channels.take(20).forEach { channel ->
                 addCard(row, channel.name, "N° ${channel.position}",
                     getDrawable(android.R.drawable.ic_media_play),
-                    { openChannel(channel) }, { addChannelToPage(channel) })
+                    { openChannel(channel) }, { addChannelToPage(channel) }, channel)
             }
         }
         content.addView(scroll)
@@ -275,7 +283,8 @@ open class MinimalHomeActivity : Activity() {
         val ids = history().take(20)
         ids.mapNotNull { id -> channels.firstOrNull { it.id == id } }.forEach { channel ->
             addCard(row, channel.name, "N° ${channel.position}",
-                getDrawable(android.R.drawable.ic_media_play), { openChannel(channel) })
+                getDrawable(android.R.drawable.ic_media_play), { openChannel(channel) },
+                logoChannel = channel)
         }
         if (row.childCount == 0) {
             addCard(row, "Aucun historique", "Après 60 secondes de visionnage",
@@ -355,7 +364,7 @@ open class MinimalHomeActivity : Activity() {
             ids.mapNotNull(channelMap::get).forEach { channel ->
                 addCard(favorites, channel.name, "N° ${channel.position}",
                     getDrawable(android.R.drawable.ic_media_play),
-                    { openChannel(channel) }, { removeFavorite(channel.id) })
+                    { openChannel(channel) }, { removeFavorite(channel.id) }, channel)
             }
         }
         content.addView(scroll, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14) })
@@ -501,7 +510,8 @@ open class MinimalHomeActivity : Activity() {
     private fun settings() {
         val options = arrayOf("Applications favorites", "Ajouter une page Favoris",
             "Renommer la page Favoris", "Adresse IP de Zen 4",
-            "Afficher / masquer l'historique", "Entrée HDMI : détection automatique")
+            "Afficher / masquer l'historique", "Entrée HDMI : détection automatique",
+            "Actualiser les logos")
         AlertDialog.Builder(this).setTitle("Paramètres")
             .setItems(options) { _, index ->
                 when (index) {
@@ -515,6 +525,7 @@ open class MinimalHomeActivity : Activity() {
                         render()
                     }
                     5 -> Toast.makeText(this, "Détection HDMI automatique, HDMI 1 en secours", Toast.LENGTH_SHORT).show()
+                    6 -> { logos.retryFailed(); render() }
                 }
             }.show()
     }
