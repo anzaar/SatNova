@@ -135,13 +135,18 @@ internal class Zen4Client(private val context: Context, private val listener: Li
 
     enum class TuneResult { SENT, DISCONNECTED, CHANNEL_NOT_FOUND, SEND_FAILED }
 
+    private fun tuningOutcome(channel: ZenChannel, status: TuneResult): TuneResult {
+        diagnostic.recordTune(channel, status.name)
+        return status
+    }
+
     /** Distinguish lost transport from a stale cached service ID or a write failure. */
     fun tuneDetailed(channel: ZenChannel): TuneResult {
         val sock = session
         if (!authorized || sock == null || sock.isClosed || !sock.isConnected)
-            return TuneResult.DISCONNECTED
+            return tuningOutcome(channel, TuneResult.DISCONNECTED)
         if (channels.none { it.id == channel.id })
-            return TuneResult.CHANNEL_NOT_FOUND
+            return tuningOutcome(channel, TuneResult.CHANNEL_NOT_FOUND)
         try {
             val req = if (jsonMode) JSONObject().put("request", "1000")
                 .put("array", JSONArray().put(JSONObject()
@@ -151,16 +156,16 @@ internal class Zen4Client(private val context: Context, private val listener: Li
                 (if (channel.radio) "1" else "0") + "</TvState><ProgramId>" + channel.id +
                 "</ProgramId></parm></Command>"
             synchronized(writeLock) {
-                if (session !== sock || sock.isClosed) return TuneResult.DISCONNECTED
+                if (session !== sock || sock.isClosed) return tuningOutcome(channel, TuneResult.DISCONNECTED)
                 sendFrame(sock, req)
             }
             pendingTune = channel.id
             pendingTuneAt = SystemClock.elapsedRealtime()
-            return TuneResult.SENT
+            return tuningOutcome(channel, TuneResult.SENT)
         } catch (_: Exception) {
             pendingTune = ""
             try { sock.close() } catch (_: Exception) {}
-            return TuneResult.SEND_FAILED
+            return tuningOutcome(channel, TuneResult.SEND_FAILED)
         }
     }
 
