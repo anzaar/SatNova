@@ -3,6 +3,8 @@ package com.satnova.alpha
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import com.caverock.androidsvg.SVG
 import android.os.Handler
 import android.os.Looper
 import android.util.LruCache
@@ -86,6 +88,7 @@ internal object ChannelLogoSource {
 
 /** Non-blocking, memory+disk-cached HTTPS logo loading with bounded responses. */
 internal class ChannelLogoStore(context: Context) {
+    private val badr = Badr26Picons(context)
     private val root = File(context.filesDir, "channel-logos").apply { mkdirs() }
     private val executor = Executors.newFixedThreadPool(3)
     private val main = Handler(Looper.getMainLooper())
@@ -97,7 +100,9 @@ internal class ChannelLogoStore(context: Context) {
     private val lock = Any()
 
     fun bind(image: ImageView, channel: ZenChannel) {
-        val urls = ChannelLogoSource.urls(channel)
+        val urls = (listOfNotNull(
+            ChannelLogoSource.verifiedHttpLogo(channel.logoUrl),
+            badr.url(channel)) + ChannelLogoSource.urls(channel)).distinct()
         if (urls.isEmpty()) return
         val key = urls.joinToString("\n")
         image.tag = key
@@ -146,9 +151,18 @@ internal class ChannelLogoStore(context: Context) {
         return File(root, "$hash.img")
     }
 
-    private fun decode(data: ByteArray): Bitmap? {
+    private fun decode(data: ByteArray, sourceUrl: String): Bitmap? {
         if (data.isEmpty() || data.size > 700_000) return null
-        // Do not decode unexpectedly huge images into the UI heap.
+        if (sourceUrl.substringBefore('?').endsWith(".svg", ignoreCase = true)) {
+            return try {
+                val svg = SVG.getFromString(String(data, Charsets.UTF_8))
+                val image = Bitmap.createBitmap(320, 200, Bitmap.Config.ARGB_8888)
+                val canvas = Canvas(image)
+                canvas.drawPicture(svg.renderToPicture(320, 200))
+                image
+            } catch (_: Exception) { null }
+        }
+        // Do not decode unexpectedly huge bitmap images into the UI heap.
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(data, 0, data.size, bounds)
         if (bounds.outWidth !in 1..2400 || bounds.outHeight !in 1..2400) return null
@@ -166,7 +180,7 @@ internal class ChannelLogoStore(context: Context) {
     private fun readDisk(url: String): Bitmap? = try {
         val file = cacheFile(url)
         if (!file.isFile || file.length() !in 1..700_000) null
-        else decode(file.readBytes())
+        else decode(file.readBytes(), url)
     } catch (_: Exception) { null }
 
     private fun download(url: String): Bitmap? {
@@ -181,7 +195,11 @@ internal class ChannelLogoStore(context: Context) {
             conn.setRequestProperty("Accept", "image/png,image/jpeg,image/webp")
             if (conn.responseCode != 200) return null
             val mime = conn.contentType?.substringBefore(';')?.lowercase(Locale.ROOT)
-            if (mime !in listOf("image/png", "image/jpeg", "image/jpg", "image/webp")) return null
+            val svg = valid.substringBefore('?').endsWith(".svg", ignoreCase = true)
+            val allowed = if (svg) listOf("image/svg+xml", "text/xml", "text/plain", "application/xml",
+                "application/octet-stream")
+                else listOf("image/png", "image/jpeg", "image/jpg", "image/webp")
+            if (mime !in allowed) return null
             if (conn.contentLengthLong > 700_000L) return null
             val data = conn.inputStream.use { input ->
                 val bytes = ByteArray(700_001)
@@ -194,7 +212,7 @@ internal class ChannelLogoStore(context: Context) {
                 if (offset > 700_000) return null
                 bytes.copyOf(offset)
             }
-            val bmp = decode(data) ?: return null
+            val bmp = decode(data, valid) ?: return null
             try { cacheFile(valid).writeBytes(data) } catch (_: Exception) {}
             bmp
         } catch (_: Exception) { null }
