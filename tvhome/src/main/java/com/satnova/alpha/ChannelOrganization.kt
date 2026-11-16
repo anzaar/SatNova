@@ -84,7 +84,7 @@ internal object ChannelOrganization {
         !channel.radio && country == "Maroc" && channel.frequencyMhz == 11180
 
     fun summary(channel: ZenChannel, country: String? = null): String {
-        val parts = mutableListOf("N° \${channel.position}")
+        val parts = mutableListOf("N° ${channel.position}")
         if (channel.radio) parts.add("Radio")
         else channel.definition?.let(parts::add)
         when (channel.encrypted) {
