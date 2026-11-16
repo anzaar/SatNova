@@ -13,6 +13,12 @@ android {
         versionCode = 47
         versionName = "2.4.0-shortcuts-beta"
     }
+    buildTypes {
+        getByName("debug") {
+            // Separate alpha package: never replace the existing SatNova installation.
+            applicationIdSuffix = ".homealpha"
+        }
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
