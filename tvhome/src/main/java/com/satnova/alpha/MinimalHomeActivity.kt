@@ -50,7 +50,6 @@ open class MinimalHomeActivity : Activity() {
     private var online = false
     private var receiverMessage = "Récepteur non connecté"
     private var activePage = 0
-    private var selectedCountry = ChannelOrganization.ALL
     private var diagnosticToSave: String? = null
     private val diagnosticSaveRequest = 7124
     private var trackedChannel = ""
@@ -159,56 +158,6 @@ open class MinimalHomeActivity : Activity() {
             if (loaded < items.size && x + scroll.width >= row.width - dp(140)) appendBatch()
         }
         return scroll
-    }
-
-    private fun countryOf(channel: ZenChannel): String {
-        val fallback = ChannelOrganization.country(channel)
-        val overrides = try { JSONObject(prefs.getString("channel_country_overrides", "{}") ?: "{}") }
-            catch (_: Exception) { JSONObject() }
-        return overrides.optString(channel.id, fallback)
-            .takeIf { it in ChannelOrganization.countries } ?: fallback
-    }
-
-    private fun setCountry(channel: ZenChannel) {
-        val options = ChannelOrganization.countries
-        val selected = options.indexOf(countryOf(channel)).coerceAtLeast(0)
-        AlertDialog.Builder(this).setTitle("Pays · " + channel.name)
-            .setSingleChoiceItems(options.toTypedArray(), selected) { dialog, index ->
-                val overrides = try {
-                    JSONObject(prefs.getString("channel_country_overrides", "{}") ?: "{}")
-                } catch (_: Exception) { JSONObject() }
-                val chosen = options[index]
-                if (chosen == ChannelOrganization.country(channel)) overrides.remove(channel.id)
-                else overrides.put(channel.id, chosen)
-                prefs.edit().putString("channel_country_overrides", overrides.toString()).apply()
-                dialog.dismiss()
-                render()
-            }.setNegativeButton("Annuler", null).show()
-    }
-
-    private fun showCountryTabs() {
-        val source = channels.filter { !it.radio }
-        val counts = source.groupingBy(::countryOf).eachCount()
-        val countries = listOf(ChannelOrganization.ALL) +
-            ChannelOrganization.countries.filter { counts.containsKey(it) }
-        if (selectedCountry !in countries) selectedCountry = ChannelOrganization.ALL
-        val (scroll, tabs) = horizontalRow()
-        countries.forEach { country ->
-            val total = if (country == ChannelOrganization.ALL) source.size else counts[country] ?: 0
-            val tab = text("$country ($total)", 13f, country == selectedCountry).apply {
-                gravity = Gravity.CENTER
-                setPadding(dp(17), dp(11), dp(17), dp(11))
-                background = rounded(if (selectedCountry == country) selected else surface)
-            }
-            focusable(tab, {
-                if (selectedCountry != country) {
-                    selectedCountry = country
-                    render()
-                }
-            })
-            tabs.addView(tab, LinearLayout.LayoutParams(-2, dp(43)).apply { rightMargin = dp(10) })
-        }
-        content.addView(scroll, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
     }
 
     private fun cardWidth(): Int {
@@ -375,10 +324,7 @@ open class MinimalHomeActivity : Activity() {
             content.addView(scroll)
             return
         }
-        showCountryTabs()
-        val filtered = if (selectedCountry == ChannelOrganization.ALL) channels
-            else channels.filter { countryOf(it) == selectedCountry }
-        val tiles = families.tiles(filtered)
+        val tiles = families.tiles(channels)
         content.addView(pagedHorizontal(tiles) { row, tile ->
             addCard(row, tile.label,
                 if (tile.isGroup) "${tile.members.size} chaînes" else ChannelDescription.summary(tile.first),
@@ -563,8 +509,7 @@ open class MinimalHomeActivity : Activity() {
 
     private fun channelActions(channel: ZenChannel) {
         val labels = arrayOf("Regarder / écouter", "Ajouter aux Favoris",
-            "Ajouter à un groupe", "Afficher séparément", "Regroupement automatique",
-            "Définir le pays")
+            "Ajouter à un groupe", "Afficher séparément", "Regroupement automatique")
         AlertDialog.Builder(this).setTitle(channel.name)
             .setItems(labels) { _, index ->
                 when (index) {
@@ -573,7 +518,6 @@ open class MinimalHomeActivity : Activity() {
                     2 -> chooseGroup(channel)
                     3 -> { families.removeFromGroup(channel.id); render() }
                     4 -> { families.assign(channel.id, null); render() }
-                    5 -> setCountry(channel)
                 }
             }.setNegativeButton("Annuler", null).show()
     }
@@ -608,11 +552,15 @@ open class MinimalHomeActivity : Activity() {
     }
 
     private fun openChannel(channel: ZenChannel) {
-        if (!online || !client.tune(channel)) {
-            Toast.makeText(this, "Récepteur non connecté", Toast.LENGTH_SHORT).show()
-            return
+        val message = when (client.tuneDetailed(channel)) {
+            Zen4Client.TuneResult.SENT -> "Commande envoyée · ${channel.name}"
+            Zen4Client.TuneResult.DISCONNECTED -> "Zen 4 déconnecté · reconnexion nécessaire"
+            Zen4Client.TuneResult.CHANNEL_NOT_FOUND ->
+                "Chaîne absente du catalogue actuel · actualiser Zen 4"
+            Zen4Client.TuneResult.SEND_FAILED ->
+                "Échec d'envoi de commande · vérifiez la connexion"
         }
-        Toast.makeText(this, "Sélection de la chaîne en cours…", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
     /**
