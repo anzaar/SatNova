@@ -36,7 +36,7 @@ import java.util.concurrent.Executors
  * protocol/device validation. No EPG or synthetic channels.
  */
 class MinimalHomeActivity : Activity() {
-    private val background = Color.rgb(15, 18, 23)
+    private val bgColor = Color.rgb(15, 18, 23)
     private val surface = Color.rgb(36, 41, 50)
     private val selected = Color.rgb(56, 70, 90)
     private val fg = Color.rgb(245, 247, 251)
@@ -54,8 +54,8 @@ class MinimalHomeActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = background
-        window.navigationBarColor = background
+        window.statusBarColor = bgColor
+        window.navigationBarColor = bgColor
         render()
         reloadChannels()
     }
@@ -162,7 +162,7 @@ class MinimalHomeActivity : Activity() {
     private fun render() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(background)
+            setBackgroundColor(bgColor)
             setPadding(dp(48), dp(24), dp(48), dp(24))
         }
         val header = LinearLayout(this).apply {
