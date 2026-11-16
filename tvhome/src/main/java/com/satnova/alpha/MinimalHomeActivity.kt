@@ -30,7 +30,8 @@ import android.media.tv.TvInputManager
 import android.os.SystemClock
 
 /** Standalone Android TV launcher. The phone application is not installed on the TV. */
-class MinimalHomeActivity : Activity() {
+open class MinimalHomeActivity : Activity() {
+    protected open val previewMode: Boolean = false
     private val bgColor = Color.rgb(15, 18, 23)
     private val surface = Color.rgb(36, 41, 50)
     private val selected = Color.rgb(56, 70, 90)
@@ -74,12 +75,16 @@ class MinimalHomeActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = bgColor
         window.navigationBarColor = bgColor
+        if (previewMode) {
+            channels = (1..20).map { ZenChannel("demo-$it", "Chaîne $it", it, false) }
+            receiverMessage = "Mode aperçu · aucune connexion à Zen 4"
+        }
         render()
-        client.start()
+        if (!previewMode) client.start()
     }
 
     override fun onDestroy() {
-        client.stop()
+        if (!previewMode) client.stop()
         super.onDestroy()
     }
 
@@ -126,7 +131,8 @@ class MinimalHomeActivity : Activity() {
 
     private fun cardWidth(): Int {
         val w = resources.displayMetrics.widthPixels
-        return ((w - dp(96) - dp(4 * 14)) / 5).coerceAtLeast(dp(108))
+        return if (previewMode) ((w - dp(40) - dp(4 * 8)) / 5).coerceAtLeast(dp(92))
+            else ((w - dp(96) - dp(4 * 14)) / 5).coerceAtLeast(dp(108))
     }
 
     private fun addCard(row: LinearLayout, label: String, subtitle: String?,
@@ -176,7 +182,7 @@ class MinimalHomeActivity : Activity() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(bgColor)
-            setPadding(dp(48), dp(24), dp(48), dp(24))
+            setPadding(dp(if (previewMode) 18 else 48), dp(if (previewMode) 12 else 24), dp(if (previewMode) 18 else 48), dp(if (previewMode) 12 else 24))
         }
         val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -214,7 +220,7 @@ class MinimalHomeActivity : Activity() {
             Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         )
         return intents.flatMap { pm.queryIntentActivities(it, 0) }
-            .filter { it.activityInfo != null && it.activityInfo.name != MinimalHomeActivity::class.java.name }
+            .filter { it.activityInfo != null && it.activityInfo.packageName != packageName }
             .map { AppItem(it.loadLabel(pm).toString(), ComponentName(it.activityInfo.packageName, it.activityInfo.name), it) }
             .distinctBy { it.component.packageName }
             .sortedBy { it.label.lowercase() }
@@ -247,7 +253,7 @@ class MinimalHomeActivity : Activity() {
 
     private fun showTv() {
         section("TV")
-        content.addView(text(receiverMessage, 12f, color = if (online) Color.rgb(135, 206, 172) else muted),
+        content.addView(text(receiverMessage, 12f, color = if (online && !previewMode) Color.rgb(135, 206, 172) else muted),
             LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
         val (scroll, row) = horizontalRow()
         if (channels.isEmpty()) {
@@ -357,6 +363,10 @@ class MinimalHomeActivity : Activity() {
     }
 
     private fun openChannel(channel: ZenChannel) {
+        if (previewMode) {
+            Toast.makeText(this, "Aperçu uniquement · ${channel.name}", Toast.LENGTH_SHORT).show()
+            return
+        }
         if (!online || !client.tune(channel)) {
             Toast.makeText(this, "Récepteur non connecté", Toast.LENGTH_SHORT).show()
             return
@@ -479,6 +489,10 @@ class MinimalHomeActivity : Activity() {
     }
 
     private fun changeIp() {
+        if (previewMode) {
+            Toast.makeText(this, "Connexion au récepteur indisponible en mode aperçu", Toast.LENGTH_SHORT).show()
+            return
+        }
         val input = EditText(this).apply {
             hint = "192.168.1.100"
             setText(client.lastIp)
