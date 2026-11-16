@@ -44,6 +44,8 @@ open class MinimalHomeActivity : Activity() {
     private var online = false
     private var receiverMessage = "Récepteur non connecté"
     private var activePage = 0
+    private var diagnosticToSave: String? = null
+    private val diagnosticSaveRequest = 7124
     private var trackedChannel = ""
     private var trackedSince = 0L
     private var historyRecordedFor = ""
@@ -260,7 +262,22 @@ open class MinimalHomeActivity : Activity() {
 
     private fun showTv() {
         section("TV")
-        content.addView(text(receiverMessage, 12f, color = if (online && !previewMode) Color.rgb(135, 206, 172) else muted),
+        val diagnosticsHeader = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        diagnosticsHeader.addView(
+            text(receiverMessage, 12f, color = if (online) Color.rgb(135, 206, 172) else muted),
+            LinearLayout.LayoutParams(0, -2, 1f)
+        )
+        val export = text("Exporter Zen 4", 12f, true).apply {
+            gravity = Gravity.CENTER
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = rounded(surface)
+        }
+        focusable(export, { saveReceiverDiagnostic() })
+        diagnosticsHeader.addView(export)
+        content.addView(diagnosticsHeader,
             LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
         val (scroll, row) = horizontalRow()
         if (channels.isEmpty()) {
@@ -511,7 +528,7 @@ open class MinimalHomeActivity : Activity() {
         val options = arrayOf("Applications favorites", "Ajouter une page Favoris",
             "Renommer la page Favoris", "Adresse IP de Zen 4",
             "Afficher / masquer l'historique", "Entrée HDMI : détection automatique",
-            "Actualiser les logos")
+            "Actualiser les logos", "Télécharger diagnostic Zen 4 (JSON)")
         AlertDialog.Builder(this).setTitle("Paramètres")
             .setItems(options) { _, index ->
                 when (index) {
@@ -526,8 +543,51 @@ open class MinimalHomeActivity : Activity() {
                     }
                     5 -> Toast.makeText(this, "Détection HDMI automatique, HDMI 1 en secours", Toast.LENGTH_SHORT).show()
                     6 -> { logos.retryFailed(); render() }
+                    7 -> saveReceiverDiagnostic()
                 }
             }.show()
+    }
+
+    /**
+     * Save a compact, privacy-filtered snapshot from *actual* read-only
+     * receiver responses. No extra protocol command, settings change,
+     * image scraping or receiver login data export.
+     */
+    private fun saveReceiverDiagnostic() {
+        diagnosticToSave = try { client.exportDiagnostic() } catch (_: Exception) {
+            Toast.makeText(this, "Impossible de préparer le diagnostic", Toast.LENGTH_LONG).show()
+            null
+        }
+        if (diagnosticToSave == null) return
+        val filename = "Zen4_CHMAX_Diagnostic_" + System.currentTimeMillis() + ".json"
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+            putExtra(Intent.EXTRA_TITLE, filename)
+        }
+        try {
+            startActivityForResult(intent, diagnosticSaveRequest)
+        } catch (_: Exception) {
+            diagnosticToSave = null
+            Toast.makeText(this, "Aucune application pour enregistrer ce fichier", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    @Deprecated("Used for compatibility with Android 8+ and the system document picker")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != diagnosticSaveRequest) return
+        val json = diagnosticToSave
+        diagnosticToSave = null
+        if (resultCode != Activity.RESULT_OK || data?.data == null || json == null) return
+        try {
+            contentResolver.openOutputStream(data.data!!, "w")?.use { output ->
+                output.write(json.toByteArray(Charsets.UTF_8))
+            } ?: error("Écriture indisponible")
+            Toast.makeText(this, "Diagnostic Zen 4 enregistré", Toast.LENGTH_LONG).show()
+        } catch (_: Exception) {
+            Toast.makeText(this, "Échec de l'enregistrement du diagnostic", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun search() {
