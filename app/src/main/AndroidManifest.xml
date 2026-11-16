@@ -28,7 +28,7 @@
         <activity android:name=".SatelliteFinderActivity" android:exported="false" />
         <activity android:name=".LiveTvActivity" android:exported="false" />
         <activity android:name=".VlcLiveActivity" android:exported="false" />
-        <activity android:name=".MinimalHomeActivity" android:exported="true">
+        <activity android:name=".MinimalHomeActivity" android:label="SatNova Home Alpha" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.HOME"/>
