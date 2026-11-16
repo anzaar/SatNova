@@ -180,11 +180,17 @@ open class MinimalHomeActivity : Activity() {
             val logoImage = ImageView(this).apply {
                 setImageDrawable(icon)
                 scaleType = ImageView.ScaleType.FIT_CENTER
+                if (logoChannel != null) {
+                    // Contrast plate for both white and black transparent picons.
+                    background = rounded(Color.rgb(90, 98, 111))
+                    setPadding(dp(5), dp(5), dp(5), dp(5))
+                }
                 contentDescription = if (logoChannel != null) "Logo de $label" else label
             }
-            card.addView(logoImage, LinearLayout.LayoutParams(dp(54), dp(48)).apply {
-                bottomMargin = dp(5)
-            })
+            card.addView(logoImage, LinearLayout.LayoutParams(
+                dp(if (logoChannel != null) 82 else 54),
+                dp(if (logoChannel != null) 62 else 48)
+            ).apply { bottomMargin = dp(5) })
             if (logoChannel != null) logos.bind(logoImage, logoChannel)
         }
         card.addView(text(label, 14f, true).apply { gravity = Gravity.CENTER },
@@ -194,7 +200,7 @@ open class MinimalHomeActivity : Activity() {
                 LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
         focusable(card, click, longClick)
-        row.addView(card, LinearLayout.LayoutParams(cardWidth(), dp(116)).apply { rightMargin = dp(14) })
+        row.addView(card, LinearLayout.LayoutParams(cardWidth(), dp(136)).apply { rightMargin = dp(14) })
     }
 
     private fun section(title: String) {
