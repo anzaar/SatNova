@@ -365,18 +365,33 @@ class MinimalHomeActivity : Activity() {
     }
 
     /** Only try a verified HDMI 1 input. A third-party app may be blocked by the TV vendor. */
+    /**
+     * Detect the uniquely connected HDMI input on Lifemaxx.
+     * TvInputManager reports input connectivity, not guaranteed active video.
+     * If state is missing/ambiguous, use HDMI 1 only when its input is visible.
+     * Never guess an input if the TV does not expose it.
+     */
     private fun openHdmi1IfPossible() {
+        var suggested = "HDMI 1"
         val handled = try {
             val manager = getSystemService(Context.TV_INPUT_SERVICE) as? TvInputManager
-            val hdmi = manager?.tvInputList?.firstOrNull { input ->
-                input.type == TvInputInfo.TYPE_HDMI && (
-                    input.loadLabel(this).toString().replace(" ", "").equals("HDMI1", ignoreCase = true) ||
+            val inputs = manager?.tvInputList?.filter { it.type == TvInputInfo.TYPE_HDMI } ?: emptyList()
+            val connected = inputs.filter { input ->
+                try { manager?.getInputState(input.id) == TvInputManager.INPUT_STATE_CONNECTED }
+                catch (_: Exception) { false }
+            }
+            val knownHdmi1 = inputs.firstOrNull { input ->
+                val label = input.loadLabel(this).toString().replace(Regex("\\s+"), "")
+                label.equals("HDMI1", ignoreCase = true) ||
                     input.id.contains("HDMI1", ignoreCase = true) ||
                     input.id.contains("HDMI_1", ignoreCase = true)
-                )
             }
-            if (hdmi != null) {
-                val uri = TvContract.buildChannelUriForPassthroughInput(hdmi.id)
+            val target = if (connected.size == 1) connected.first() else knownHdmi1
+            if (connected.size == 1 && target != null) {
+                suggested = target.loadLabel(this).toString()
+            }
+            if (target != null) {
+                val uri = TvContract.buildChannelUriForPassthroughInput(target.id)
                 val intent = Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 if (intent.resolveActivity(packageManager) != null) {
                     startActivity(intent)
@@ -386,7 +401,7 @@ class MinimalHomeActivity : Activity() {
         } catch (_: Exception) { false }
         if (!handled) {
             Toast.makeText(this,
-                "Chaîne sélectionnée · utiliser SOURCE puis HDMI 1",
+                "Chaîne sélectionnée · utiliser SOURCE puis " + suggested,
                 Toast.LENGTH_LONG).show()
         }
     }
@@ -482,7 +497,7 @@ class MinimalHomeActivity : Activity() {
     private fun settings() {
         val options = arrayOf("Applications favorites", "Ajouter une page Favoris",
             "Renommer la page Favoris", "Adresse IP de Zen 4",
-            "Afficher / masquer l'historique", "Entrée vidéo : HDMI 1")
+            "Afficher / masquer l'historique", "Entrée HDMI : détection automatique")
         AlertDialog.Builder(this).setTitle("Paramètres")
             .setItems(options) { _, index ->
                 when (index) {
@@ -495,7 +510,7 @@ class MinimalHomeActivity : Activity() {
                         prefs.edit().putBoolean("show_history", next).apply()
                         render()
                     }
-                    5 -> Toast.makeText(this, "HDMI 1 sélectionné pour Zen 4", Toast.LENGTH_SHORT).show()
+                    5 -> Toast.makeText(this, "Détection HDMI automatique, HDMI 1 en secours", Toast.LENGTH_SHORT).show()
                 }
             }.show()
     }
