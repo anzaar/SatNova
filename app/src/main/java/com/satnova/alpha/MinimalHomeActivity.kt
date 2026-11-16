@@ -286,7 +286,6 @@ class MinimalHomeActivity : Activity() {
             focusable(chip, { activePage = index; render() }, { editPage(index) })
             row.addView(chip, LinearLayout.LayoutParams(-2, dp(46)).apply { rightMargin = dp(10) })
         }
-        tabs.addView(View(this), LinearLayout.LayoutParams(dp(1), dp(1)))
         content.addView(tabs)
         val (scroll, favorites) = horizontalRow()
         val channelMap = channels.associateBy { it.id }
