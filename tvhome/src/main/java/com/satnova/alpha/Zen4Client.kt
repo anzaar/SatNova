@@ -133,26 +133,38 @@ internal class Zen4Client(private val context: Context, private val listener: Li
         return true
     }
 
-    fun tune(channel: ZenChannel): Boolean {
+    enum class TuneResult { SENT, DISCONNECTED, CHANNEL_NOT_FOUND, SEND_FAILED }
+
+    /** Distinguish lost transport from a stale cached service ID or a write failure. */
+    fun tuneDetailed(channel: ZenChannel): TuneResult {
         val sock = session
-        if (!connected || sock == null || channels.none { it.id == channel.id }) return false
-        pendingTune = channel.id
-        pendingTuneAt = SystemClock.elapsedRealtime()
+        if (!authorized || sock == null || sock.isClosed || !sock.isConnected)
+            return TuneResult.DISCONNECTED
+        if (channels.none { it.id == channel.id })
+            return TuneResult.CHANNEL_NOT_FOUND
         try {
             val req = if (jsonMode) JSONObject().put("request", "1000")
                 .put("array", JSONArray().put(JSONObject()
                     .put("TvState", if (channel.radio) "1" else "0")
                     .put("ProgramId", channel.id))).toString()
-            else "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1000\"><parm><TvState>" +
+            else "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\\"1000\\"><parm><TvState>" +
                 (if (channel.radio) "1" else "0") + "</TvState><ProgramId>" + channel.id +
                 "</ProgramId></parm></Command>"
-            synchronized(writeLock) { sendFrame(sock, req) }
-            return true
+            synchronized(writeLock) {
+                if (session !== sock || sock.isClosed) return TuneResult.DISCONNECTED
+                sendFrame(sock, req)
+            }
+            pendingTune = channel.id
+            pendingTuneAt = SystemClock.elapsedRealtime()
+            return TuneResult.SENT
         } catch (_: Exception) {
             pendingTune = ""
-            return false
+            try { sock.close() } catch (_: Exception) {}
+            return TuneResult.SEND_FAILED
         }
     }
+
+    fun tune(channel: ZenChannel): Boolean = tuneDetailed(channel) == TuneResult.SENT
 
     private fun privateIp(ip: String): Boolean {
         val v = ip.split('.').map { it.toIntOrNull() }
