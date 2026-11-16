@@ -50,6 +50,7 @@ open class MinimalHomeActivity : Activity() {
     private var online = false
     private var receiverMessage = "Récepteur non connecté"
     private var activePage = 0
+    private var selectedCountry = ChannelOrganization.ALL
     private var diagnosticToSave: String? = null
     private val diagnosticSaveRequest = 7124
     private var trackedChannel = ""
@@ -138,6 +139,76 @@ open class MinimalHomeActivity : Activity() {
         }
         scroll.addView(row)
         return scroll to row
+    }
+
+    /**
+     * Render 20 items immediately; append 20 more near the right edge,
+     * preserving focus and horizontal scroll instead of rebuilding the screen.
+     */
+    private fun <T> pagedHorizontal(items: List<T>,
+        renderer: (LinearLayout, T) -> Unit): HorizontalScrollView {
+        val (scroll, row) = horizontalRow()
+        var loaded = 0
+        fun appendBatch() {
+            val next = (loaded + 20).coerceAtMost(items.size)
+            for (index in loaded until next) renderer(row, items[index])
+            loaded = next
+        }
+        appendBatch()
+        scroll.setOnScrollChangeListener { _, x, _, _, _ ->
+            if (loaded < items.size && x + scroll.width >= row.width - dp(140)) appendBatch()
+        }
+        return scroll
+    }
+
+    private fun countryOf(channel: ZenChannel): String {
+        val fallback = ChannelOrganization.country(channel)
+        val overrides = try { JSONObject(prefs.getString("channel_country_overrides", "{}") ?: "{}") }
+            catch (_: Exception) { JSONObject() }
+        return overrides.optString(channel.id, fallback)
+            .takeIf { it in ChannelOrganization.countries } ?: fallback
+    }
+
+    private fun setCountry(channel: ZenChannel) {
+        val options = ChannelOrganization.countries
+        val selected = options.indexOf(countryOf(channel)).coerceAtLeast(0)
+        AlertDialog.Builder(this).setTitle("Pays · " + channel.name)
+            .setSingleChoiceItems(options.toTypedArray(), selected) { dialog, index ->
+                val overrides = try {
+                    JSONObject(prefs.getString("channel_country_overrides", "{}") ?: "{}")
+                } catch (_: Exception) { JSONObject() }
+                val chosen = options[index]
+                if (chosen == ChannelOrganization.country(channel)) overrides.remove(channel.id)
+                else overrides.put(channel.id, chosen)
+                prefs.edit().putString("channel_country_overrides", overrides.toString()).apply()
+                dialog.dismiss()
+                render()
+            }.setNegativeButton("Annuler", null).show()
+    }
+
+    private fun showCountryTabs() {
+        val source = channels.filter { !it.radio }
+        val counts = source.groupingBy(::countryOf).eachCount()
+        val countries = listOf(ChannelOrganization.ALL) +
+            ChannelOrganization.countries.filter { counts.containsKey(it) }
+        if (selectedCountry !in countries) selectedCountry = ChannelOrganization.ALL
+        val (scroll, tabs) = horizontalRow()
+        countries.forEach { country ->
+            val total = if (country == ChannelOrganization.ALL) source.size else counts[country] ?: 0
+            val tab = text("$country ($total)", 13f, country == selectedCountry).apply {
+                gravity = Gravity.CENTER
+                setPadding(dp(17), dp(11), dp(17), dp(11))
+                background = rounded(if (selectedCountry == country) selected else surface)
+            }
+            focusable(tab, {
+                if (selectedCountry != country) {
+                    selectedCountry = country
+                    render()
+                }
+            })
+            tabs.addView(tab, LinearLayout.LayoutParams(-2, dp(43)).apply { rightMargin = dp(10) })
+        }
+        content.addView(scroll, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
     }
 
     private fun cardWidth(): Int {
@@ -296,37 +367,41 @@ open class MinimalHomeActivity : Activity() {
             LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(8) })
         content.addView(diagnosticsHeader,
             LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
-        val (scroll, row) = horizontalRow()
         if (channels.isEmpty()) {
+            val (scroll, row) = horizontalRow()
             addCard(row, if (online) "Chargement…" else "Récepteur non connecté",
                 if (online) "Lecture des chaînes" else "Connexion Wi-Fi",
                 getDrawable(android.R.drawable.ic_menu_info_details), { settings() })
-        } else {
-            families.tiles(channels).take(20).forEach { tile ->
-                addCard(row, tile.label,
-                    if (tile.isGroup) "${tile.members.size} chaînes" else ChannelDescription.summary(tile.first),
-                    getDrawable(android.R.drawable.ic_media_play),
-                    { if (tile.isGroup) showFamily(tile) else openChannel(tile.first) },
-                    { if (tile.isGroup) editFamily(tile) else channelActions(tile.first) }, tile.first)
-            }
+            content.addView(scroll)
+            return
         }
-        content.addView(scroll)
+        showCountryTabs()
+        val filtered = if (selectedCountry == ChannelOrganization.ALL) channels
+            else channels.filter { countryOf(it) == selectedCountry }
+        val tiles = families.tiles(filtered)
+        content.addView(pagedHorizontal(tiles) { row, tile ->
+            addCard(row, tile.label,
+                if (tile.isGroup) "\${tile.members.size} chaînes" else ChannelDescription.summary(tile.first),
+                getDrawable(android.R.drawable.ic_media_play),
+                { if (tile.isGroup) showFamily(tile) else openChannel(tile.first) },
+                { if (tile.isGroup) editFamily(tile) else channelActions(tile.first) }, tile.first)
+        })
     }
 
     private fun showRadios() {
         section("Radios")
-        val (scroll, row) = horizontalRow()
         if (radios.isEmpty()) {
+            val (scroll, row) = horizontalRow()
             addCard(row, "Aucune radio", "En attente du catalogue",
                 getDrawable(android.R.drawable.ic_media_play), { settings() })
+            content.addView(scroll)
         } else {
-            radios.take(20).forEach { radio ->
+            content.addView(pagedHorizontal(radios) { row, radio ->
                 addCard(row, radio.name, ChannelDescription.summary(radio),
                     getDrawable(android.R.drawable.ic_media_play),
                     { openChannel(radio) }, { addChannelToPage(radio) }, radio)
-            }
+            })
         }
-        content.addView(scroll)
     }
 
     private fun showHistory() {
