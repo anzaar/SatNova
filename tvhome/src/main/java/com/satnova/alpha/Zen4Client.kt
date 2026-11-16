@@ -24,7 +24,10 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.InflaterInputStream
 
 /** Zen 4 control channel from the TV itself; it never uses the phone's app data. */
-internal data class ZenChannel(val id: String, val name: String, val position: Int, val radio: Boolean)
+internal data class ZenChannel(
+    val id: String, val name: String, val position: Int, val radio: Boolean,
+    val logoUrl: String? = null
+)
 
 internal class Zen4Client(private val context: Context, private val listener: Listener) {
     interface Listener {
@@ -307,7 +310,12 @@ internal class Zen4Client(private val context: Context, private val listener: Li
                     val position = value(obj, "ChannelNumber", "ChannelNo", "ChNum", "ProgramNumber")?.toIntOrNull()
                         ?: value(obj, "ChannelIndex", "Index")?.toIntOrNull()?.plus(1)
                         ?: collected.size + 1
-                    collected[id] = ZenChannel(id, name, position, value(obj, "Radio", "TvState") == "1")
+                    val receiverLogo = ChannelLogoSource.verifiedHttpLogo(value(obj,
+                        "LogoUrl", "ChannelLogoUrl", "IconUrl", "ChannelIconUrl",
+                        "PiconUrl", "Logo", "ChannelIcon", "Icon", "Picon"))
+                    collected[id] = ZenChannel(id, name, position,
+                        value(obj, "Radio", "TvState") == "1",
+                        receiverLogo ?: collected[id]?.logoUrl)
                     changed = true
                 }
             }
@@ -339,7 +347,8 @@ internal class Zen4Client(private val context: Context, private val listener: Li
         val array = JSONArray()
         channels.take(20000).forEach {
             array.put(JSONObject().put("id", it.id).put("name", it.name)
-                .put("position", it.position).put("radio", it.radio))
+                .put("position", it.position).put("radio", it.radio)
+                .put("logoUrl", it.logoUrl))
         }
         val tmp = java.io.File(context.filesDir, "zen-catalogue.tmp")
         val dest = java.io.File(context.filesDir, "zen-catalogue.json")
@@ -362,7 +371,10 @@ internal class Zen4Client(private val context: Context, private val listener: Li
                     val id = obj.optString("id")
                     val name = obj.optString("name")
                     if (id.isNotBlank() && name.isNotBlank()) {
-                        collected[id] = ZenChannel(id, name, obj.optInt("position", it + 1), obj.optBoolean("radio"))
+                        collected[id] = ZenChannel(
+                            id, name, obj.optInt("position", it + 1),
+                            obj.optBoolean("radio"),
+                            ChannelLogoSource.verifiedHttpLogo(obj.optString("logoUrl", "")))
                     }
                 }
             }
