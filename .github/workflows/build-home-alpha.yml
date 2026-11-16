@@ -36,11 +36,11 @@ jobs:
         with:
           gradle-version: '8.9'
       - name: Compile home alpha without publishing SatNova stable release
-        run: gradle --no-daemon --stacktrace :app:assembleDebug
+        run: gradle --no-daemon --stacktrace :tvhome:assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: Minimal-TV-Home-Alpha
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: tvhome/build/outputs/apk/debug/tvhome-debug.apk
           if-no-files-found: error
           retention-days: 14
 
@@ -56,12 +56,12 @@ jobs:
             echo "Skipping obsolete Alpha APK"
             exit 0
           fi
-          cp app/build/outputs/apk/debug/app-debug.apk SatNova-Home-Alpha.apk
+          cp tvhome/build/outputs/apk/debug/tvhome-debug.apk SatNova-Home-Alpha.apk
           if ! gh release view v0.1-home-alpha >/dev/null 2>&1; then
             gh release create v0.1-home-alpha --prerelease \
               --title "SatNova Home — Alpha 0.1" \
               --target "$GITHUB_SHA" \
-              --notes "Prototype Launcher Google TV en français : bouton Accueil sans texte, applications favorites, TV depuis le cache SatNova, pages Favoris locales. APK de test distinct de SatNova, ne remplace pas l'installation existante. Fonctions HDMI, Favoris Zen 4 et reconnexion autonome non encore validées."
+              --notes "Launcher Google TV indépendant. Connexion LAN Zen 4 à tester sur matériel réel, HDMI 1 via source TV si l'ouverture directe est indisponible. Ne remplace pas SatNova sur téléphone."
           else
             gh release edit v0.1-home-alpha --target "$GITHUB_SHA"
           fi
