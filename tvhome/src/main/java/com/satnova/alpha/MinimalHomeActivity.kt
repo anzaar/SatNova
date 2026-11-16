@@ -28,6 +28,9 @@ import android.media.tv.TvContract
 import android.media.tv.TvInputInfo
 import android.media.tv.TvInputManager
 import android.os.SystemClock
+import android.content.ClipboardManager
+import android.content.ClipData
+import java.util.concurrent.Executors
 
 /** Standalone Android TV launcher. The phone application is not installed on the TV. */
 open class MinimalHomeActivity : Activity() {
@@ -40,6 +43,7 @@ open class MinimalHomeActivity : Activity() {
     private val border = Color.rgb(126, 159, 208)
     private val prefs by lazy { getSharedPreferences("satnova_minimal_home", Context.MODE_PRIVATE) }
     private val logos by lazy { ChannelLogoStore(this) }
+    private val fileProbeWorker = Executors.newSingleThreadExecutor()
     private var channels: List<ZenChannel> = emptyList()
     private var online = false
     private var receiverMessage = "Récepteur non connecté"
@@ -87,6 +91,7 @@ open class MinimalHomeActivity : Activity() {
 
     override fun onDestroy() {
         client.stop()
+        fileProbeWorker.shutdownNow()
         logos.close()
         super.onDestroy()
     }
@@ -277,6 +282,14 @@ open class MinimalHomeActivity : Activity() {
         }
         focusable(export, { saveReceiverDiagnostic() })
         diagnosticsHeader.addView(export)
+        val files = text("Fichiers Wi-Fi", 12f, true).apply {
+            gravity = Gravity.CENTER
+            setPadding(dp(12), dp(10), dp(12), dp(10))
+            background = rounded(surface)
+        }
+        focusable(files, { checkReceiverFileAccess() })
+        diagnosticsHeader.addView(files,
+            LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(8) })
         content.addView(diagnosticsHeader,
             LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
         val (scroll, row) = horizontalRow()
@@ -528,7 +541,8 @@ open class MinimalHomeActivity : Activity() {
         val options = arrayOf("Applications favorites", "Ajouter une page Favoris",
             "Renommer la page Favoris", "Adresse IP de Zen 4",
             "Afficher / masquer l'historique", "Entrée HDMI : détection automatique",
-            "Actualiser les logos", "Télécharger diagnostic Zen 4 (JSON)")
+            "Actualiser les logos", "Télécharger diagnostic Zen 4 (JSON)",
+            "Vérifier accès aux fichiers Zen 4 (Wi-Fi)")
         AlertDialog.Builder(this).setTitle("Paramètres")
             .setItems(options) { _, index ->
                 when (index) {
@@ -544,6 +558,7 @@ open class MinimalHomeActivity : Activity() {
                     5 -> Toast.makeText(this, "Détection HDMI automatique, HDMI 1 en secours", Toast.LENGTH_SHORT).show()
                     6 -> { logos.retryFailed(); render() }
                     7 -> saveReceiverDiagnostic()
+                    8 -> checkReceiverFileAccess()
                 }
             }.show()
     }
@@ -587,6 +602,36 @@ open class MinimalHomeActivity : Activity() {
             Toast.makeText(this, "Diagnostic Zen 4 enregistré", Toast.LENGTH_LONG).show()
         } catch (_: Exception) {
             Toast.makeText(this, "Échec de l'enregistrement du diagnostic", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /**
+     * Safe service discovery on the *authenticated* Zen4 IP only.
+     * Tests common file sharing ports; never enumerates files or uses passwords.
+     */
+    private fun checkReceiverFileAccess() {
+        val host = client.verifiedHost
+        if (host == null) {
+            Toast.makeText(this, "Connectez Zen 4 avant le test Wi-Fi", Toast.LENGTH_LONG).show()
+            return
+        }
+        Toast.makeText(this, "Vérification des services réseau…", Toast.LENGTH_SHORT).show()
+        fileProbeWorker.execute {
+            val result = try { Zen4FileAccessProbe.inspect(host) }
+                catch (_: Exception) { "Impossible de vérifier les services réseau." }
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                AlertDialog.Builder(this)
+                    .setTitle("Fichiers Zen 4 · Wi-Fi")
+                    .setMessage(result)
+                    .setPositiveButton("Copier le résultat") { _, _ ->
+                        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Zen 4 · Diagnostic réseau", result))
+                        Toast.makeText(this, "Résultat copié", Toast.LENGTH_SHORT).show()
+                    }
+                    .setNegativeButton("Fermer", null)
+                    .show()
+            }
         }
     }
 
