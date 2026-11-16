@@ -391,7 +391,7 @@ class MinimalHomeActivity : Activity() {
         }
     }
 
-    private fun addChannelToPage(channel: CatalogIndex.Channel) {
+    private fun addChannelToPage(channel: ZenChannel) {
         val list = pages()
         AlertDialog.Builder(this).setTitle("Ajouter aux favoris")
             .setItems(list.map(LocalPage::title).toTypedArray()) { _, index ->
@@ -519,20 +519,4 @@ class MinimalHomeActivity : Activity() {
             }.setNegativeButton("Annuler", null).show()
     }
 
-    private fun reloadChannels() {
-        worker.execute {
-            val directory = File(filesDir, "receiver-catalogues")
-            val last = directory.listFiles()?.filter {
-                it.isFile && it.name.matches(Regex("[a-f0-9]{64}\\.json"))
-            }?.maxByOrNull { it.lastModified() }
-            val snapshot = last?.nameWithoutExtension?.let { key ->
-                ReceiverCatalogueCache(directory).load(key)
-            }
-            val loaded = if (snapshot != null) {
-                CatalogIndex(snapshot.channels, snapshot.satellites, snapshot.transponders)
-                    .channelRows.filter { !it.radio }.sortedBy { it.position }
-            } else emptyList()
-            runOnUiThread { if (!isFinishing && !isDestroyed) { channels = loaded; render() } }
-        }
-    }
 }
