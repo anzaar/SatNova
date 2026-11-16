@@ -381,7 +381,7 @@ open class MinimalHomeActivity : Activity() {
         val tiles = families.tiles(filtered)
         content.addView(pagedHorizontal(tiles) { row, tile ->
             addCard(row, tile.label,
-                if (tile.isGroup) "\${tile.members.size} chaînes" else ChannelDescription.summary(tile.first),
+                if (tile.isGroup) "${tile.members.size} chaînes" else ChannelDescription.summary(tile.first),
                 getDrawable(android.R.drawable.ic_media_play),
                 { if (tile.isGroup) showFamily(tile) else openChannel(tile.first) },
                 { if (tile.isGroup) editFamily(tile) else channelActions(tile.first) }, tile.first)
@@ -563,7 +563,8 @@ open class MinimalHomeActivity : Activity() {
 
     private fun channelActions(channel: ZenChannel) {
         val labels = arrayOf("Regarder / écouter", "Ajouter aux Favoris",
-            "Ajouter à un groupe", "Afficher séparément", "Regroupement automatique")
+            "Ajouter à un groupe", "Afficher séparément", "Regroupement automatique",
+            "Définir le pays")
         AlertDialog.Builder(this).setTitle(channel.name)
             .setItems(labels) { _, index ->
                 when (index) {
@@ -572,6 +573,7 @@ open class MinimalHomeActivity : Activity() {
                     2 -> chooseGroup(channel)
                     3 -> { families.removeFromGroup(channel.id); render() }
                     4 -> { families.assign(channel.id, null); render() }
+                    5 -> setCountry(channel)
                 }
             }.setNegativeButton("Annuler", null).show()
     }
