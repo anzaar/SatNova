@@ -422,6 +422,114 @@ open class MinimalHomeActivity : Activity() {
         content.addView(scroll, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14) })
     }
 
+    /** A family tile opens a chooser, never tunes an arbitrary variant on first click. */
+    private fun showFamily(tile: ChannelFamilies.Tile) {
+        val rows = tile.members.sortedBy { it.position }
+        AlertDialog.Builder(this)
+            .setTitle(tile.label)
+            .setItems(rows.map { c -> "${c.name}   ·   ${ChannelDescription.full(c)}" }.toTypedArray()) { _, index ->
+                openChannel(rows[index])
+            }
+            .setNeutralButton("Modifier le groupe") { _, _ -> editFamily(tile) }
+            .setNegativeButton("Fermer", null)
+            .show()
+    }
+
+    private fun editFamily(tile: ChannelFamilies.Tile) {
+        val groupKey = tile.key ?: run { channelActions(tile.first); return }
+        val options = arrayOf("Ajouter une chaîne", "Retirer une chaîne",
+            "Dissocier le groupe", "Choisir une version")
+        AlertDialog.Builder(this).setTitle("Groupe · ${tile.label}")
+            .setItems(options) { _, index ->
+                when (index) {
+                    0 -> addToGroup(groupKey)
+                    1 -> removeFromGroup(tile)
+                    2 -> AlertDialog.Builder(this).setTitle("Dissocier ce groupe ?")
+                        .setMessage("Les chaînes resteront dans la liste, avec leur ordre original.")
+                        .setPositiveButton("Dissocier") { _, _ -> families.ungroup(tile); render() }
+                        .setNegativeButton("Annuler", null).show()
+                    3 -> showFamily(tile)
+                }
+            }.setNegativeButton("Annuler", null).show()
+    }
+
+    private fun addToGroup(key: String) {
+        val input = EditText(this).apply {
+            hint = "Chercher une chaîne par nom"
+            isSingleLine = true
+        }
+        AlertDialog.Builder(this).setTitle("Ajouter à ${families.nameOf(key)}")
+            .setView(input)
+            .setPositiveButton("Rechercher") { _, _ ->
+                val query = input.text.toString().trim()
+                if (query.isBlank()) return@setPositiveButton
+                val matches = channels.filter { it.name.contains(query, ignoreCase = true) }
+                    .take(100)
+                if (matches.isEmpty()) {
+                    Toast.makeText(this, "Aucune chaîne trouvée", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                AlertDialog.Builder(this).setTitle("Choisir une chaîne")
+                    .setItems(matches.map { "${it.name} · ${ChannelDescription.full(it)}" }.toTypedArray()) { _, index ->
+                        families.assign(matches[index].id, key)
+                        render()
+                    }.setNegativeButton("Annuler", null).show()
+            }.setNegativeButton("Annuler", null).show()
+    }
+
+    private fun removeFromGroup(tile: ChannelFamilies.Tile) {
+        val members = tile.members
+        AlertDialog.Builder(this).setTitle("Retirer du groupe · ${tile.label}")
+            .setItems(members.map { "${it.name} · ${ChannelDescription.full(it)}" }.toTypedArray()) { _, index ->
+                families.removeFromGroup(members[index].id)
+                render()
+            }.setNegativeButton("Annuler", null).show()
+    }
+
+    private fun channelActions(channel: ZenChannel) {
+        val labels = arrayOf("Regarder / écouter", "Ajouter aux Favoris",
+            "Ajouter à un groupe", "Afficher séparément", "Regroupement automatique")
+        AlertDialog.Builder(this).setTitle(channel.name)
+            .setItems(labels) { _, index ->
+                when (index) {
+                    0 -> openChannel(channel)
+                    1 -> addChannelToPage(channel)
+                    2 -> chooseGroup(channel)
+                    3 -> { families.removeFromGroup(channel.id); render() }
+                    4 -> { families.assign(channel.id, null); render() }
+                }
+            }.setNegativeButton("Annuler", null).show()
+    }
+
+    private fun chooseGroup(channel: ZenChannel) {
+        if (channel.radio) {
+            Toast.makeText(this, "Les groupes TV sont réservés aux chaînes TV", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val keys = families.keys(channels)
+        val labels = keys.map { it.second } + "Créer un groupe…"
+        AlertDialog.Builder(this).setTitle("Ajouter à un groupe · ${channel.name}")
+            .setItems(labels.toTypedArray()) { _, index ->
+                if (index == keys.size) {
+                    val input = EditText(this).apply {
+                        hint = "Nom du groupe"
+                        isSingleLine = true
+                    }
+                    AlertDialog.Builder(this).setTitle("Nouveau groupe")
+                        .setView(input)
+                        .setPositiveButton("Créer") { _, _ ->
+                            families.create(input.text.toString())?.let { key ->
+                                families.assign(channel.id, key)
+                                render()
+                            }
+                        }.setNegativeButton("Annuler", null).show()
+                } else {
+                    families.assign(channel.id, keys[index].first)
+                    render()
+                }
+            }.setNegativeButton("Annuler", null).show()
+    }
+
     private fun openChannel(channel: ZenChannel) {
         if (!online || !client.tune(channel)) {
             Toast.makeText(this, "Récepteur non connecté", Toast.LENGTH_SHORT).show()
