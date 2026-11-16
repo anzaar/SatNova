@@ -55,6 +55,7 @@ internal class Zen4Client(private val context: Context, private val listener: Li
     private var requestedThrough = -1
     private var knownCount = 0
     private val collected = linkedMapOf<String, ZenChannel>()
+    private val diagnostic = Zen4Diagnostic()
     private val uuid: String by lazy {
         prefs.getString("uuid", null) ?: UUID.randomUUID().toString().also {
             prefs.edit().putString("uuid", it).apply()
@@ -64,6 +65,9 @@ internal class Zen4Client(private val context: Context, private val listener: Li
     val connected: Boolean get() = authorized && session != null
     val lastIp: String get() = prefs.getString("last_receiver_ip", "") ?: ""
     val channels: List<ZenChannel> get() = synchronized(collected) { collected.values.sortedBy { it.position } }
+
+    /** Export only observed safe metadata. No commands are sent by this function. */
+    fun exportDiagnostic(): String = diagnostic.export(connected, channels)
 
     private fun tell(online: Boolean, msg: String) = main.post { listener.state(online, msg) }
     private fun publish() {
@@ -296,6 +300,7 @@ internal class Zen4Client(private val context: Context, private val listener: Li
         val decoded = try { InflaterInputStream(ByteArrayInputStream(bytes)).use { it.readBytes() } }
             catch (_: Exception) { bytes }
         val items = rows(decoded.toString(StandardCharsets.UTF_8))
+        diagnostic.observe(kind, status, items)
         if (kind == 15 || kind == 14) {
             items.firstOrNull()?.let { obj ->
                 knownCount = value(obj, "ChannelNum")?.toIntOrNull()?.coerceIn(0, 20000) ?: knownCount
