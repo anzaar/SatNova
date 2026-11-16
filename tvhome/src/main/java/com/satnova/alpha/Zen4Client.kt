@@ -64,6 +64,8 @@ internal class Zen4Client(private val context: Context, private val listener: Li
 
     val connected: Boolean get() = authorized && session != null
     val lastIp: String get() = prefs.getString("last_receiver_ip", "") ?: ""
+    /** Only the host of the currently authenticated LAN session may be probed. */
+    val verifiedHost: String? get() = connectedHost.takeIf { connected && privateIp(it) }
     val channels: List<ZenChannel> get() = synchronized(collected) { collected.values.sortedBy { it.position } }
 
     /** Export only observed safe metadata. No commands are sent by this function. */
