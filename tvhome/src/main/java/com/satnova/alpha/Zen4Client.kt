@@ -239,13 +239,15 @@ internal class Zen4Client(private val context: Context, private val listener: Li
                 }
                 if (now - lastChannelPoll > 3500) {
                     val size = synchronized(collected) { collected.size }
-                    if (knownCount == 0 || size < knownCount) {
-                        val start = if (requestedThrough < 0) 0 else requestedThrough + 1
-                        if (start < 20000) {
-                            val end = (start + 99).coerceAtMost(19999)
-                            request(sock, 0, start, end)
-                            requestedThrough = end
-                        }
+                    val start = if (requestedThrough < 0) 0 else requestedThrough + 1
+                    // The receiver's ChannelNum counts catalogue slots. Duplicate or
+                    // unparseable IDs must not trigger requests beyond the final slot.
+                    // Without ChannelNum, keep the conservative 20k safety ceiling.
+                    val limitExclusive = if (knownCount > 0) knownCount else 20000
+                    if (start < limitExclusive && (knownCount == 0 || size < knownCount)) {
+                        val end = (start + 99).coerceAtMost(limitExclusive - 1, 19999)
+                        request(sock, 0, start, end)
+                        requestedThrough = end
                     }
                     lastChannelPoll = now
                 }
@@ -312,8 +314,12 @@ internal class Zen4Client(private val context: Context, private val listener: Li
                 items.forEachIndexed { i, obj ->
                     val id = value(obj, "ServiceID", "ProgramId", "ProgramID") ?: return@forEachIndexed
                     val name = value(obj, "ServiceName", "ChannelName", "Name", "ProgramName") ?: return@forEachIndexed
-                    val position = value(obj, "ChannelNumber", "ChannelNo", "ChNum", "ProgramNumber")?.toIntOrNull()
-                        ?: value(obj, "ChannelIndex", "Index")?.toIntOrNull()?.plus(1)
+                    val position = value(obj, "ChannelNumber", "ChannelNo", "ChNum", "ProgramNumber")
+                        ?.toIntOrNull()?.takeIf { it in 1..20000 }
+                        // Confirmed by Zen 4 V1.48: ServiceIndex is 0-based.
+                        ?: value(obj, "ServiceIndex", "ChannelIndex", "Index")
+                            ?.toIntOrNull()?.takeIf { it in 0..19999 }?.plus(1)
+                        ?: collected[id]?.position
                         ?: collected.size + 1
                     val receiverLogo = ChannelLogoSource.verifiedHttpLogo(value(obj,
                         "LogoUrl", "ChannelLogoUrl", "IconUrl", "ChannelIconUrl",
