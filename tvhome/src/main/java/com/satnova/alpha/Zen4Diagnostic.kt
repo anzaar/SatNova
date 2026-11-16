@@ -23,6 +23,21 @@ internal class Zen4Diagnostic {
 
     private val lock = Any()
     private val replies = linkedMapOf<Int, Reply>()
+    private val tuneAttempts = ArrayDeque<JSONObject>()
+
+    /** Keep the last local tuning outcomes, without exporting network credentials. */
+    fun recordTune(channel: ZenChannel, result: String) {
+        synchronized(lock) {
+            tuneAttempts.addLast(JSONObject()
+                .put("channel_id", channel.id.take(32))
+                .put("channel_name", channel.name.take(100))
+                .put("result", result.take(50))
+                .put("time_utc", SimpleDateFormat("HH:mm:ss", Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }.format(Date())))
+            while (tuneAttempts.size > 30) tuneAttempts.removeFirst()
+        }
+    }
 
     private val privateKey = Regex(
         "(?i)(password|passwd|passphrase|pwd|pin|token|secret|credential|cookie|" +
@@ -107,6 +122,7 @@ internal class Zen4Diagnostic {
                     .put("samples", JSONArray(item.samples)))
             }
             root.put("observed_receiver_responses", types)
+            root.put("last_tuning_attempts", JSONArray(tuneAttempts.toList()))
         }
         val catalogue = JSONArray()
         cachedChannels.take(100).forEach { channel ->
