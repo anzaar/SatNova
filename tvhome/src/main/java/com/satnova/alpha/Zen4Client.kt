@@ -147,7 +147,7 @@ internal class Zen4Client(private val context: Context, private val listener: Li
                 .put("array", JSONArray().put(JSONObject()
                     .put("TvState", if (channel.radio) "1" else "0")
                     .put("ProgramId", channel.id))).toString()
-            else "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\\"1000\\"><parm><TvState>" +
+            else "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1000\"><parm><TvState>" +
                 (if (channel.radio) "1" else "0") + "</TvState><ProgramId>" + channel.id +
                 "</ProgramId></parm></Command>"
             synchronized(writeLock) {
