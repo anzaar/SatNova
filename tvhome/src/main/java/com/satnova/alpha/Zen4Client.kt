@@ -26,7 +26,11 @@ import java.util.zip.InflaterInputStream
 /** Zen 4 control channel from the TV itself; it never uses the phone's app data. */
 internal data class ZenChannel(
     val id: String, val name: String, val position: Int, val radio: Boolean,
-    val logoUrl: String? = null
+    val logoUrl: String? = null,
+    val encrypted: Boolean? = null,
+    val definition: String? = null,
+    val frequencyMhz: Int? = null,
+    val tpIndex: String? = null
 )
 
 internal class Zen4Client(private val context: Context, private val listener: Listener) {
@@ -56,6 +60,8 @@ internal class Zen4Client(private val context: Context, private val listener: Li
     private var knownCount = 0
     private val collected = linkedMapOf<String, ZenChannel>()
     private val diagnostic = Zen4Diagnostic()
+    private val tpFrequencies = mutableMapOf<String, Int>()
+    private var tpRequested = false
     private val uuid: String by lazy {
         prefs.getString("uuid", null) ?: UUID.randomUUID().toString().also {
             prefs.edit().putString("uuid", it).apply()
@@ -230,6 +236,7 @@ internal class Zen4Client(private val context: Context, private val listener: Li
             tell(true, "Connecté · Zen 4")
             knownCount = 0
             requestedThrough = -1
+            tpRequested = false
             lastStatePoll = 0
             lastChannelPoll = 0
             while (active.get() && session === sock) {
@@ -238,6 +245,11 @@ internal class Zen4Client(private val context: Context, private val listener: Li
                     request(sock, 3)
                     request(sock, 15)
                     lastStatePoll = now
+                }
+                if (!tpRequested && now - lastStatePoll < 2500L) {
+                    // Read-only transponder list, already used by phone SatNova.
+                    request(sock, 24)
+                    tpRequested = true
                 }
                 if (now - lastChannelPoll > 3500) {
                     val size = synchronized(collected) { collected.size }
@@ -289,6 +301,35 @@ internal class Zen4Client(private val context: Context, private val listener: Li
     private fun value(obj: JSONObject, vararg names: String): String? =
         names.firstNotNullOfOrNull { key -> obj.optString(key, "").trim().takeIf { it.isNotBlank() && it != "null" } }
 
+    private fun flag(value: String?): Boolean? = when (value?.lowercase()) {
+        "1", "true", "yes" -> true
+        "0", "false", "no" -> false
+        else -> null
+    }
+
+    private fun frequency(raw: String?): Int? {
+        val v = raw?.trim()?.replace(",", ".")?.toDoubleOrNull() ?: return null
+        if (!v.isFinite() || v <= 0) return null
+        val mhz = if (v > 50000) v / 1000.0 else v
+        return mhz.toInt().takeIf { mhz in 1000.0..20000.0 }
+    }
+
+    private fun tpKey(row: JSONObject): String? =
+        value(row, "TPIndex", "TpIndex", "TPId", "TPID", "TransponderId")
+            ?.toIntOrNull()?.toString()
+
+    private fun channelTpKey(row: JSONObject, id: String): String? =
+        tpKey(row) ?: id.takeIf { it.length >= 9 }
+            ?.substring(4, 9)?.toIntOrNull()?.toString()
+
+    private fun definitionOf(row: JSONObject, name: String): String? {
+        val label = name.uppercase()
+        if (Regex("(?<![A-Z0-9])(?:4K|UHD)(?![A-Z0-9])").containsMatchIn(label)) return "4K"
+        if (Regex("(?<![A-Z0-9])(?:HD|FHD)(?![A-Z0-9])").containsMatchIn(label)) return "HD"
+        if (Regex("(?<![A-Z0-9])SD(?![A-Z0-9])").containsMatchIn(label)) return "SD"
+        return flag(value(row, "HD", "IsHD", "HighDefinition"))?.let { if (it) "HD" else "SD" }
+    }
+
     private fun readReply(sock: Socket) {
         val header = readExact(sock, 16)
         require(String(header, 0, 4, StandardCharsets.US_ASCII) == "GCDH")
@@ -308,6 +349,29 @@ internal class Zen4Client(private val context: Context, private val listener: Li
                 knownCount = value(obj, "ChannelNum")?.toIntOrNull()?.coerceIn(0, 20000) ?: knownCount
             }
         }
+        if (kind == 24 && status == 0) {
+            val groups = items.mapNotNull { row ->
+                val k = tpKey(row) ?: return@mapNotNull null
+                val f = frequency(value(row, "Frequency", "Freq", "TPFreq", "FrequencyMHz", "TPFrequency"))
+                    ?: return@mapNotNull null
+                k to f
+            }.groupBy({ it.first }, { it.second })
+            synchronized(collected) {
+                tpFrequencies.clear()
+                groups.forEach { (key, values) ->
+                    if (values.distinct().size == 1) tpFrequencies[key] = values.first()
+                }
+                var updated = false
+                collected.toMap().forEach { (id, ch) ->
+                    val freq = ch.frequencyMhz ?: ch.tpIndex?.let(tpFrequencies::get)
+                    if (freq != null && freq != ch.frequencyMhz) {
+                        collected[id] = ch.copy(frequencyMhz = freq)
+                        updated = true
+                    }
+                }
+                if (updated) { persistCache(); publish() }
+            }
+        }
         if (kind == 0 && status == 0) {
             var changed = false
             synchronized(collected) {
@@ -320,9 +384,18 @@ internal class Zen4Client(private val context: Context, private val listener: Li
                     val receiverLogo = ChannelLogoSource.verifiedHttpLogo(value(obj,
                         "LogoUrl", "ChannelLogoUrl", "IconUrl", "ChannelIconUrl",
                         "PiconUrl", "Logo", "ChannelIcon", "Icon", "Picon"))
-                    collected[id] = ZenChannel(id, name, position,
-                        value(obj, "Radio", "TvState") == "1",
-                        receiverLogo ?: collected[id]?.logoUrl)
+                    val index = channelTpKey(obj, id)
+                    val encrypted = flag(value(obj, "Scramble", "Scrambled", "Encrypted", "IsScrambled"))
+                    val mhz = frequency(value(obj, "Frequency", "Freq", "TPFreq", "FrequencyMHz"))
+                        ?: index?.let(tpFrequencies::get)
+                    collected[id] = ZenChannel(
+                        id, name, position, value(obj, "Radio", "TvState") == "1",
+                        receiverLogo ?: collected[id]?.logoUrl,
+                        encrypted ?: collected[id]?.encrypted,
+                        definitionOf(obj, name) ?: collected[id]?.definition,
+                        mhz ?: collected[id]?.frequencyMhz,
+                        index ?: collected[id]?.tpIndex
+                    )
                     changed = true
                 }
             }
@@ -355,7 +428,11 @@ internal class Zen4Client(private val context: Context, private val listener: Li
         channels.take(20000).forEach {
             array.put(JSONObject().put("id", it.id).put("name", it.name)
                 .put("position", it.position).put("radio", it.radio)
-                .put("logoUrl", it.logoUrl))
+                .put("logoUrl", it.logoUrl)
+                .put("encrypted", it.encrypted)
+                .put("definition", it.definition)
+                .put("frequencyMhz", it.frequencyMhz)
+                .put("tpIndex", it.tpIndex))
         }
         val tmp = java.io.File(context.filesDir, "zen-catalogue.tmp")
         val dest = java.io.File(context.filesDir, "zen-catalogue.json")
@@ -381,7 +458,11 @@ internal class Zen4Client(private val context: Context, private val listener: Li
                         collected[id] = ZenChannel(
                             id, name, obj.optInt("position", it + 1),
                             obj.optBoolean("radio"),
-                            ChannelLogoSource.verifiedHttpLogo(obj.optString("logoUrl", "")))
+                            ChannelLogoSource.verifiedHttpLogo(obj.optString("logoUrl", "")),
+                            if (obj.isNull("encrypted")) null else obj.optBoolean("encrypted"),
+                            obj.optString("definition", "").ifBlank { null },
+                            if (obj.isNull("frequencyMhz")) null else obj.optInt("frequencyMhz"),
+                            obj.optString("tpIndex", "").ifBlank { null })
                     }
                 }
             }
