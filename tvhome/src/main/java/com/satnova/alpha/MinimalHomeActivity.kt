@@ -31,7 +31,7 @@ import android.os.SystemClock
 
 /** Standalone Android TV launcher. The phone application is not installed on the TV. */
 open class MinimalHomeActivity : Activity() {
-    protected open val previewMode: Boolean = false
+    protected open val previewMode: Boolean = false // Compact phone layout; real network commands stay enabled
     private val bgColor = Color.rgb(15, 18, 23)
     private val surface = Color.rgb(36, 41, 50)
     private val selected = Color.rgb(56, 70, 90)
@@ -61,7 +61,10 @@ open class MinimalHomeActivity : Activity() {
                 observeChannel(channelId)
             }
             override fun tuneConfirmed(channel: ZenChannel) {
-                openHdmi1IfPossible()
+                if (previewMode) {
+                    Toast.makeText(this@MinimalHomeActivity,
+                        "Changement confirmé sur Zen 4 · ${channel.name}", Toast.LENGTH_LONG).show()
+                } else openHdmi1IfPossible()
             }
         })
     }
@@ -75,16 +78,12 @@ open class MinimalHomeActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = bgColor
         window.navigationBarColor = bgColor
-        if (previewMode) {
-            channels = (1..20).map { ZenChannel("demo-$it", "Chaîne $it", it, false) }
-            receiverMessage = "Mode aperçu · aucune connexion à Zen 4"
-        }
         render()
-        if (!previewMode) client.start()
+        client.start()
     }
 
     override fun onDestroy() {
-        if (!previewMode) client.stop()
+        client.stop()
         super.onDestroy()
     }
 
@@ -363,10 +362,6 @@ open class MinimalHomeActivity : Activity() {
     }
 
     private fun openChannel(channel: ZenChannel) {
-        if (previewMode) {
-            Toast.makeText(this, "Aperçu uniquement · ${channel.name}", Toast.LENGTH_SHORT).show()
-            return
-        }
         if (!online || !client.tune(channel)) {
             Toast.makeText(this, "Récepteur non connecté", Toast.LENGTH_SHORT).show()
             return
@@ -374,7 +369,6 @@ open class MinimalHomeActivity : Activity() {
         Toast.makeText(this, "Sélection de la chaîne en cours…", Toast.LENGTH_SHORT).show()
     }
 
-    /** Only try a verified HDMI 1 input. A third-party app may be blocked by the TV vendor. */
     /**
      * Detect the uniquely connected HDMI input on Lifemaxx.
      * TvInputManager reports input connectivity, not guaranteed active video.
@@ -489,10 +483,6 @@ open class MinimalHomeActivity : Activity() {
     }
 
     private fun changeIp() {
-        if (previewMode) {
-            Toast.makeText(this, "Connexion au récepteur indisponible en mode aperçu", Toast.LENGTH_SHORT).show()
-            return
-        }
         val input = EditText(this).apply {
             hint = "192.168.1.100"
             setText(client.lastIp)
