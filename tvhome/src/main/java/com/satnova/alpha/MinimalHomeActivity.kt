@@ -58,6 +58,8 @@ open class MinimalHomeActivity : Activity() {
     private var activePage = 0
     private var diagnosticToSave: String? = null
     private val diagnosticSaveRequest = 7124
+    private val logoPickerRequest = 7350
+    private var pendingLogoChannel: ZenChannel? = null
     private var trackedChannel = ""
     private var trackedSince = 0L
     private var historyRecordedFor = ""
@@ -483,7 +485,7 @@ open class MinimalHomeActivity : Activity() {
             content.addView(withArrows(pagedHorizontal(radios, "radios") { row, radio ->
                 addCard(row, radio.name, ChannelDescription.summary(radio),
                     getDrawable(android.R.drawable.ic_media_play),
-                    { openChannel(radio) }, { addChannelToPage(radio) }, radio, kind = "radio")
+                    { openChannel(radio) }, { channelActions(radio) }, radio, kind = "radio")
             }))
         }
     }
@@ -646,9 +648,34 @@ open class MinimalHomeActivity : Activity() {
             }.setNegativeButton("Annuler", null).show()
     }
 
+    /** Pick an image from TV/USB/file providers; the result is copied to app-private
+     * storage. No broad storage or Accessibility permission is requested. */
+    private fun chooseLogoFile(channel: ZenChannel) {
+        pendingLogoChannel = channel
+        val pick = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "image/*"
+        }
+        try {
+            startActivityForResult(pick, logoPickerRequest)
+        } catch (_: Exception) {
+            try {
+                startActivityForResult(Intent(Intent.ACTION_GET_CONTENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "image/*"
+                }, logoPickerRequest)
+            } catch (_: Exception) {
+                pendingLogoChannel = null
+                Toast.makeText(this, "Sélecteur de fichiers absent sur ce téléviseur",
+                    Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     private fun channelActions(channel: ZenChannel) {
         val labels = arrayOf("Regarder / écouter", "Ajouter aux Favoris",
-            "Ajouter à un groupe", "Afficher séparément", "Regroupement automatique")
+            "Ajouter à un groupe", "Afficher séparément", "Regroupement automatique",
+            "Choisir un logo local (TV / USB)", "Supprimer mon logo local")
         AlertDialog.Builder(this).setTitle(channel.name)
             .setItems(labels) { _, index ->
                 when (index) {
@@ -657,6 +684,12 @@ open class MinimalHomeActivity : Activity() {
                     2 -> chooseGroup(channel)
                     3 -> { families.removeFromGroup(channel.id); render() }
                     4 -> { families.assign(channel.id, null); render() }
+                    5 -> chooseLogoFile(channel)
+                    6 -> {
+                        logos.removeCustomLogo(channel)
+                        logos.retryFailed()
+                        render()
+                    }
                 }
             }.setNegativeButton("Annuler", null).show()
     }
@@ -971,17 +1004,23 @@ open class MinimalHomeActivity : Activity() {
     }
 
     private fun firstStartGuide() {
+        val bridgeAvailable = hdmiBridgeAvailable()
         AlertDialog.Builder(this)
             .setTitle("Bienvenue dans SatNova TV Home")
-            .setMessage("Vous pouvez utiliser SatNova sans changer l'accueil par défaut. Deux réglages facultatifs sont disponibles : choisir SatNova comme HOME et autoriser « SatNova · Télécommande Zen 4 sur HDMI » dans Accessibilité. Android demandera votre accord. Vous pourrez revenir à l'accueil d'origine depuis Paramètres SatNova.")
-            .setItems(arrayOf(
+            .setMessage(if (bridgeAvailable)
+                "SatNova peut devenir votre accueil par défaut. Le module facultatif de contrôle HDMI demande une autorisation Accessibilité distincte. Le choix HOME reste réversible."
+                else "SatNova peut devenir votre accueil par défaut, sans autorisation Accessibilité. Le retour à l'accueil original et les paramètres système restent accessibles.")
+            .setItems(if (bridgeAvailable) arrayOf(
                 "1 · Choisir SatNova comme accueil par défaut",
                 "2 · Autoriser la télécommande LifeMax → Zen 4",
                 "3 · Réglages Wi-Fi du téléviseur"
+            ) else arrayOf(
+                "1 · Choisir SatNova comme accueil par défaut",
+                "2 · Réglages Wi-Fi du téléviseur"
             )) { _, which ->
                 when (which) {
                     0 -> requestSatNovaHome()
-                    1 -> explainAccessibility()
+                    1 -> if (bridgeAvailable) explainAccessibility() else openWifiSettings()
                     2 -> openWifiSettings()
                 }
             }
@@ -989,8 +1028,20 @@ open class MinimalHomeActivity : Activity() {
             .show()
     }
 
+    private fun hdmiBridgeAvailable(): Boolean = try {
+        packageManager.getServiceInfo(ComponentName(this,
+            Zen4HdmiRemoteService::class.java), 0)
+        true
+    } catch (_: Exception) { false }
+
     private fun explainAccessibility() {
         if (previewMode) return
+        if (!hdmiBridgeAvailable()) {
+            AlertDialog.Builder(this).setTitle("Télécommande HDMI")
+                .setMessage("Cette édition standard ne demande pas Accessibilité et ne peut pas capter les touches TV dans l'écran HDMI. Le changement de chaîne via Zen 4 et l'ouverture HDMI restent disponibles. Le pont HDMI est réservé à l'édition optionnelle et doit être testé sur LifeMax.")
+                .setPositiveButton("OK", null).show()
+            return
+        }
         if (hdmiBridgeEnabled()) {
             AlertDialog.Builder(this)
                 .setTitle("Télécommande autorisée")
@@ -1015,6 +1066,7 @@ open class MinimalHomeActivity : Activity() {
         getSharedPreferences("zen4_hdmi_bridge", Context.MODE_PRIVATE)
 
     private fun hdmiBridgeEnabled(): Boolean {
+        if (!hdmiBridgeAvailable()) return false
         val enabled = Settings.Secure.getString(
             contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
         ).orEmpty()
@@ -1025,6 +1077,7 @@ open class MinimalHomeActivity : Activity() {
 
     private fun hdmiRemoteMenu() {
         if (previewMode) return
+        if (!hdmiBridgeAvailable()) { explainAccessibility(); return }
         val prefs = hdmiBridgePrefs()
         val enabled = hdmiBridgeEnabled()
         val lastPackage = prefs.getString("observed_viewer_package", "").orEmpty()
@@ -1194,6 +1247,28 @@ open class MinimalHomeActivity : Activity() {
     @Deprecated("Used for compatibility with Android 8+ and the system document picker")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == logoPickerRequest) {
+            val channel = pendingLogoChannel
+            pendingLogoChannel = null
+            val uri = data?.data
+            if (resultCode != Activity.RESULT_OK || uri == null || channel == null) return
+            fileProbeWorker.execute {
+                val success = try {
+                    contentResolver.openInputStream(uri)?.use {
+                        logos.importCustomLogo(channel, it)
+                    } ?: false
+                } catch (_: Exception) { false }
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    if (success) { logos.retryFailed(); render() }
+                    Toast.makeText(this, if (success)
+                        "Logo conservé sur ce téléviseur" else
+                        "Image non prise en charge (max 700 Ko)",
+                        Toast.LENGTH_LONG).show()
+                }
+            }
+            return
+        }
         if (requestCode != diagnosticSaveRequest) return
         val json = diagnosticToSave
         diagnosticToSave = null
