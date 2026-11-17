@@ -10,8 +10,8 @@ android {
         applicationId = "com.satnova.tvhome"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.5.0-offline-logos"
+        versionCode = 7
+        versionName = "0.5.1-zen4-connection"
     }
     flavorDimensions += "device"
     productFlavors {
@@ -31,6 +31,7 @@ android {
         create("mobile") {
             dimension = "device"
             // Retain the existing Home Preview package; never claim HOME on a phone.
+            applicationIdSuffix = ".preview051"
             versionNameSuffix = "-mobile"
         }
     }
