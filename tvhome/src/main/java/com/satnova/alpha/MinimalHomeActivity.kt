@@ -204,7 +204,14 @@ open class MinimalHomeActivity : Activity() {
                 // device firmware refuses foreground services.
             }
         }
-        render()
+        // A damaged cached UI asset must not leave the television without a launcher.
+        // Show a minimal recovery screen rather than crashing the HOME activity.
+        try {
+            render()
+        } catch (error: Exception) {
+            android.util.Log.e("SatNovaHome", "Initial HOME render failed", error)
+            showStartupRecovery(error)
+        }
         // Explain both optional setup steps only on the first TV launch.
         // Dismissing either choice never changes the Android launcher or
         // grants Accessibility permission without the user's consent.
@@ -214,6 +221,38 @@ open class MinimalHomeActivity : Activity() {
                 if (!isFinishing && !isDestroyed) firstStartGuide()
             }
         }
+    }
+
+    private fun showStartupRecovery(error: Exception) {
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(32), dp(32), dp(32), dp(32))
+            setBackgroundColor(bgColor)
+        }
+        root.addView(TextView(this).apply {
+            text = "SatNova · Mode récupération"
+            textSize = 26f
+            setTextColor(fg)
+        })
+        root.addView(TextView(this).apply {
+            text = "L'accueil n'a pas pu charger toutes ses données. Les paramètres enregistrés sont conservés."
+            textSize = 17f
+            setTextColor(fg)
+        })
+        root.addView(android.widget.Button(this).apply {
+            text = "Réessayer"
+            setOnClickListener {
+                try { render() } catch (e: Exception) {
+                    android.util.Log.e("SatNovaHome", "HOME retry failed", e)
+                    Toast.makeText(this@MinimalHomeActivity, "Échec du chargement", Toast.LENGTH_LONG).show()
+                }
+            }
+        })
+        root.addView(android.widget.Button(this).apply {
+            text = "Paramètres Android"
+            setOnClickListener { startSystemSettings(listOf(Intent(Settings.ACTION_SETTINGS)), "Paramètres indisponibles") }
+        })
+        setContentView(root)
     }
 
     override fun onResume() {
