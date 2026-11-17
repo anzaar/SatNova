@@ -300,7 +300,7 @@ internal class Zen4Client(private val context: Context, private val listener: Li
         for (prefix in lanPrefixes().take(2)) {
             if (!active.get()) break
             val jobs = (1..254).map { number -> discovery.submit<String?> {
-                val host = "$" + "{prefix}.$" + "{number}"
+                val host = "${prefix}.${number}"
                 try {
                     Socket().use { probe ->
                         probe.connect(InetSocketAddress(host, 20000), 450)
