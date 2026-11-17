@@ -29,6 +29,7 @@ import android.media.tv.TvContract
 import android.media.tv.TvInputInfo
 import android.media.tv.TvInputManager
 import android.os.SystemClock
+import android.provider.Settings
 import android.content.ClipboardManager
 import android.content.ClipData
 import java.util.concurrent.Executors
@@ -757,13 +758,33 @@ open class MinimalHomeActivity : Activity() {
             }.setNegativeButton("Annuler", null).show()
     }
 
+    private fun openHomeChoiceSettings() {
+        if (previewMode) return
+        val intents = listOf(
+            Intent(Settings.ACTION_HOME_SETTINGS),
+            Intent(Settings.ACTION_SETTINGS)
+        )
+        var opened = false
+        for (intent in intents) {
+            try {
+                startActivity(intent)
+                opened = true
+                break
+            } catch (_: Exception) {}
+        }
+        if (!opened) Toast.makeText(this,
+            "Ouvrir les paramètres du téléviseur pour changer l'accueil",
+            Toast.LENGTH_LONG).show()
+    }
+
     private fun settings() {
         val options = arrayOf("Applications favorites", "Ajouter une page Favoris",
             "Renommer la page Favoris", "Adresse IP de Zen 4",
             "Afficher / masquer l'historique", "Entrée HDMI : détection automatique",
             "Actualiser les logos", "Télécharger diagnostic Zen 4 (JSON)",
             "Vérifier accès aux fichiers Zen 4 (Wi-Fi)",
-            "Réinitialiser les groupes TV")
+            "Réinitialiser les groupes TV", "Tester ouverture HDMI du récepteur",
+            "Choisir l'accueil TV par défaut")
         AlertDialog.Builder(this).setTitle("Paramètres")
             .setItems(options) { _, index ->
                 when (index) {
@@ -784,6 +805,8 @@ open class MinimalHomeActivity : Activity() {
                         .setMessage("Restaure les regroupements automatiques de l'application, sans modifier le récepteur.")
                         .setPositiveButton("Réinitialiser") { _, _ -> families.resetAll(); render() }
                         .setNegativeButton("Annuler", null).show()
+                    10 -> if (!previewMode) openHdmi1IfPossible()
+                    11 -> openHomeChoiceSettings()
                 }
             }.show()
     }
