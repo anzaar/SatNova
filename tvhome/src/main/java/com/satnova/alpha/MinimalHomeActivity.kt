@@ -31,6 +31,7 @@ import android.media.tv.TvInputManager
 import android.os.SystemClock
 import android.provider.Settings
 import android.content.ClipboardManager
+import android.content.ComponentName
 import android.content.ClipData
 import java.util.concurrent.Executors
 
@@ -784,6 +785,103 @@ open class MinimalHomeActivity : Activity() {
             Toast.LENGTH_LONG).show()
     }
 
+    /** HDMI input is not the HOME foreground app. The Accessibility permission
+     * remains entirely under user's control in Android TV Settings. */
+    private fun hdmiBridgePrefs() =
+        getSharedPreferences("zen4_hdmi_bridge", Context.MODE_PRIVATE)
+
+    private fun hdmiBridgeEnabled(): Boolean {
+        val enabled = Settings.Secure.getString(
+            contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ).orEmpty()
+        val id = ComponentName(this, Zen4HdmiRemoteService::class.java)
+            .flattenToString()
+        return enabled.split(':').any { it.equals(id, ignoreCase = true) }
+    }
+
+    private fun hdmiRemoteMenu() {
+        if (previewMode) return
+        val prefs = hdmiBridgePrefs()
+        val enabled = hdmiBridgeEnabled()
+        val lastPackage = prefs.getString("observed_viewer_package", "").orEmpty()
+        val packageApproved = prefs.getString("confirmed_hdmi_package", "").orEmpty()
+        val status = buildString {
+            append("Service Accessibilité : ")
+            append(if (enabled) "activé" else "désactivé")
+            append("\nMode Zen 4 sur HDMI : ")
+            append(if (prefs.getBoolean("armed", false)) "armé" else "arrêté")
+            append("\nDernière touche TV : ")
+            append(prefs.getInt("last_tv_key", -1).takeIf { it >= 0 } ?: "aucune")
+            append("\nTraduction Zen 4 : ")
+            append(prefs.getInt("last_zen_key", -1).takeIf { it >= 0 } ?: "aucune")
+            append("\nDernier envoi : ")
+            append(prefs.getString("last_forward_result", "non testé"))
+            append("\nApplication HDMI observée : ")
+            append(lastPackage.ifBlank { "inconnue" })
+            append("\nApplication HDMI autorisée : ")
+            append(packageApproved.ifBlank { "détection connue uniquement" })
+        }
+        val options = arrayOf(
+            "Activer le contrôle Zen 4 sur HDMI",
+            "Autoriser le service dans Accessibilité",
+            "Autoriser l'application HDMI détectée",
+            "Arrêter le contrôle HDMI"
+        )
+        AlertDialog.Builder(this).setTitle("Télécommande Lifemaxx → Zen 4")
+            .setMessage(status)
+            .setItems(options) { _, index ->
+                when (index) {
+                    0 -> {
+                        if (!hdmiBridgeEnabled()) {
+                            AlertDialog.Builder(this).setTitle("Autorisation nécessaire")
+                                .setMessage("Autorisez volontairement le service SatNova · Télécommande Zen 4 sur HDMI dans les paramètres Accessibilité. Puis revenez ici.")
+                                .setPositiveButton("Accessibilité") { _, _ ->
+                                    try { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+                                    catch (_: Exception) { settings() }
+                                }.setNegativeButton("Annuler", null).show()
+                        } else {
+                            prefs.edit()
+                                .putBoolean("armed", true)
+                                .putBoolean("hdmi_seen", false)
+                                .putLong("armed_since", System.currentTimeMillis())
+                                .apply()
+                            AlertDialog.Builder(this)
+                                .setTitle("Mode HDMI activé")
+                                .setMessage("Les flèches, OK, BACK, MENU, CH+/CH−, EPG et les chiffres seront convertis en commandes Zen 4 uniquement si l'application HDMI est reconnue. HOME, SOURCE, le volume et l'alimentation restent à la TV. Vous pouvez interrompre le mode en revenant à HOME. Expiration automatique après deux heures.")
+                                .setPositiveButton("Essayer HDMI") { _, _ -> openHdmi1IfPossible() }
+                                .setNeutralButton("Je passe par SOURCE", null)
+                                .show()
+                        }
+                    }
+                    1 -> try { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+                        catch (_: Exception) {
+                            Toast.makeText(this, "Ouvrir Accessibilité depuis les paramètres TV", Toast.LENGTH_LONG).show()
+                        }
+                    2 -> {
+                        val forbidden = listOf("", packageName,
+                            "com.android.systemui", "com.android.settings",
+                            "com.google.android.tvlauncher", "com.google.android.apps.tv.launcherx")
+                        if (lastPackage in forbidden) {
+                            Toast.makeText(this,
+                                "Aucune application HDMI fiable détectée. Tester d'abord la source HDMI.",
+                                Toast.LENGTH_LONG).show()
+                        } else {
+                            AlertDialog.Builder(this).setTitle("Confirmer l'application HDMI")
+                                .setMessage("Autoriser la transmission des touches Zen 4 uniquement lorsque l'application « $lastPackage » est au premier plan ? Vérifiez que cette application affiche bien votre HDMI.")
+                                .setPositiveButton("Autoriser") { _, _ ->
+                                    prefs.edit().putString("confirmed_hdmi_package", lastPackage).apply()
+                                }.setNegativeButton("Annuler", null).show()
+                        }
+                    }
+                    3 -> {
+                        prefs.edit().putBoolean("armed", false)
+                            .putBoolean("hdmi_seen", false).apply()
+                        Toast.makeText(this, "Contrôle HDMI arrêté", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }.setNegativeButton("Fermer", null).show()
+    }
+
     private fun settings() {
         val options = arrayOf("Applications favorites", "Ajouter une page Favoris",
             "Renommer la page Favoris", "Adresse IP de Zen 4",
@@ -791,7 +889,8 @@ open class MinimalHomeActivity : Activity() {
             "Actualiser les logos", "Télécharger diagnostic Zen 4 (JSON)",
             "Vérifier accès aux fichiers Zen 4 (Wi-Fi)",
             "Réinitialiser les groupes TV", "Tester ouverture HDMI du récepteur",
-            "Choisir l'accueil TV par défaut")
+            "Choisir l'accueil TV par défaut",
+            "Télécommande Lifemaxx → Zen 4 (HDMI)")
         AlertDialog.Builder(this).setTitle("Paramètres")
             .setItems(options) { _, index ->
                 when (index) {
@@ -814,6 +913,7 @@ open class MinimalHomeActivity : Activity() {
                         .setNegativeButton("Annuler", null).show()
                     10 -> if (!previewMode) openHdmi1IfPossible()
                     11 -> openHomeChoiceSettings()
+                    12 -> hdmiRemoteMenu()
                 }
             }.show()
     }
