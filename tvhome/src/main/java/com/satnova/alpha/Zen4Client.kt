@@ -1,6 +1,8 @@
 package com.satnova.alpha
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -89,35 +91,70 @@ internal class Zen4Client(private val context: Context, private val listener: Li
         main.post { listener.catalogue(snapshot) }
     }
 
+    /** Keep the same authenticated G-MScreen login as the working phone app.
+     * A failed IP is never considered a receiver merely because port 20000 opened.
+     * Every candidate must pass the 108-byte signed login before it is saved. */
     fun start() {
         if (!active.compareAndSet(false, true)) return
         restoreCache()
         control.execute {
-            var failures = 0
             while (active.get()) {
                 try {
-                    var host = lastIp.takeIf(::privateIp)
-                    if (host == null || failures >= 2) {
-                        tell(false, "Recherche du récepteur…")
-                        host = findOnLan()
+                    val tried = linkedSetOf<String>()
+                    var lastError: String? = null
+                    fun attempt(host: String): Boolean {
+                        if (!active.get() || !tried.add(host)) return false
+                        tell(false, "Connexion Zen 4 · $host…")
+                        return try {
+                            connectAndListen(host)
+                            true
+                        } catch (e: Exception) {
+                            authorized = false
+                            session?.let { try { it.close() } catch (_: Exception) {} }
+                            session = null
+                            val reason = when {
+                                e.message?.contains("session", true) == true ->
+                                    "session Zen 4 occupée (fermer SatNova original)"
+                                e.message?.contains("autre récepteur", true) == true ->
+                                    "identité Zen 4 différente"
+                                e is SocketTimeoutException -> "délai réseau dépassé"
+                                else -> e.javaClass.simpleName + ": " +
+                                    (e.message ?: "connexion refusée").take(75)
+                            }
+                            lastError = "$host · $reason"
+                            false
+                        }
                     }
-                    if (host == null) {
-                        tell(false, "Récepteur non connecté")
-                        Thread.sleep(5500)
-                        continue
+
+                    // First try the receiver explicitly selected or previously authenticated.
+                    val remembered = lastIp.takeIf(::privateIp)
+                    if (remembered != null && attempt(remembered)) continue
+
+                    // Do not stop at the first host with an open port. Login to every
+                    // candidate in the local Wi-Fi subnet until the genuine receiver
+                    // verifies its signature and physical-device identity.
+                    tell(false, "Recherche de Zen 4 sur le Wi-Fi…")
+                    val found = findOnLan()
+                    // The user might enter the correct IP while discovery is running.
+                    val currentManual = lastIp.takeIf(::privateIp)
+                    if (currentManual != null && attempt(currentManual)) continue
+
+                    var connectedOnce = false
+                    for (host in found) {
+                        if (!active.get()) break
+                        if (attempt(host)) { connectedOnce = true; break }
                     }
-                    connectAndListen(host)
-                    failures = 0
+                    if (connectedOnce) continue
+                    tell(false, lastError?.let { "Zen 4 non connecté · $it" }
+                        ?: "Zen 4 introuvable · vérifiez le Wi-Fi ou saisissez l'IP")
+                    Thread.sleep(4500)
                 } catch (e: InterruptedException) {
                     Thread.currentThread().interrupt()
                     break
-                } catch (_: Exception) {
-                    failures++
-                    authorized = false
-                    session?.let { try { it.close() } catch (_: Exception) { } }
-                    session = null
-                    tell(false, "Récepteur non connecté")
-                    try { Thread.sleep(3000) } catch (_: InterruptedException) { break }
+                } catch (e: Exception) {
+                    tell(false, "Recherche Zen 4 interrompue · " +
+                        e.javaClass.simpleName)
+                    try { Thread.sleep(4500) } catch (_: InterruptedException) { break }
                 }
             }
         }
@@ -216,30 +253,68 @@ internal class Zen4Client(private val context: Context, private val listener: Li
         return a == 10 || (a == 172 && b in 16..31) || (a == 192 && b == 168)
     }
 
-    private fun prefix(): String? = try {
-        NetworkInterface.getNetworkInterfaces().toList().asSequence().filter { it.isUp && !it.isLoopback }
-            .flatMap { it.inetAddresses.toList().asSequence() }
-            .filterIsInstance<Inet4Address>().mapNotNull { a ->
-                a.hostAddress?.takeIf(::privateIp)?.substringBeforeLast('.')
-            }.firstOrNull()
-    } catch (_: Exception) { null }
-
-    /** Port probing only; authenticated login happens once on the chosen candidate. */
-    private fun findOnLan(): String? {
-        val p = prefix() ?: return null
-        val jobs = (1..254).map { num -> discovery.submit<String?> {
-            val host = "$p.$num"
-            try {
-                Socket().use {
-                    it.connect(InetSocketAddress(host, 20000), 420)
-                    host
+    /** Prefer the real Wi-Fi / Ethernet transport, never a VPN, cellular or
+     * tunnel address. An IP range is only a discovery hint, not authentication. */
+    private fun lanPrefixes(): List<String> {
+        val result = linkedSetOf<String>()
+        try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE)
+                as ConnectivityManager
+            for (transport in listOf(NetworkCapabilities.TRANSPORT_WIFI,
+                    NetworkCapabilities.TRANSPORT_ETHERNET)) {
+                for (network in cm.allNetworks) {
+                    val caps = cm.getNetworkCapabilities(network) ?: continue
+                    if (!caps.hasTransport(transport)) continue
+                    val props = cm.getLinkProperties(network) ?: continue
+                    for (link in props.linkAddresses) {
+                        val ip = (link.address as? Inet4Address)?.hostAddress ?: continue
+                        if (privateIp(ip)) result.add(ip.substringBeforeLast('.'))
+                    }
                 }
-            } catch (_: Exception) { null }
-        } }
-        val candidates = jobs.mapNotNull { future ->
-            try { future.get() } catch (_: Exception) { null }
+            }
+        } catch (_: Exception) { }
+        if (result.isNotEmpty()) return result.toList()
+        // Firmware fallback: never accidentally scan mobile rmnet or VPN tun networks.
+        try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            while (interfaces.hasMoreElements()) {
+                val net = interfaces.nextElement()
+                val name = net.name.lowercase()
+                if (!net.isUp || net.isLoopback ||
+                    !(name.startsWith("wlan") || name.startsWith("eth") ||
+                      name.startsWith("en") || name.startsWith("swlan"))) continue
+                val addresses = net.inetAddresses
+                while (addresses.hasMoreElements()) {
+                    val ip = (addresses.nextElement() as? Inet4Address)
+                        ?.hostAddress ?: continue
+                    if (privateIp(ip)) result.add(ip.substringBeforeLast('.'))
+                }
+            }
+        } catch (_: Exception) { }
+        return result.toList()
+    }
+
+    /** Bounded TCP discovery, followed by an authenticated login in start(). */
+    private fun findOnLan(): List<String> {
+        val hosts = linkedSetOf<String>()
+        for (prefix in lanPrefixes().take(2)) {
+            if (!active.get()) break
+            val jobs = (1..254).map { number -> discovery.submit<String?> {
+                val host = "$" + "{prefix}.$" + "{number}"
+                try {
+                    Socket().use { probe ->
+                        probe.connect(InetSocketAddress(host, 20000), 450)
+                        host
+                    }
+                } catch (_: Exception) { null }
+            } }
+            for (job in jobs) {
+                if (!active.get()) break
+                try { job.get()?.let(hosts::add) }
+                catch (_: Exception) { }
+            }
         }
-        return candidates.firstOrNull()
+        return hosts.toList()
     }
 
     private fun readExact(sock: Socket, n: Int): ByteArray {
@@ -277,9 +352,10 @@ internal class Zen4Client(private val context: Context, private val listener: Li
 
     private fun connectAndListen(host: String) {
         val sock = Socket()
-        sock.connect(InetSocketAddress(host, 20000), 2800)
-        sock.soTimeout = 2100
         try {
+            sock.connect(InetSocketAddress(host, 20000), 3500)
+            // Match the verified phone app's login timeout.
+            sock.soTimeout = 4500
             val login = "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"998\"><data>SatNova Home</data><uuid>$uuid</uuid></Command>"
             synchronized(writeLock) { sendFrame(sock, login) }
             val (_, json) = decodeLogin(readExact(sock, 108))
