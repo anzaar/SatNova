@@ -1023,6 +1023,45 @@ open class MinimalHomeActivity : Activity() {
         )
     }
 
+    private fun showHomeDiagnostic() {
+        if (previewMode) return
+        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val resolved = try {
+            packageManager.resolveActivity(intent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+        } catch (_: Exception) { null }
+        val component = resolved?.activityInfo?.let { "${it.packageName}/${it.name}" }
+            ?: "Non résolu par Android"
+        val role = if (Build.VERSION.SDK_INT >= 29) {
+            try {
+                val manager = getSystemService(RoleManager::class.java)
+                when {
+                    manager == null || !manager.isRoleAvailable(RoleManager.ROLE_HOME) -> "ROLE_HOME indisponible"
+                    manager.isRoleHeld(RoleManager.ROLE_HOME) -> "SatNova détient ROLE_HOME"
+                    else -> "SatNova ne détient pas ROLE_HOME"
+                }
+            } catch (_: Exception) { "ROLE_HOME non vérifiable" }
+        } else "ROLE_HOME non disponible sur cet Android"
+        val report = "Android ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})" +
+            "\\nFabricant: ${Build.MANUFACTURER}" +
+            "\\nMarque: ${Build.BRAND}" +
+            "\\nModèle: ${Build.MODEL}" +
+            "\\nHOME résolu: $component" +
+            "\\nRôle: $role" +
+            "\\nSatNova: $packageName" +
+            "\\nCes informations ne prouvent pas que la touche HOME physique suit le choix Android."
+        AlertDialog.Builder(this)
+            .setTitle("Diagnostic accueil HOME")
+            .setMessage(report)
+            .setPositiveButton("Copier") { _, _ ->
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("SatNova HOME", report))
+                Toast.makeText(this, "Diagnostic copié", Toast.LENGTH_SHORT).show()
+            }
+            .setNeutralButton("Choisir HOME") { _, _ -> requestSatNovaHome() }
+            .setNegativeButton("Fermer", null)
+            .show()
+    }
+
     private fun requestSatNovaHome() {
         if (previewMode) return
         if (Build.VERSION.SDK_INT >= 29) {
@@ -1030,8 +1069,7 @@ open class MinimalHomeActivity : Activity() {
                 val roles = getSystemService(RoleManager::class.java)
                 if (roles != null && roles.isRoleAvailable(RoleManager.ROLE_HOME)) {
                     if (roles.isRoleHeld(RoleManager.ROLE_HOME)) {
-                        Toast.makeText(this, "SatNova est déjà votre accueil par défaut",
-                            Toast.LENGTH_LONG).show()
+                        showHomeDiagnostic()
                         return
                     }
                     startActivityForResult(
@@ -1311,7 +1349,8 @@ open class MinimalHomeActivity : Activity() {
             "Configurer Accessibilité · télécommande HDMI",
             "Télécommande Lifemaxx → Zen 4 (HDMI)",
             "Paramètres Wi-Fi du téléviseur",
-            "Paramètres Android TV (système, développeur, ADB)"
+            "Paramètres Android TV (système, développeur, ADB)",
+            "Diagnostic HOME · fabricant, rôle et accueil résolu"
         )
         AlertDialog.Builder(this).setTitle("Paramètres")
             .setItems(options) { _, index ->
@@ -1347,6 +1386,7 @@ open class MinimalHomeActivity : Activity() {
                     16 -> hdmiRemoteMenu()
                     17 -> openWifiSettings()
                     18 -> androidSystemMenu()
+                    19 -> showHomeDiagnostic()
                 }
             }.show()
     }

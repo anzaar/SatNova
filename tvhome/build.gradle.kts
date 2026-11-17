@@ -10,8 +10,8 @@ android {
         applicationId = "com.satnova.tvhome"
         minSdk = 26
         targetSdk = 35
-        versionCode = 14
-        versionName = "0.5.8-home-recovery"
+        versionCode = 15
+        versionName = "0.5.9-home-diagnostic"
     }
     flavorDimensions += "device"
     productFlavors {
