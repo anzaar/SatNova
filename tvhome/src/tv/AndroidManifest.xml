@@ -7,6 +7,16 @@
         android:banner="@drawable/satnova_tv_banner">
         <!-- TV package exposes only Android TV HOME + LEANBACK_LAUNCHER. -->
         <activity android:name=".MobilePreviewActivity" tools:node="remove"/>
+        <service android:name=".Zen4HdmiRemoteService"
+            android:label="SatNova · Télécommande Zen 4 sur HDMI"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService"/>
+            </intent-filter>
+            <meta-data android:name="android.accessibilityservice"
+                android:resource="@xml/zen4_hdmi_remote_service"/>
+        </service>
         <activity android:name=".MinimalHomeActivity"
             android:label="SatNova TV Home"
             android:banner="@drawable/satnova_tv_banner"
