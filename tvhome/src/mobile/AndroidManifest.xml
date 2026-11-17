@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application android:label="SatNova Home · Test">
+        <!-- Mobile test stays an ordinary app and never replaces HOME. -->
+        <activity android:name=".MinimalHomeActivity" tools:node="remove"/>
+    </application>
+</manifest>
