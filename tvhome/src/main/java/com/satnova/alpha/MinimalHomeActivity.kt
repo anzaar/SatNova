@@ -98,11 +98,19 @@ open class MinimalHomeActivity : Activity() {
     private val redrawHandler = Handler(Looper.getMainLooper())
     private var redrawScheduled = false
     private var redrawDirty = false
+    private var lastInputAt = 0L
+    private var lastCatalogueRenderAt = 0L
     private val redrawTask = Runnable {
         redrawScheduled = false
         if (!isFinishing && !isDestroyed && hasWindowFocus()) {
-            redrawDirty = false
-            render()
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastInputAt < 2500L || now - lastCatalogueRenderAt < 9000L) {
+                redrawHandler.postDelayed({ scheduleRender() }, 3000L)
+            } else {
+                redrawDirty = false
+                lastCatalogueRenderAt = now
+                render()
+            }
         }
     }
 
@@ -134,6 +142,7 @@ open class MinimalHomeActivity : Activity() {
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN) lastInputAt = SystemClock.elapsedRealtime()
         if (event.action == KeyEvent.ACTION_DOWN && hasWindowFocus() &&
             currentFocus == null && event.keyCode in listOf(
                 KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,

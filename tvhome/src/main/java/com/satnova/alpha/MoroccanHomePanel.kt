@@ -51,6 +51,17 @@ internal class MoroccanHomePanel(
     private var weather = "جاري تحميل الطقس…"
     private var stopped = false
     private var tickScheduled = false
+    private var cachedCityId = -1
+    private fun loadPrayerCache() {
+        val selected = city().id
+        if (cachedCityId == selected) return
+        cachedCityId = selected
+        prayers.clear()
+        try {
+            val raw = prefs.getString("habous_cache_$selected", null) ?: return
+            prayers.putAll(parseMonth(raw))
+        } catch (_: Exception) { }
+    }
     private lateinit var clock: TextView
     private lateinit var day: TextView
     private lateinit var date: TextView
@@ -79,6 +90,7 @@ internal class MoroccanHomePanel(
     fun backdrop(): Drawable = wallpaper
 
     fun build(): View {
+        loadPrayerCache()
         val panelShape = android.graphics.drawable.GradientDrawable().apply {
             cornerRadius = dp(17).toFloat()
             setColor(Color.argb(224, 3, 46, 34))
@@ -227,13 +239,19 @@ internal class MoroccanHomePanel(
             executor.execute {
                 // The upstream endpoint is independently operated; do not mark its data as
                 // a live verified ministry API, and reject old/mismatched calendar dates.
-                val result = try { parseMonth(fetch(
-                    "https://habous-prayer-times-api.onrender.com/api/v1/prayer-times?cityId=" + target.id)) }
-                    catch (_: Exception) { emptyMap() }
+                var response = ""
+                val result = try {
+                    response = fetch("https://habous-prayer-times-api.onrender.com/api/v1/prayer-times?cityId=" + target.id)
+                    parseMonth(response)
+                } catch (_: Exception) { emptyMap() }
                 ui.post {
                     if (stopped) return@post
                     if (city().id == target.id) {
-                        if (result.isNotEmpty()) { prayers.clear(); prayers.putAll(result) }
+                        if (result.isNotEmpty()) {
+                            prayers.clear()
+                            prayers.putAll(result)
+                            prefs.edit().putString("habous_cache_" + target.id, response).apply()
+                        }
                         loadingPrayer = false
                         updateClock()
                     }
@@ -279,8 +297,8 @@ internal class MoroccanHomePanel(
 
     private fun fetch(link: String): String {
         val c = URL(link).openConnection() as HttpURLConnection
-        c.connectTimeout = 8000
-        c.readTimeout = 9000
+        c.connectTimeout = 25000
+        c.readTimeout = 25000
         c.setRequestProperty("Accept", "application/json")
         try {
             if (c.responseCode != 200) error("HTTP " + c.responseCode)
