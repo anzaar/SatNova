@@ -10,6 +10,8 @@ import android.os.Looper
 import android.util.LruCache
 import android.widget.ImageView
 import java.io.File
+import java.io.InputStream
+import java.io.ByteArrayOutputStream
 import java.lang.ref.WeakReference
 import java.net.HttpURLConnection
 import java.net.URI
@@ -99,7 +101,72 @@ internal class ChannelLogoStore(context: Context) {
     private val failed = mutableSetOf<String>()
     private val lock = Any()
 
+    /** A logo chosen by the user stays on this television even when offline.
+     * Normalize broadcast-quality suffixes so SD/HD/UHD variants share a logo.
+     * All files stay in this application's private storage, without storage permissions. */
+    private fun manualFile(channel: ZenChannel): File {
+        val normalized = Normalizer.normalize(channel.name, Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "").lowercase(Locale.ROOT)
+            .replace(Regex("\\b(uhd|fhd|hd|sd|4k|hevc|h265|backup|bkp)\\b"), " ")
+            .replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
+        val key = normalized.ifEmpty { channel.id }
+        val hash = MessageDigest.getInstance("SHA-256")
+            .digest(key.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 255) }
+        return File(root, "manual-$hash.png")
+    }
+
+    fun hasCustomLogo(channel: ZenChannel): Boolean = manualFile(channel).isFile
+
+    fun removeCustomLogo(channel: ZenChannel) {
+        manualFile(channel).delete()
+        synchronized(lock) { cache.evictAll(); failed.clear() }
+    }
+
+    /** Imports only a bounded, decodable user-selected graphic, never an arbitrary file path. */
+    fun importCustomLogo(channel: ZenChannel, input: InputStream): Boolean = try {
+        val out = ByteArrayOutputStream()
+        val chunk = ByteArray(16_384)
+        while (true) {
+            val got = input.read(chunk)
+            if (got < 0) break
+            if (out.size() + got > 700_000) return false
+            out.write(chunk, 0, got)
+        }
+        val data = out.toByteArray()
+        val svg = String(data.copyOfRange(0, minOf(data.size, 200)), Charsets.UTF_8)
+            .contains("<svg", ignoreCase = true)
+        val bitmap = decode(data, if (svg) "manual.svg" else "manual.png")
+            ?: return false
+        val factor = minOf(1f, 400f / maxOf(bitmap.width, bitmap.height))
+        val resized = if (factor < 1f) Bitmap.createScaledBitmap(bitmap,
+            (bitmap.width * factor).toInt().coerceAtLeast(1),
+            (bitmap.height * factor).toInt().coerceAtLeast(1), true) else bitmap
+        val tmp = File(root, "user-logo-upload.tmp")
+        val result = tmp.outputStream().use { resized.compress(Bitmap.CompressFormat.PNG, 95, it) }
+        if (resized !== bitmap) resized.recycle()
+        bitmap.recycle()
+        if (!result || tmp.length() !in 1..700_000) { tmp.delete(); return false }
+        val dest = manualFile(channel)
+        if (!tmp.renameTo(dest)) { tmp.copyTo(dest, overwrite = true); tmp.delete() }
+        synchronized(lock) { cache.evictAll(); failed.clear() }
+        true
+    } catch (_: Exception) { false }
+
     fun bind(image: ImageView, channel: ZenChannel) {
+        val custom = manualFile(channel)
+        if (custom.isFile) {
+            val key = "manual:" + custom.name
+            image.tag = key
+            val bmp = synchronized(lock) { cache.get(key) } ?: try {
+                decode(custom.readBytes(), "manual.png")?.also {
+                    synchronized(lock) { cache.put(key, it) }
+                }
+            } catch (_: Exception) { null }
+            if (bmp != null) { image.setImageBitmap(bmp); return }
+            custom.delete() // Corrupt cache: use verified online sources instead.
+        }
+
         val urls = (listOfNotNull(
             ChannelLogoSource.verifiedHttpLogo(channel.logoUrl),
             badr.url(channel)) + ChannelLogoSource.urls(channel)).distinct()
