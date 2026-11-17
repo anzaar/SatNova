@@ -62,7 +62,7 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
             event?.eventType != AccessibilityEvent.TYPE_WINDOWS_CHANGED) return
         val pkg = event.packageName?.toString().orEmpty()
-        if (pkg.isBlank()) return
+        if (pkg.isBlank() || !armValid()) return
         currentPackage = pkg
         if (pkg == packageName) {
             // Do not disarm the initial button press in the launcher. Disarm
@@ -74,11 +74,15 @@ class Zen4HdmiRemoteService : AccessibilityService() {
             }
         } else if (pkg !in listOf("com.android.systemui", "com.android.settings",
                 "com.google.android.tvlauncher", "com.google.android.apps.tv.launcherx")) {
-            if (armValid() && approvedViewer(pkg)) {
+            if (approvedViewer(pkg)) {
                 prefs.edit().putBoolean("hdmi_seen", true).apply()
+            } else if (prefs.getBoolean("hdmi_seen", false)) {
+                // After verified HDMI, never keep remapping keys in unrelated apps.
+                prefs.edit().putBoolean("armed", false)
+                    .putBoolean("hdmi_seen", false).apply()
+                swallowed.clear()
             }
-            // Observational only until user explicitly trusts an unknown HDMI
-            // application package from SatNova TV settings.
+            // Record foreground package only during an explicitly armed test.
             prefs.edit().putString("observed_viewer_package", pkg).apply()
         }
     }
