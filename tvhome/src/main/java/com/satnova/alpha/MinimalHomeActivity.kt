@@ -197,17 +197,6 @@ open class MinimalHomeActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = bgColor
         window.navigationBarColor = bgColor
-        client = Zen4SessionHub.attach(this, this, receiverListener)
-        if (!previewMode) {
-            try {
-                val service = Intent(this, Zen4PersistentService::class.java)
-                if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(service)
-                else startService(service)
-            } catch (_: Exception) {
-                // The launcher retains its own reconnection loop if the
-                // device firmware refuses foreground services.
-            }
-        }
         // A damaged cached UI asset must not leave the television without a launcher.
         // Show a minimal recovery screen rather than crashing the HOME activity.
         try {
@@ -215,6 +204,21 @@ open class MinimalHomeActivity : Activity() {
         } catch (error: Exception) {
             android.util.Log.e("SatNovaHome", "Initial HOME render failed", error)
             showStartupRecovery(error)
+        }
+        // Allow first HOME frame to render before Zen4 network/service startup.
+        window.decorView.post {
+            if (isFinishing || isDestroyed) return@post
+            client = Zen4SessionHub.attach(this, this, receiverListener)
+            if (!previewMode) {
+                try {
+                    val service = Intent(this, Zen4PersistentService::class.java)
+                    if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(service)
+                    else startService(service)
+                } catch (_: Exception) {
+                    // The launcher retains its own reconnection loop if the
+                    // device firmware refuses foreground services.
+                }
+            }
         }
         // Explain both optional setup steps only on the first TV launch.
         // Dismissing either choice never changes the Android launcher or
