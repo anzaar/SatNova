@@ -888,6 +888,8 @@ open class MinimalHomeActivity : Activity() {
             "Applications favorites", "Ajouter une page Favoris",
             "Renommer la page Favoris", "Adresse IP de Zen 4",
             "Afficher / masquer l'historique", "مدينة الصلاة والطقس",
+            "إدخال أوقات الوزارة لليوم", "إدخال أوقات الوزارة للغد",
+            "موقع وزارة الأوقاف الرسمي",
             "Entrée HDMI : détection automatique", "Actualiser les logos",
             "Réinitialiser les groupes TV", "Tester ouverture HDMI du récepteur",
             "Choisir l'accueil TV par défaut", "Télécommande Lifemaxx → Zen 4 (HDMI)"
@@ -905,15 +907,23 @@ open class MinimalHomeActivity : Activity() {
                         render()
                     }
                     5 -> islamicPanel.chooseCity { render() }
-                    6 -> Toast.makeText(this, "Détection HDMI automatique, HDMI 1 en secours", Toast.LENGTH_SHORT).show()
-                    7 -> { logos.retryFailed(); render() }
-                    8 -> AlertDialog.Builder(this).setTitle("Réinitialiser les groupes ?")
+                    6 -> islamicPanel.editOfficialDay(false) { render() }
+                    7 -> islamicPanel.editOfficialDay(true) { render() }
+                    8 -> try {
+                        startActivity(Intent(Intent.ACTION_VIEW,
+                            android.net.Uri.parse("https://www.habous.gov.ma/")))
+                    } catch (_: Exception) {
+                        Toast.makeText(this, "Navigateur indisponible", Toast.LENGTH_SHORT).show()
+                    }
+                    9 -> Toast.makeText(this, "Détection HDMI automatique, HDMI 1 en secours", Toast.LENGTH_SHORT).show()
+                    10 -> { logos.retryFailed(); render() }
+                    11 -> AlertDialog.Builder(this).setTitle("Réinitialiser les groupes ?")
                         .setMessage("Restaure les regroupements automatiques de l'application, sans modifier le récepteur.")
                         .setPositiveButton("Réinitialiser") { _, _ -> families.resetAll(); render() }
                         .setNegativeButton("Annuler", null).show()
-                    9 -> if (!previewMode) openHdmi1IfPossible()
-                    10 -> openHomeChoiceSettings()
-                    11 -> hdmiRemoteMenu()
+                    12 -> if (!previewMode) openHdmi1IfPossible()
+                    13 -> openHomeChoiceSettings()
+                    14 -> hdmiRemoteMenu()
                 }
             }.show()
     }
