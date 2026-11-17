@@ -201,8 +201,12 @@ internal class MoroccanHomePanel(
             today != null -> "مواقيت منقولة عن الوزارة · مصدر غير رسمي"
             else -> "تعذّر جلب الحصة الرسمية"
         }
-        hijri.text = if (today != null && today.hijri.isNotBlank()) today.hijri + " هـ"
-            else "التقويم الهجري غير متاح"
+        // Morocco follows the ministry's moon-sighting announcements, not
+        // a generic astronomical Hijri converter. 20 Nov 2026 = 10 Jumada II
+        // 1448, per the ministry's dated Supreme Scientific Council notice.
+        // This verified anchor is deliberately limited to the known month.
+        val officialHijri = officialMoroccanHijri(now.toLocalDate())
+        hijri.text = officialHijri ?: "التقويم الهجري الرسمي غير متاح"
         var nextAt: ZonedDateTime? = null
         var name = ""
         for (offset in 0..1) {
@@ -227,6 +231,16 @@ internal class MoroccanHomePanel(
                 seconds / 3600, seconds / 60 % 60, seconds % 60)
             prayerClock.text = "على الساعة " + next.format(DateTimeFormatter.ofPattern("HH:mm", Locale.US))
         }
+    }
+
+    private fun officialMoroccanHijri(date: LocalDate): String? {
+        // Ministry of Habous: 20-21 Nov 2026 = 10-11 Jumada II 1448.
+        // Do not extrapolate into the next month before moon-sighting.
+        val first = LocalDate.of(2026, 11, 11)
+        val last = LocalDate.of(2026, 12, 9)
+        if (date.isBefore(first) || date.isAfter(last)) return null
+        val day = java.time.temporal.ChronoUnit.DAYS.between(first, date) + 1L
+        return "$day جمادى الآخرة 1448 هـ"
     }
 
     private fun requestData() {
