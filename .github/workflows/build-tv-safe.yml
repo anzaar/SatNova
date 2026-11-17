@@ -1,4 +1,4 @@
-name: Build SatNova TV Home 0.5.5 Stability + Moroccan Prayer Cache + Optional HDMI Bridge
+name: Build SatNova TV Home 0.5.6 Stability + Moroccan Prayer Cache + Optional HDMI Bridge
 on:
   push:
     branches:
@@ -40,7 +40,7 @@ jobs:
         run: gradle --no-daemon --stacktrace :tvhome:assembleTvDebug :tvhome:assembleTvbridgeDebug :tvhome:assembleMobileDebug
       - uses: actions/upload-artifact@v4
         with:
-          name: SatNova-TV-Home-Safe-0.5.5
+          name: SatNova-TV-Home-Safe-0.5.6
           path: tvhome/build/outputs/apk/tv/debug/tvhome-tv-debug.apk
           if-no-files-found: error
           retention-days: 14
@@ -52,7 +52,7 @@ jobs:
           retention-days: 14
       - uses: actions/upload-artifact@v4
         with:
-          name: SatNova-TV-Home-Phone-Preview-0.5.5
+          name: SatNova-TV-Home-Phone-Preview-0.5.6
           path: tvhome/build/outputs/apk/mobile/debug/tvhome-mobile-debug.apk
           if-no-files-found: error
           retention-days: 14
@@ -68,16 +68,16 @@ jobs:
             echo "Skipping stale preview"
             exit 0
           fi
-          cp tvhome/build/outputs/apk/mobile/debug/tvhome-mobile-debug.apk SatNova-TV-Home-Phone-Preview-0.5.5.apk
-          if ! gh release view v0.5.5-phone-preview >/dev/null 2>&1; then
-            gh release create v0.5.5-phone-preview --prerelease \
-              --title "SatNova TV Home 0.5.5 — Zen 4 Phone Preview" \
+          cp tvhome/build/outputs/apk/mobile/debug/tvhome-mobile-debug.apk SatNova-TV-Home-Phone-Preview-0.5.6.apk
+          if ! gh release view v0.5.6-phone-preview >/dev/null 2>&1; then
+            gh release create v0.5.6-phone-preview --prerelease \
+              --title "SatNova TV Home 0.5.6 — Zen 4 Phone Preview" \
               --target "$GITHUB_SHA" \
               --notes "Compiled mobile preview from the same MinimalHomeActivity as the TV launcher. Improved Wi-Fi discovery and multi-host G-MScreen login. Touch/landscape preview; does NOT claim Android HOME, switch HDMI, or intercept physical TV remote keys. Zen 4 LAN connection and channel commands are real if paired to the same trusted Wi-Fi. This APK is debug-signed for testing."
           else
-            gh release edit v0.5.5-phone-preview --target "$GITHUB_SHA"
+            gh release edit v0.5.6-phone-preview --target "$GITHUB_SHA"
           fi
-          gh release upload v0.5.5-phone-preview SatNova-TV-Home-Phone-Preview-0.5.5.apk --clobber
+          gh release upload v0.5.6-phone-preview SatNova-TV-Home-Phone-Preview-0.5.6.apk --clobber
       - name: Publish safe alpha only, never market as Play Protect approved
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -90,13 +90,13 @@ jobs:
             echo "Skipping stale build"
             exit 0
           fi
-          cp tvhome/build/outputs/apk/tv/debug/tvhome-tv-debug.apk SatNova-TV-Home-Safe-0.5.5.apk
-          if ! gh release view v0.5.5-tv-async-tune >/dev/null 2>&1; then
-            gh release create v0.5.5-tv-async-tune --prerelease \
-              --title "SatNova TV Home 0.5.5 - Stability + Moroccan Prayer Cache" \
+          cp tvhome/build/outputs/apk/tv/debug/tvhome-tv-debug.apk SatNova-TV-Home-Safe-0.5.6.apk
+          if ! gh release view v0.5.6-tv-prayer-fallback >/dev/null 2>&1; then
+            gh release create v0.5.6-tv-prayer-fallback --prerelease \
+              --title "SatNova TV Home 0.5.6 - Stability + Moroccan Prayer Cache" \
               --target "$GITHUB_SHA" \
               --notes "TV HOME launcher test build. Coalesced Zen 4 catalogue UI updates, restored D-pad focus after welcome dismissal, preserved complete logos and made TV app relaunchable. Zen 4 authentication is preserved. No Accessibility service in standard APK. Zen 4 local connection, offline cached logos and manual logo import. HDMI-key forwarding NOT provided in this safe edition. Debug-signed; test on LifeMax, not a production certificate."
           else
-            gh release edit v0.5.5-tv-async-tune --target "$GITHUB_SHA"
+            gh release edit v0.5.6-tv-prayer-fallback --target "$GITHUB_SHA"
           fi
-          gh release upload v0.5.5-tv-async-tune SatNova-TV-Home-Safe-0.5.5.apk --clobber
+          gh release upload v0.5.6-tv-prayer-fallback SatNova-TV-Home-Safe-0.5.6.apk --clobber

@@ -52,6 +52,7 @@ internal class MoroccanHomePanel(
     private var stopped = false
     private var tickScheduled = false
     private var cachedCityId = -1
+    private var prayerSource = "habous"
     private fun loadPrayerCache() {
         val selected = city().id
         if (cachedCityId == selected) return
@@ -59,7 +60,8 @@ internal class MoroccanHomePanel(
         prayers.clear()
         try {
             val raw = prefs.getString("habous_cache_$selected", null) ?: return
-            prayers.putAll(parseMonth(raw))
+            prayerSource = prefs.getString("prayer_source_$selected", "habous") ?: "habous"
+            prayers.putAll(if (prayerSource == "aladhan") parseAladhanMonth(raw) else parseMonth(raw))
         } catch (_: Exception) { }
     }
     private lateinit var clock: TextView
@@ -198,6 +200,7 @@ internal class MoroccanHomePanel(
         val today = manualDay(now.toLocalDate()) ?: prayers[now.toLocalDate()]
         sourceLabel.text = when {
             manualDay(now.toLocalDate()) != null -> "مواقيت أدخلتها من الحصة الرسمية"
+            today != null && prayerSource == "aladhan" -> "حساب AlAdhan · الطريقة المغربية 21 (غير رسمي)"
             today != null -> "مواقيت منقولة عن الوزارة · مصدر غير رسمي"
             else -> "تعذّر جلب الحصة الرسمية"
         }
@@ -254,17 +257,38 @@ internal class MoroccanHomePanel(
                 // The upstream endpoint is independently operated; do not mark its data as
                 // a live verified ministry API, and reject old/mismatched calendar dates.
                 var response = ""
-                val result = try {
+                var source = "habous"
+                var result = try {
                     response = fetch("https://habous-prayer-times-api.onrender.com/api/v1/prayer-times?cityId=" + target.id)
                     parseMonth(response)
                 } catch (_: Exception) { emptyMap() }
+                if (result.isEmpty()) {
+                    // Fallback is a calculated Morocco-method schedule, NOT the
+                    // ministry's directly published city schedule.
+                    try {
+                        val today = LocalDate.now(zone)
+                        val url = "https://api.aladhan.com/v1/calendarByCity/" +
+                            today.year + "/" + today.monthValue +
+                            "?city=" + java.net.URLEncoder.encode(target.name, "UTF-8") +
+                            "&country=Morocco&method=21"
+                        val fallback = fetch(url)
+                        val parsed = parseAladhanMonth(fallback)
+                        if (parsed.isNotEmpty()) {
+                            response = fallback
+                            result = parsed
+                            source = "aladhan"
+                        }
+                    } catch (_: Exception) { }
+                }
                 ui.post {
                     if (stopped) return@post
                     if (city().id == target.id) {
                         if (result.isNotEmpty()) {
                             prayers.clear()
                             prayers.putAll(result)
-                            prefs.edit().putString("habous_cache_" + target.id, response).apply()
+                            prayerSource = source
+                            prefs.edit().putString("habous_cache_" + target.id, response)
+                                .putString("prayer_source_" + target.id, source).apply()
                         }
                         loadingPrayer = false
                         updateClock()
@@ -318,6 +342,35 @@ internal class MoroccanHomePanel(
             if (c.responseCode != 200) error("HTTP " + c.responseCode)
             return c.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
         } finally { c.disconnect() }
+    }
+
+    private fun parseAladhanMonth(body: String): Map<LocalDate, PrayerDay> {
+        val root = JSONObject(body)
+        if (root.optInt("code") != 200) return emptyMap()
+        val items = root.optJSONArray("data") ?: return emptyMap()
+        val result = mutableMapOf<LocalDate, PrayerDay>()
+        val mapping = mapOf("fajr" to "Fajr", "dhuhr" to "Dhuhr",
+            "asr" to "Asr", "maghrib" to "Maghrib", "ishaa" to "Isha")
+        for (i in 0 until items.length()) {
+            val entry = items.optJSONObject(i) ?: continue
+            val greg = entry.optJSONObject("date")?.optJSONObject("gregorian") ?: continue
+            val date = try {
+                val parts = greg.getString("date").split("-")
+                LocalDate.of(parts[2].toInt(), parts[1].toInt(), parts[0].toInt())
+            } catch (_: Exception) { continue }
+            if (kotlin.math.abs(java.time.temporal.ChronoUnit.DAYS.between(
+                    LocalDate.now(zone), date)) > 36) continue
+            val times = entry.optJSONObject("timings") ?: continue
+            val mapped = mutableMapOf<String, LocalTime>()
+            for ((key, apiKey) in mapping) {
+                val raw = times.optString(apiKey).trim()
+                val clock = Regex("^([0-2][0-9]):([0-5][0-9])").find(raw)?.value
+                if (clock != null) try { mapped[key] = LocalTime.parse(clock) }
+                    catch (_: Exception) { }
+            }
+            if (mapped.size == 5) result[date] = PrayerDay(mapped, "")
+        }
+        return result
     }
 
     private fun parseMonth(body: String): Map<LocalDate, PrayerDay> {
