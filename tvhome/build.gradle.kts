@@ -10,8 +10,22 @@ android {
         applicationId = "com.satnova.tvhome"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0-alpha"
+        versionCode = 2
+        versionName = "0.2.0-alpha"
+    }
+    flavorDimensions += "device"
+    productFlavors {
+        create("tv") {
+            dimension = "device"
+            // New package to avoid replacing the already-installed phone test.
+            applicationIdSuffix = ".tv"
+            versionNameSuffix = "-tv"
+        }
+        create("mobile") {
+            dimension = "device"
+            // Retain the existing Home Preview package; never claim HOME on a phone.
+            versionNameSuffix = "-mobile"
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
