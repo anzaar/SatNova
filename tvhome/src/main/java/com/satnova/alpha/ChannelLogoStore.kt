@@ -124,7 +124,8 @@ internal class ChannelLogoStore(context: Context) {
     }
 
     /** Imports only a bounded, decodable user-selected graphic, never an arbitrary file path. */
-    fun importCustomLogo(channel: ZenChannel, input: InputStream): Boolean = try {
+    fun importCustomLogo(channel: ZenChannel, input: InputStream): Boolean {
+        return try {
         val out = ByteArrayOutputStream()
         val chunk = ByteArray(16_384)
         while (true) {
@@ -151,7 +152,8 @@ internal class ChannelLogoStore(context: Context) {
         if (!tmp.renameTo(dest)) { tmp.copyTo(dest, overwrite = true); tmp.delete() }
         synchronized(lock) { cache.evictAll(); failed.clear() }
         true
-    } catch (_: Exception) { false }
+        } catch (_: Exception) { false }
+    }
 
     fun bind(image: ImageView, channel: ZenChannel) {
         val custom = manualFile(channel)
