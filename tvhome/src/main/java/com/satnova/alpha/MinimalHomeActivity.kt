@@ -644,6 +644,14 @@ open class MinimalHomeActivity : Activity() {
      * Never guess an input if the TV does not expose it.
      */
     private fun openHdmi1IfPossible() {
+        if (!previewMode && hdmiBridgeEnabled()) {
+            val bridgePrefs = hdmiBridgePrefs()
+            if (bridgePrefs.getBoolean("auto_arm", false)) {
+                bridgePrefs.edit().putBoolean("armed", true)
+                    .putBoolean("hdmi_seen", false)
+                    .putLong("armed_since", System.currentTimeMillis()).apply()
+            }
+        }
         var suggested = "HDMI 1"
         val handled = try {
             val manager = getSystemService(Context.TV_INPUT_SERVICE) as? TvInputManager
@@ -808,6 +816,8 @@ open class MinimalHomeActivity : Activity() {
         val status = buildString {
             append("Service Accessibilité : ")
             append(if (enabled) "activé" else "désactivé")
+            append("\nActivation au changement de chaîne : ")
+            append(if (prefs.getBoolean("auto_arm", false)) "oui" else "non")
             append("\nMode Zen 4 sur HDMI : ")
             append(if (prefs.getBoolean("armed", false)) "armé" else "arrêté")
             append("\nDernière touche TV : ")
@@ -825,6 +835,7 @@ open class MinimalHomeActivity : Activity() {
             "Activer le contrôle Zen 4 sur HDMI",
             "Autoriser le service dans Accessibilité",
             "Autoriser l'application HDMI détectée",
+            "Activer / désactiver le contrôle automatique après zapping",
             "Arrêter le contrôle HDMI"
         )
         AlertDialog.Builder(this).setTitle("Télécommande Lifemaxx → Zen 4")
@@ -874,6 +885,13 @@ open class MinimalHomeActivity : Activity() {
                         }
                     }
                     3 -> {
+                        val enable = !prefs.getBoolean("auto_arm", false)
+                        prefs.edit().putBoolean("auto_arm", enable).apply()
+                        Toast.makeText(this, if (enable)
+                            "Contrôle HDMI automatique activé après sélection d'une chaîne"
+                            else "Contrôle HDMI automatique désactivé", Toast.LENGTH_LONG).show()
+                    }
+                    4 -> {
                         prefs.edit().putBoolean("armed", false)
                             .putBoolean("hdmi_seen", false).apply()
                         Toast.makeText(this, "Contrôle HDMI arrêté", Toast.LENGTH_SHORT).show()
