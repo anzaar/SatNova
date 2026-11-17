@@ -375,7 +375,11 @@ open class MinimalHomeActivity : Activity() {
             scroll.scrollTo(0, oldY)
             val focus = oldFocus?.let { findFocusable(root, it) }
             if (focus != null) focus.requestFocus()
-            else if (firstDraw) header.getChildAt(0)?.requestFocus()
+            else if (firstDraw) {
+                val firstApp = selectedApps(installedApps()).firstOrNull()?.label
+                (firstApp?.let { findFocusable(root, it) }
+                    ?: header.getChildAt(0))?.requestFocus()
+            }
         }
     }
 
