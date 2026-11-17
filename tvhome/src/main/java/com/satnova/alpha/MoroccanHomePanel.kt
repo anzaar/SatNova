@@ -37,7 +37,7 @@ internal class MoroccanHomePanel(
         City("تيفلت", 3, 33.8940, -6.3060)
     )
     private data class PrayerDay(val times: Map<String, LocalTime>, val hijri: String)
-    private val zone = ZoneId.of("Africa/Casablanca")
+    private val zone = java.time.ZoneOffset.UTC // Morocco legal GMT since Sep 2026; TV tzdb may be stale
     private val arabic = Locale("ar", "MA")
     private val names = listOf("الفجر" to "fajr", "الظهر" to "dhuhr",
         "العصر" to "asr", "المغرب" to "maghrib", "العشاء" to "ishaa")
