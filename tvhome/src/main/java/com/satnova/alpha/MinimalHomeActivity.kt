@@ -21,6 +21,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.TextClock
 import android.widget.Toast
 import org.json.JSONArray
 import org.json.JSONObject
@@ -161,9 +162,12 @@ open class MinimalHomeActivity : Activity() {
     }
 
     private fun cardWidth(): Int {
-        val w = resources.displayMetrics.widthPixels
-        return if (previewMode) ((w - dp(40) - dp(4 * 8)) / 5).coerceAtLeast(dp(92))
-            else ((w - dp(96) - dp(4 * 14)) / 5).coerceAtLeast(dp(108))
+        val width = resources.displayMetrics.widthPixels
+        val totalHorizontalPadding = if (previewMode) 36 else 96
+        // All FIVE cards include right-margin, so the fifth stays fully visible.
+        val totalCardMargins = 5 * 14
+        return ((width - dp(totalHorizontalPadding + totalCardMargins)) / 5)
+            .coerceAtLeast(dp(if (previewMode) 92 else 108))
     }
 
     private fun addCard(row: LinearLayout, label: String, subtitle: String?,
@@ -234,6 +238,17 @@ open class MinimalHomeActivity : Activity() {
         header.addView(iconButton(R.drawable.satnova_home_icon, "Accueil") { render() },
             LinearLayout.LayoutParams(dp(52), dp(52)))
         header.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
+        if (!previewMode) {
+            header.addView(TextClock(this).apply {
+                format24Hour = "HH:mm"
+                format12Hour = "h:mm a"
+                textSize = 21f
+                setTextColor(fg)
+                gravity = Gravity.CENTER
+                contentDescription = "Heure locale"
+                isFocusable = false
+            }, LinearLayout.LayoutParams(-2, dp(52)).apply { rightMargin = dp(24) })
+        }
         header.addView(iconButton(android.R.drawable.ic_menu_search, "Recherche") { search() },
             LinearLayout.LayoutParams(dp(52), dp(52)).apply { rightMargin = dp(12) })
         header.addView(iconButton(android.R.drawable.ic_menu_preferences, "Paramètres") { settings() },
