@@ -18,6 +18,7 @@ import android.widget.EditText
 import android.widget.HorizontalScrollView
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -38,11 +39,11 @@ import java.util.concurrent.Executors
 open class MinimalHomeActivity : Activity() {
     protected open val previewMode: Boolean = false // Compact phone layout; real network commands stay enabled
     private val bgColor = Color.rgb(12, 25, 28)
-    private val surface = Color.rgb(29, 47, 49)
-    private val selected = Color.rgb(52, 79, 77)
+    private val surface = Color.argb(228, 20, 43, 48)
+    private val selected = Color.argb(245, 23, 68, 58)
     private val fg = Color.rgb(245, 247, 251)
     private val muted = Color.rgb(165, 175, 191)
-    private val border = Color.rgb(186, 209, 158)
+    private val border = Color.rgb(118, 255, 181)
     private val prefs by lazy { getSharedPreferences("satnova_minimal_home", Context.MODE_PRIVATE) }
     private val logos by lazy { ChannelLogoStore(this) }
     private val families by lazy { ChannelFamilies(prefs) }
@@ -117,6 +118,16 @@ open class MinimalHomeActivity : Activity() {
         window.statusBarColor = bgColor
         window.navigationBarColor = bgColor
         client = Zen4SessionHub.attach(this, this, receiverListener)
+        if (!previewMode) {
+            try {
+                val service = Intent(this, Zen4PersistentService::class.java)
+                if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(service)
+                else startService(service)
+            } catch (_: Exception) {
+                // The launcher retains its own reconnection loop if the
+                // device firmware refuses foreground services.
+            }
+        }
         render()
     }
 
@@ -168,6 +179,7 @@ open class MinimalHomeActivity : Activity() {
         val scroll = HorizontalScrollView(this).apply {
             isHorizontalScrollBarEnabled = false
             clipToPadding = false
+            setPadding(dp(26), 0, dp(26), 0)
         }
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -202,22 +214,51 @@ open class MinimalHomeActivity : Activity() {
         return rememberRow(rowId, scroll)
     }
 
-    private fun cardWidth(): Int {
-        val width = resources.displayMetrics.widthPixels
-        val totalHorizontalPadding = if (previewMode) 36 else 96
-        // All FIVE cards include right-margin, so the fifth stays fully visible.
-        val totalCardMargins = 5 * 14
-        return ((width - dp(totalHorizontalPadding + totalCardMargins)) / 5)
-            .coerceAtLeast(dp(if (previewMode) 92 else 108))
+    private fun withArrows(scroll: HorizontalScrollView): View {
+        val frame = FrameLayout(this)
+        frame.addView(scroll, FrameLayout.LayoutParams(-1, -2))
+        fun arrow(label: String, direction: Int, gravity: Int) {
+            val view = text(label, 24f, true, fg).apply {
+                this.gravity = Gravity.CENTER
+                contentDescription = if (direction < 0) "Défiler vers la gauche"
+                    else "Défiler vers la droite"
+                setOnClickListener { scroll.smoothScrollBy(direction * dp(cardWidth() + 14) * 2, 0) }
+                isFocusable = true
+                setOnFocusChangeListener { v, focused ->
+                    v.background = rounded(if (focused) selected else surface, focused)
+                }
+                background = rounded(surface)
+            }
+            frame.addView(view, FrameLayout.LayoutParams(dp(27), dp(46), gravity))
+        }
+        arrow("‹", -1, Gravity.START or Gravity.CENTER_VERTICAL)
+        arrow("›", 1, Gravity.END or Gravity.CENTER_VERTICAL)
+        return frame
+    }
+
+    private fun cardWidth(kind: String = "tv"): Int {
+        // Convert pixels to logical dp BEFORE returning; old code double-scaled
+        // the width on high-density Android TV displays.
+        val availableDp = resources.displayMetrics.widthPixels /
+            resources.displayMetrics.density
+        val n = when (kind) {
+            "apps" -> 5
+            "radio" -> 4
+            else -> 6
+        }
+        val paddingDp = if (previewMode) 36 else 96
+        return ((availableDp - paddingDp - n * 14 - 48) / n)
+            .toInt().coerceAtLeast(if (previewMode) 84 else 102)
     }
 
     private fun addCard(row: LinearLayout, label: String, subtitle: String?,
         icon: android.graphics.drawable.Drawable?, click: () -> Unit,
-        longClick: (() -> Unit)? = null, logoChannel: ZenChannel? = null) {
+        longClick: (() -> Unit)? = null, logoChannel: ZenChannel? = null,
+        kind: String = "tv") {
         val card = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(dp(8), dp(10), dp(8), dp(10))
+            setPadding(dp(7), dp(7), dp(7), dp(7))
             background = rounded(surface)
             contentDescription = listOfNotNull(label, subtitle).joinToString(", ")
         }
@@ -233,24 +274,31 @@ open class MinimalHomeActivity : Activity() {
                 contentDescription = if (logoChannel != null) "Logo de $label" else label
             }
             card.addView(logoImage, LinearLayout.LayoutParams(
-                dp(if (logoChannel != null) 82 else 54),
-                dp(if (logoChannel != null) 62 else 48)
+                dp(if (logoChannel != null) 72 else if (kind == "radio") 42 else 48),
+                dp(if (logoChannel != null) 51 else if (kind == "radio") 35 else 43)
             ).apply { bottomMargin = dp(5) })
             if (logoChannel != null) logos.bind(logoImage, logoChannel)
         }
-        card.addView(text(label, 14f, true).apply { gravity = Gravity.CENTER },
+        card.addView(text(label, if (kind == "radio") 13f else 14f, true).apply { gravity = Gravity.CENTER },
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         if (!subtitle.isNullOrBlank()) {
             card.addView(text(subtitle, 11f, color = muted).apply { gravity = Gravity.CENTER },
                 LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
         }
         focusable(card, click, longClick)
-        row.addView(card, LinearLayout.LayoutParams(cardWidth(), dp(136)).apply { rightMargin = dp(14) })
+        val h = when (kind) {
+            "apps" -> 99
+            "radio" -> 78
+            else -> 112
+        }
+        row.addView(card, LinearLayout.LayoutParams(dp(cardWidth(kind)), dp(h)).apply {
+            rightMargin = dp(14)
+        })
     }
 
     private fun section(title: String) {
         content.addView(text(title, 22f, true), LinearLayout.LayoutParams(-1, -2).apply {
-            topMargin = dp(24); bottomMargin = dp(12)
+            topMargin = dp(11); bottomMargin = dp(7)
         })
     }
 
@@ -281,7 +329,10 @@ open class MinimalHomeActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
         }
         header.addView(iconButton(R.drawable.satnova_home_icon, "Accueil") { render() },
-            LinearLayout.LayoutParams(dp(52), dp(52)))
+            LinearLayout.LayoutParams(dp(46), dp(46)))
+        header.addView(text("SatNova TV Home", 23f, true,
+            Color.rgb(215, 236, 187)).apply { gravity = Gravity.CENTER_VERTICAL },
+            LinearLayout.LayoutParams(-2, dp(46)).apply { leftMargin = dp(16) })
         header.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
         if (!previewMode) {
             header.addView(TextClock(this).apply {
@@ -342,7 +393,17 @@ open class MinimalHomeActivity : Activity() {
     }
 
     private fun selectedApps(all: List<AppItem>): List<AppItem> {
-        if (!prefs.contains("apps")) return all.take(8)
+        if (!prefs.contains("apps")) {
+            fun weight(label: String): Int = when {
+                label.contains("altaplay", true) -> 0
+                label.contains("shahid", true) -> 1
+                label.contains("youtube", true) -> 2
+                label.contains("downloader", true) -> 3
+                else -> 10
+            }
+            return all.sortedWith(compareBy<AppItem> { weight(it.label) }
+                .thenBy { it.label.lowercase() }).take(8)
+        }
         val ids = prefs.getString("apps", "")!!.split("|").filter(String::isNotBlank)
         return ids.mapNotNull { key -> all.firstOrNull { it.component.flattenToString() == key } }
     }
@@ -360,10 +421,11 @@ open class MinimalHomeActivity : Activity() {
         val all = installedApps()
         selectedApps(all).forEach { app ->
             addCard(row, app.label, null, app.info.loadIcon(packageManager),
-                { launchApp(app) }, { chooseApps() })
+                { launchApp(app) }, { chooseApps() }, kind = "apps")
         }
-        addCard(row, "Ajouter", null, getDrawable(android.R.drawable.ic_input_add), { chooseApps() })
-        content.addView(rememberRow("apps", scroll))
+        addCard(row, "Ajouter", null, getDrawable(android.R.drawable.ic_input_add),
+            { chooseApps() }, kind = "apps")
+        content.addView(withArrows(rememberRow("apps", scroll)))
     }
 
     private fun showTv() {
@@ -377,17 +439,17 @@ open class MinimalHomeActivity : Activity() {
             addCard(row, if (online) "Chargement…" else "Récepteur non connecté",
                 if (online) "Lecture des chaînes" else "Connexion Wi-Fi",
                 getDrawable(android.R.drawable.ic_menu_info_details), { settings() })
-            content.addView(rememberRow("tv-empty", scroll))
+            content.addView(withArrows(rememberRow("tv-empty", scroll)))
             return
         }
         val tiles = families.tiles(channels)
-        content.addView(pagedHorizontal(tiles, "tv") { row, tile ->
+        content.addView(withArrows(pagedHorizontal(tiles, "tv") { row, tile ->
             addCard(row, tile.label,
                 if (tile.isGroup) "${tile.members.size} chaînes" else ChannelDescription.summary(tile.first),
                 getDrawable(android.R.drawable.ic_media_play),
                 { if (tile.isGroup) showFamily(tile) else openChannel(tile.first) },
                 { if (tile.isGroup) editFamily(tile) else channelActions(tile.first) }, tile.first)
-        })
+        }))
     }
 
     private fun showRadios() {
@@ -396,13 +458,13 @@ open class MinimalHomeActivity : Activity() {
             val (scroll, row) = horizontalRow()
             addCard(row, "Aucune radio", "En attente du catalogue",
                 getDrawable(android.R.drawable.ic_media_play), { settings() })
-            content.addView(rememberRow("radios-empty", scroll))
+            content.addView(withArrows(rememberRow("radios-empty", scroll)))
         } else {
-            content.addView(pagedHorizontal(radios, "radios") { row, radio ->
+            content.addView(withArrows(pagedHorizontal(radios, "radios") { row, radio ->
                 addCard(row, radio.name, ChannelDescription.summary(radio),
                     getDrawable(android.R.drawable.ic_media_play),
-                    { openChannel(radio) }, { addChannelToPage(radio) }, radio)
-            })
+                    { openChannel(radio) }, { addChannelToPage(radio) }, radio, kind = "radio")
+            }))
         }
     }
 
@@ -419,7 +481,7 @@ open class MinimalHomeActivity : Activity() {
             addCard(row, "Aucun historique", "Après 60 secondes de visionnage",
                 getDrawable(android.R.drawable.ic_menu_recent_history), { settings() })
         }
-        content.addView(rememberRow("history", scroll))
+        content.addView(withArrows(rememberRow("history", scroll)))
     }
 
     private fun history(): List<String> {
@@ -482,7 +544,7 @@ open class MinimalHomeActivity : Activity() {
             focusable(chip, { activePage = index; render() }, { editPage(index) })
             row.addView(chip, LinearLayout.LayoutParams(-2, dp(46)).apply { rightMargin = dp(10) })
         }
-        content.addView(rememberRow("favorite-tabs", tabs))
+        content.addView(withArrows(rememberRow("favorite-tabs", tabs)))
         val (scroll, favorites) = horizontalRow()
         val channelMap = (channels + radios).associateBy { it.id }
         val ids = list[activePage].ids
@@ -496,7 +558,7 @@ open class MinimalHomeActivity : Activity() {
                     { openChannel(channel) }, { removeFavorite(channel.id) }, channel)
             }
         }
-        content.addView(rememberRow("favorites:$activePage", scroll),
+        content.addView(withArrows(rememberRow("favorites:$activePage", scroll)),
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14) })
     }
 
