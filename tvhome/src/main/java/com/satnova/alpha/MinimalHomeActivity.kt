@@ -57,8 +57,7 @@ open class MinimalHomeActivity : Activity() {
     private var trackedChannel = ""
     private var trackedSince = 0L
     private var historyRecordedFor = ""
-    private val client by lazy {
-        Zen4Client(this, object : Zen4Client.Listener {
+    private val receiverListener = object : Zen4Client.Listener {
             override fun state(connected: Boolean, message: String) {
                 online = connected
                 receiverMessage = message
@@ -78,8 +77,8 @@ open class MinimalHomeActivity : Activity() {
                         "Changement confirmé sur Zen 4 · ${channel.name}", Toast.LENGTH_LONG).show()
                 } else openHdmi1IfPossible()
             }
-        })
     }
+    private lateinit var client: Zen4Client
     private lateinit var content: LinearLayout
     private var activeScroll: ScrollView? = null
     private val savedRowScroll = mutableMapOf<String, Int>()
@@ -116,12 +115,20 @@ open class MinimalHomeActivity : Activity() {
         super.onCreate(savedInstanceState)
         window.statusBarColor = bgColor
         window.navigationBarColor = bgColor
+        client = Zen4SessionHub.attach(this, this, receiverListener)
         render()
-        client.start()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (!previewMode) {
+            getSharedPreferences("zen4_hdmi_bridge", Context.MODE_PRIVATE)
+                .edit().putBoolean("armed", false).apply()
+        }
     }
 
     override fun onDestroy() {
-        client.stop()
+        if (::client.isInitialized) Zen4SessionHub.detach(this)
         fileProbeWorker.shutdownNow()
         logos.close()
         super.onDestroy()
