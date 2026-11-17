@@ -10,8 +10,8 @@ android {
         applicationId = "com.satnova.tvhome"
         minSdk = 26
         targetSdk = 35
-        versionCode = 16
-        versionName = "0.5.10-stability"
+        versionCode = 17
+        versionName = "0.5.11-home-priority"
     }
     flavorDimensions += "device"
     productFlavors {
