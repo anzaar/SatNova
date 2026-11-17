@@ -105,6 +105,7 @@ open class MinimalHomeActivity : Activity() {
     private val redrawHandler = Handler(Looper.getMainLooper())
     private var redrawScheduled = false
     private var redrawDirty = false
+    private var renderInProgress = false
     private var lastInputAt = 0L
     private var lastCatalogueRenderAt = 0L
     private val redrawTask = Runnable {
@@ -116,7 +117,10 @@ open class MinimalHomeActivity : Activity() {
             } else {
                 redrawDirty = false
                 lastCatalogueRenderAt = now
-                render()
+                if (!renderInProgress) {
+                    renderInProgress = true
+                    try { render() } finally { renderInProgress = false }
+                }
             }
         }
     }

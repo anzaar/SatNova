@@ -170,13 +170,26 @@ internal class ChannelLogoStore(context: Context, private val onIndexReady: () -
         if (custom.isFile) {
             val key = "manual:" + custom.name
             image.tag = key
-            val bmp = synchronized(lock) { cache.get(key) } ?: try {
-                decode(custom.readBytes(), "manual.png")?.also {
-                    synchronized(lock) { cache.put(key, it) }
+            synchronized(lock) {
+                cache.get(key)?.let { image.setImageBitmap(it); return }
+                pending[key]?.let { it.add(WeakReference(image)); return }
+                pending[key] = mutableListOf(WeakReference(image))
+            }
+            // File reads and bitmap decoding must never block TV remote input.
+            executor.execute {
+                val bitmap = try { decode(custom.readBytes(), "manual.png") }
+                    catch (_: Exception) { null }
+                synchronized(lock) { if (bitmap != null) cache.put(key, bitmap) }
+                main.post {
+                    val views = synchronized(lock) { pending.remove(key).orEmpty() }
+                    if (bitmap != null) views.forEach { ref ->
+                        ref.get()?.let { view ->
+                            if (view.tag == key) view.setImageBitmap(bitmap)
+                        }
+                    }
                 }
-            } catch (_: Exception) { null }
-            if (bmp != null) { image.setImageBitmap(bmp); return }
-            custom.delete() // Corrupt cache: use verified online sources instead.
+            }
+            return
         }
 
         val urls = (listOfNotNull(

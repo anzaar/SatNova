@@ -1,6 +1,8 @@
 package com.satnova.alpha
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 
 /**
  * One receiver socket for the TV launcher and its optional HDMI remote bridge.
@@ -9,6 +11,10 @@ import android.content.Context
  */
 internal object Zen4SessionHub {
     private val guard = Any()
+    private val main = Handler(Looper.getMainLooper())
+    private fun onMain(action: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) action() else main.post { action() }
+    }
     private var client: Zen4Client? = null
     private val observers = linkedMapOf<Any, Zen4Client.Listener?>()
     private val dispatcher = object : Zen4Client.Listener {
@@ -16,16 +22,16 @@ internal object Zen4SessionHub {
             observers.values.filterNotNull()
         }
         override fun state(connected: Boolean, message: String) {
-            snapshot().forEach { it.state(connected, message) }
+            onMain { snapshot().forEach { it.state(connected, message) } }
         }
         override fun catalogue(channels: List<ZenChannel>) {
-            snapshot().forEach { it.catalogue(channels) }
+            onMain { snapshot().forEach { it.catalogue(channels) } }
         }
         override fun playing(channelId: String) {
-            snapshot().forEach { it.playing(channelId) }
+            onMain { snapshot().forEach { it.playing(channelId) } }
         }
         override fun tuneConfirmed(channel: ZenChannel) {
-            snapshot().forEach { it.tuneConfirmed(channel) }
+            onMain { snapshot().forEach { it.tuneConfirmed(channel) } }
         }
     }
 

@@ -9,6 +9,8 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.Handler
+import android.os.Looper
 
 /**
  * A small user-visible connected-device foreground service.
@@ -20,11 +22,20 @@ class Zen4PersistentService : Service() {
     private val notificationId = 40314
     private val channelId = "satnova_zen4_connection"
     private var clientAttached = false
+    private val main = Handler(Looper.getMainLooper())
+    private var lastNotifiedStatus = ""
+    private val notifyTask = Runnable {
+        if (status != lastNotifiedStatus) {
+            lastNotifiedStatus = status
+            try { updateNotification() } catch (_: Exception) { }
+        }
+    }
     private var status = "Recherche du récepteur Zen 4…"
     private val observer = object : Zen4Client.Listener {
         override fun state(connected: Boolean, message: String) {
             status = if (connected) "Connecté · Zen 4" else "Reconnexion · Zen 4"
-            updateNotification()
+            main.removeCallbacks(notifyTask)
+            main.postDelayed(notifyTask, 800L)
         }
         override fun catalogue(channels: List<ZenChannel>) {}
         override fun playing(channelId: String) {}
@@ -73,6 +84,7 @@ class Zen4PersistentService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        main.removeCallbacks(notifyTask)
         if (clientAttached) {
             Zen4SessionHub.detach(this)
             clientAttached = false
