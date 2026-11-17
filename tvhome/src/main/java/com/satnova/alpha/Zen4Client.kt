@@ -20,6 +20,10 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.Executors
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.InflaterInputStream
 
@@ -45,6 +49,8 @@ internal class Zen4Client(private val context: Context, private val listener: Li
     private val main = Handler(Looper.getMainLooper())
     private val control = Executors.newSingleThreadExecutor()
     private val discovery = Executors.newFixedThreadPool(12)
+    private val remote = ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+        ArrayBlockingQueue<Runnable>(24), ThreadPoolExecutor.DiscardOldestPolicy())
     private val active = AtomicBoolean(false)
     private val writeLock = Any()
     @Volatile private var session: Socket? = null
@@ -124,6 +130,7 @@ internal class Zen4Client(private val context: Context, private val listener: Li
         session = null
         control.shutdownNow()
         discovery.shutdownNow()
+        remote.shutdownNow()
     }
 
     fun setHost(host: String): Boolean {
@@ -170,6 +177,37 @@ internal class Zen4Client(private val context: Context, private val listener: Li
     }
 
     fun tune(channel: ZenChannel): Boolean = tuneDetailed(channel) == TuneResult.SENT
+
+    /**
+     * Control receiver keys with the same G-MScreen request 1040 used by
+     * phone SatNova. Only accepted codes from the explicit remote map.
+     * Never blocks an AccessibilityService key callback on network I/O.
+     */
+    fun sendRemoteKey(keyValue: Int): Boolean {
+        if (keyValue !in (1..22) && keyValue !in listOf(23, 32, 35, 36, 69, 70))
+            return false
+        val sock = session ?: return false
+        if (!authorized || sock.isClosed || !sock.isConnected || !active.get()) return false
+        try {
+            remote.execute {
+                if (!authorized || session !== sock || sock.isClosed) return@execute
+                try {
+                    val payload = if (jsonMode) JSONObject().put("request", "1040")
+                        .put("array", JSONArray().put(JSONObject()
+                            .put("KeyValue", keyValue.toString()))).toString()
+                    else "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>" +
+                        "<Command request=\\"1040\\"><parm><KeyValue>" +
+                        keyValue + "</KeyValue></parm></Command>"
+                    synchronized(writeLock) {
+                        if (session === sock && authorized) sendFrame(sock, payload)
+                    }
+                } catch (_: Exception) {
+                    try { sock.close() } catch (_: Exception) {}
+                }
+            }
+            return true
+        } catch (_: RejectedExecutionException) { return false }
+    }
 
     private fun privateIp(ip: String): Boolean {
         val v = ip.split('.').map { it.toIntOrNull() }
