@@ -89,8 +89,8 @@ internal object ChannelLogoSource {
 }
 
 /** Non-blocking, memory+disk-cached HTTPS logo loading with bounded responses. */
-internal class ChannelLogoStore(context: Context) {
-    private val badr = Badr26Picons(context)
+internal class ChannelLogoStore(context: Context, private val onIndexReady: () -> Unit = {}) {
+    @Volatile private var badr: Badr26Picons? = null
     private val root = File(context.filesDir, "channel-logos").apply { mkdirs() }
     private val executor = Executors.newFixedThreadPool(3)
     private val main = Handler(Looper.getMainLooper())
@@ -100,6 +100,16 @@ internal class ChannelLogoStore(context: Context) {
     private val pending = mutableMapOf<String, MutableList<WeakReference<ImageView>>>()
     private val failed = mutableSetOf<String>()
     private val lock = Any()
+
+    init {
+        // The bundled picon indexes can be large: never parse them on the UI thread.
+        val appContext = context.applicationContext
+        executor.execute {
+            val index = try { Badr26Picons(appContext) } catch (_: Exception) { null }
+            badr = index
+            if (index != null) main.post { onIndexReady() }
+        }
+    }
 
     /** A logo chosen by the user stays on this television even when offline.
      * Normalize broadcast-quality suffixes so SD/HD/UHD variants share a logo.
@@ -171,7 +181,7 @@ internal class ChannelLogoStore(context: Context) {
 
         val urls = (listOfNotNull(
             ChannelLogoSource.verifiedHttpLogo(channel.logoUrl),
-            badr.url(channel)) + ChannelLogoSource.urls(channel)).distinct()
+            badr?.url(channel)) + ChannelLogoSource.urls(channel)).distinct()
         if (urls.isEmpty()) return
         val key = urls.joinToString("\n")
         image.tag = key

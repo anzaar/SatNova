@@ -10,13 +10,15 @@ import java.util.Locale
  * Matches channel names only; never changes the receiver's order or metadata.
  */
 internal class Badr26Picons(context: Context) {
+    private val aliasPattern = Regex("[a-z0-9_-]+")
+    private val filenamePattern = Regex("[a-z0-9_-]+\\.default\\.(png|svg)")
     private fun loadIndex(context: Context, name: String): Map<String, String> = try {
         context.assets.open(name).bufferedReader(Charsets.UTF_8).useLines { lines ->
             lines.filter { it.isNotBlank() && !it.startsWith("#") }
                 .mapNotNull { line ->
                     val pair = line.split('\t', limit = 2)
-                    if (pair.size != 2 || !pair[0].matches(Regex("[a-z0-9_-]+")) ||
-                        !pair[1].matches(Regex("[a-z0-9_-]+\\.default\\.(png|svg)"))) null
+                    if (pair.size != 2 || !aliasPattern.matches(pair[0]) ||
+                        !filenamePattern.matches(pair[1])) null
                     else pair[0] to pair[1]
                 }.toMap()
         }

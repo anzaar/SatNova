@@ -50,7 +50,7 @@ open class MinimalHomeActivity : Activity() {
     private val muted = Color.rgb(165, 175, 191)
     private val border = Color.rgb(118, 255, 181)
     private val prefs by lazy { getSharedPreferences("satnova_minimal_home", Context.MODE_PRIVATE) }
-    private val logos by lazy { ChannelLogoStore(this) }
+    private val logos by lazy { ChannelLogoStore(this) { scheduleRender() } }
     private val families by lazy { ChannelFamilies(prefs) }
     private val islamicPanel by lazy { MoroccanHomePanel(this, prefs, previewMode) }
     private val fileProbeWorker = Executors.newSingleThreadExecutor()
