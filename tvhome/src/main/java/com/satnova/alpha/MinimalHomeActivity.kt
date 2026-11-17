@@ -358,8 +358,13 @@ open class MinimalHomeActivity : Activity() {
         }
         header.addView(iconButton(android.R.drawable.ic_menu_search, "Recherche") { search() },
             LinearLayout.LayoutParams(dp(52), dp(52)).apply { rightMargin = dp(12) })
-        header.addView(iconButton(android.R.drawable.ic_menu_preferences, "Paramètres") { settings() },
-            LinearLayout.LayoutParams(dp(52), dp(52)))
+        header.addView(iconButton(android.R.drawable.ic_menu_preferences, "Paramètres") {
+            settings()
+        }.apply {
+            // Long OK / long click opens the real Android TV Settings even
+            // when the launcher is configured as default.
+            setOnLongClickListener { openAndroidSystemSettings(); true }
+        }, LinearLayout.LayoutParams(dp(52), dp(52)))
         root.addView(header)
         val scroll = ScrollView(this).apply {
             isVerticalScrollBarEnabled = false
@@ -889,6 +894,65 @@ open class MinimalHomeActivity : Activity() {
             .show()
     }
 
+    private fun openAndroidSystemSettings() {
+        if (previewMode) return
+        startSystemSettings(listOf(
+            Intent(Settings.ACTION_SETTINGS),
+            Intent("android.settings.TV_SETTINGS")
+        ), "Réglages système indisponibles sur ce firmware LifeMax")
+    }
+
+    private fun openDeveloperOptions() {
+        if (previewMode) return
+        AlertDialog.Builder(this)
+            .setTitle("Options pour les développeurs · ADB")
+            .setMessage("SatNova ouvre uniquement les réglages Android TV. Si les options développeur ne sont pas visibles, allez dans Paramètres système → À propos → Numéro de build et appuyez généralement 7 fois sur OK, si LifeMax le permet. Activez ensuite le débogage ADB/USB manuellement. SatNova n'active jamais ADB à votre place.")
+            .setPositiveButton("Ouvrir les options") { _, _ ->
+                startSystemSettings(listOf(
+                    Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS),
+                    Intent(Settings.ACTION_DEVICE_INFO_SETTINGS),
+                    Intent(Settings.ACTION_SETTINGS)
+                ), "Options de développement indisponibles sur LifeMax")
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
+    }
+
+    /** Escape hatch stays available after choosing SatNova as default HOME. */
+    private fun androidSystemMenu() {
+        if (previewMode) return
+        val labels = arrayOf(
+            "Tous les paramètres Android TV",
+            "Wi-Fi / Réseau",
+            "Options développeur / Débogage ADB",
+            "Informations du téléviseur",
+            "Bluetooth et accessoires",
+            "Applications installées",
+            "Accessibilité"
+        )
+        AlertDialog.Builder(this).setTitle("Paramètres du système LifeMax")
+            .setItems(labels) { _, selected ->
+                when (selected) {
+                    0 -> openAndroidSystemSettings()
+                    1 -> openWifiSettings()
+                    2 -> openDeveloperOptions()
+                    3 -> startSystemSettings(listOf(
+                        Intent(Settings.ACTION_DEVICE_INFO_SETTINGS),
+                        Intent(Settings.ACTION_SETTINGS)
+                    ), "Informations de l'appareil indisponibles")
+                    4 -> startSystemSettings(listOf(
+                        Intent(Settings.ACTION_BLUETOOTH_SETTINGS),
+                        Intent(Settings.ACTION_SETTINGS)
+                    ), "Réglages Bluetooth indisponibles")
+                    5 -> startSystemSettings(listOf(
+                        Intent(Settings.ACTION_APPLICATION_SETTINGS),
+                        Intent(Settings.ACTION_SETTINGS)
+                    ), "Réglages des applications indisponibles")
+                    6 -> openAccessibilitySettings()
+                }
+            }.setNegativeButton("Fermer", null).show()
+    }
+
     private fun openWifiSettings() {
         if (previewMode) return
         startSystemSettings(listOf(
@@ -1061,7 +1125,8 @@ open class MinimalHomeActivity : Activity() {
             "Revenir à l'accueil LifeMax d'origine",
             "Configurer Accessibilité · télécommande HDMI",
             "Télécommande Lifemaxx → Zen 4 (HDMI)",
-            "Paramètres Wi-Fi du téléviseur"
+            "Paramètres Wi-Fi du téléviseur",
+            "Paramètres Android TV (système, développeur, ADB)"
         )
         AlertDialog.Builder(this).setTitle("Paramètres")
             .setItems(options) { _, index ->
@@ -1096,6 +1161,7 @@ open class MinimalHomeActivity : Activity() {
                     15 -> explainAccessibility()
                     16 -> hdmiRemoteMenu()
                     17 -> openWifiSettings()
+                    18 -> androidSystemMenu()
                 }
             }.show()
     }
