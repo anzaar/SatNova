@@ -75,49 +75,91 @@ internal class MoroccanHomePanel(
         if (bold) setTypeface(null, Typeface.BOLD)
     }
 
-    fun backdrop(): Drawable = IslamicGeometryDrawable(activity.resources.displayMetrics.density)
+    private val wallpaper by lazy { SatNovaWallpaper(activity) }
+    fun backdrop(): Drawable = wallpaper
 
     fun build(): View {
         val panelShape = android.graphics.drawable.GradientDrawable().apply {
-            cornerRadius = dp(18).toFloat()
-            setColor(Color.argb(218, 19, 36, 38))
-            setStroke(dp(1), Color.rgb(64, 90, 82))
+            cornerRadius = dp(17).toFloat()
+            setColor(Color.argb(224, 3, 46, 34))
+            setStroke(dp(1), Color.rgb(177, 188, 98))
         }
         val panel = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
-            layoutDirection = View.LAYOUT_DIRECTION_RTL
+            layoutDirection = View.LAYOUT_DIRECTION_LTR
+            gravity = Gravity.CENTER_VERTICAL
             background = panelShape
-            setPadding(dp(24), dp(17), dp(24), dp(17))
-            minimumHeight = dp(if (preview) 180 else 196)
+            setPadding(dp(10), dp(9), dp(10), dp(9))
+            minimumHeight = dp(if (preview) 130 else 144)
         }
         fun column(weight: Float): LinearLayout {
             val col = LinearLayout(activity).apply {
                 orientation = LinearLayout.VERTICAL
                 layoutDirection = View.LAYOUT_DIRECTION_RTL
-                gravity = Gravity.CENTER_VERTICAL
+                gravity = Gravity.CENTER
             }
-            panel.addView(col, LinearLayout.LayoutParams(0, -1, weight))
+            panel.addView(col, LinearLayout.LayoutParams(0, -2, weight))
             return col
         }
-        val a = column(1.35f)
-        day = text("اليوم", 29f, Color.rgb(212, 223, 181), true)
-        clock = text("--:--", if (preview) 43f else 58f, Color.WHITE, true)
-        date = text("التاريخ الميلادي", 26f)
-        hijri = text("التاريخ الهجري: في انتظار التقويم الرسمي", 23f, Color.rgb(231, 202, 151))
-        a.addView(day); a.addView(clock); a.addView(date); a.addView(hijri)
-        val b = column(1.18f)
-        cityLabel = text("📍 " + city().name, 20f, Color.rgb(176, 221, 198), true)
-        nextPrayer = text("الصلاة المقبلة", 21f)
-        countdown = text("--:--:--", if (preview) 25f else 32f, Color.rgb(217, 228, 161), true)
-        prayerClock = text("الوقت: —", 17f)
-        b.addView(cityLabel); b.addView(nextPrayer); b.addView(countdown); b.addView(prayerClock)
-        sourceLabel = text("مواقيت منقولة عن الوزارة · مصدر غير رسمي", 12f, Color.rgb(161, 181, 176))
-        b.addView(sourceLabel)
-        val c = column(.82f)
-        weatherLabel = text(weather, if (preview) 17f else 22f, Color.WHITE, true)
-        c.addView(text("الطقس الآن", 20f, Color.rgb(176, 221, 198), true))
-        c.addView(weatherLabel)
-        c.addView(text("Open-Meteo", 12f, Color.rgb(161, 181, 176)))
+        fun center(v: TextView): TextView = v.apply {
+            gravity = Gravity.CENTER
+            maxLines = 2
+            textAlignment = View.TEXT_ALIGNMENT_CENTER
+        }
+        fun divider() {
+            panel.addView(View(activity).apply {
+                setBackgroundColor(Color.argb(115, 186, 177, 123))
+            }, LinearLayout.LayoutParams(dp(1), dp(76)).apply {
+                marginStart = dp(4); marginEnd = dp(4)
+            })
+        }
+
+        // The lantern stays decorative; no content/permission/network cost.
+        panel.addView(IslamicLanternView(activity), LinearLayout.LayoutParams(0, dp(112), 0.73f))
+        divider()
+
+        val weatherCol = column(.96f)
+        weatherLabel = center(text(weather, if (preview) 15f else 19f, Color.WHITE, true))
+        weatherCol.addView(center(text("☁ الطقس الآن", 15f, Color.rgb(199, 219, 198), true)))
+        weatherCol.addView(weatherLabel)
+        divider()
+
+        val cityCol = column(.77f)
+        cityLabel = center(text("📍 " + city().name, 17f, Color.rgb(236, 239, 222), true))
+        cityCol.addView(cityLabel)
+        divider()
+
+        val prayerCol = column(1.48f)
+        nextPrayer = center(text("الصلاة المقبلة", 16f, Color.rgb(201, 229, 169), true))
+        countdown = center(text("--:--:--", if (preview) 21f else 27f,
+            Color.rgb(229, 246, 203), true))
+        prayerClock = center(text("الوقت: —", 13f))
+        prayerCol.addView(nextPrayer)
+        prayerCol.addView(countdown)
+        prayerCol.addView(prayerClock)
+        divider()
+
+        val hijriCol = column(1.40f)
+        hijri = center(text("بانتظار التقويم المغربي", if (preview) 14f else 18f, Color.WHITE, true))
+        hijriCol.addView(center(text("التقويم الهجري المغربي", 12f,
+            Color.rgb(208, 224, 192))))
+        hijriCol.addView(hijri)
+        divider()
+
+        val gregorianCol = column(1.43f)
+        date = center(text("التاريخ الميلادي", if (preview) 15f else 20f, Color.WHITE, true))
+        gregorianCol.addView(date)
+        divider()
+
+        val timeCol = column(1.33f)
+        day = center(text("اليوم", 23f, Color.rgb(205, 234, 170), true))
+        clock = center(text("--:--", if (preview) 37f else 48f, Color.WHITE, true))
+        timeCol.addView(day)
+        timeCol.addView(clock)
+
+        // Kept for the network-source metadata and state updates, but not
+        // displayed as a bulky fourth row inside the narrow header.
+        sourceLabel = text("", 11f)
         updateClock()
         requestData()
         if (!tickScheduled) { tickScheduled = true; ui.post(ticker) }
@@ -148,7 +190,7 @@ internal class MoroccanHomePanel(
             else -> "تعذّر جلب الحصة الرسمية"
         }
         hijri.text = if (today != null && today.hijri.isNotBlank()) today.hijri + " هـ"
-            else "التاريخ الهجري: في انتظار التقويم الرسمي"
+            else "التقويم الهجري غير متاح"
         var nextAt: ZonedDateTime? = null
         var name = ""
         for (offset in 0..1) {
