@@ -12,6 +12,9 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.view.KeyEvent
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
@@ -65,14 +68,15 @@ open class MinimalHomeActivity : Activity() {
     private var historyRecordedFor = ""
     private val receiverListener = object : Zen4Client.Listener {
             override fun state(connected: Boolean, message: String) {
+                val changed = online != connected || receiverMessage != message
                 online = connected
                 receiverMessage = message
-                if (::content.isInitialized) render()
+                if (changed) scheduleRender()
             }
             override fun catalogue(channels: List<ZenChannel>) {
                 this@MinimalHomeActivity.channels = channels.filter { !it.radio }.sortedBy { it.position }
                 this@MinimalHomeActivity.radios = channels.filter { it.radio }.sortedBy { it.position }
-                if (::content.isInitialized) render()
+                scheduleRender()
             }
             override fun playing(channelId: String) {
                 observeChannel(channelId)
@@ -88,6 +92,58 @@ open class MinimalHomeActivity : Activity() {
     private lateinit var content: LinearLayout
     private var activeScroll: ScrollView? = null
     private val savedRowScroll = mutableMapOf<String, Int>()
+
+    // Zen 4 catalogue batches must not rebuild the entire TV interface
+    // on every response. Coalesce redraws, especially while dialogs are open.
+    private val redrawHandler = Handler(Looper.getMainLooper())
+    private var redrawScheduled = false
+    private var redrawDirty = false
+    private val redrawTask = Runnable {
+        redrawScheduled = false
+        if (!isFinishing && !isDestroyed && hasWindowFocus()) {
+            redrawDirty = false
+            render()
+        }
+    }
+
+    private fun scheduleRender() {
+        if (!::content.isInitialized || isFinishing || isDestroyed) return
+        redrawDirty = true
+        if (redrawScheduled) return
+        redrawScheduled = true
+        redrawHandler.postDelayed(redrawTask, 1800L)
+    }
+
+    private fun restoreLauncherFocus(force: Boolean = false) {
+        if (!::content.isInitialized || isFinishing || isDestroyed || !hasWindowFocus()) return
+        val current = currentFocus
+        if (force || current == null || !current.isShown || !current.isFocusable) {
+            findFocusable(window.decorView, "Accueil")?.requestFocus()
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && ::content.isInitialized) {
+            window.decorView.post {
+                if (isFinishing || isDestroyed || !hasWindowFocus()) return@post
+                restoreLauncherFocus()
+                if (redrawDirty && !redrawScheduled) scheduleRender()
+            }
+        }
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN && hasWindowFocus() &&
+            currentFocus == null && event.keyCode in listOf(
+                KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER
+            )) {
+            restoreLauncherFocus(force = true)
+        }
+        return super.dispatchKeyEvent(event)
+    }
 
     private fun snapshotRows(view: View?) {
         if (view is HorizontalScrollView && view.tag is String) {
@@ -155,6 +211,7 @@ open class MinimalHomeActivity : Activity() {
     override fun onDestroy() {
         if (::client.isInitialized) Zen4SessionHub.detach(this)
         fileProbeWorker.shutdownNow()
+        redrawHandler.removeCallbacks(redrawTask)
         logos.close()
         islamicPanel.stop()
         super.onDestroy()
@@ -287,8 +344,8 @@ open class MinimalHomeActivity : Activity() {
                 contentDescription = if (logoChannel != null) "Logo de $label" else label
             }
             card.addView(logoImage, LinearLayout.LayoutParams(
-                dp(if (logoChannel != null) 72 else if (kind == "radio") 42 else 48),
-                dp(if (logoChannel != null) 51 else if (kind == "radio") 35 else 43)
+                dp(if (logoChannel != null) (if (kind == "radio") 76 else 82) else if (kind == "radio") 42 else 48),
+                dp(if (logoChannel != null) (if (kind == "radio") 48 else 56) else if (kind == "radio") 35 else 43)
             ).apply { bottomMargin = dp(5) })
             if (logoChannel != null) logos.bind(logoImage, logoChannel)
         }
@@ -301,8 +358,8 @@ open class MinimalHomeActivity : Activity() {
         focusable(card, click, longClick)
         val h = when (kind) {
             "apps" -> 99
-            "radio" -> 78
-            else -> 112
+            "radio" -> if (logoChannel != null) 104 else 78
+            else -> if (logoChannel != null) 120 else 112
         }
         row.addView(card, LinearLayout.LayoutParams(dp(cardWidth(kind)), dp(h)).apply {
             rightMargin = dp(14)
@@ -392,8 +449,7 @@ open class MinimalHomeActivity : Activity() {
             if (isFinishing || isDestroyed || activeScroll !== scroll) return@post
             scroll.scrollTo(0, oldY)
             val focus = oldFocus?.let { findFocusable(root, it) }
-            if (focus != null) focus.requestFocus()
-            else if (firstDraw) {
+            if (focus?.requestFocus() != true) {
                 val firstApp = selectedApps(installedApps()).firstOrNull()?.label
                 (firstApp?.let { findFocusable(root, it) }
                     ?: header.getChildAt(0))?.requestFocus()
@@ -1024,7 +1080,9 @@ open class MinimalHomeActivity : Activity() {
                     2 -> openWifiSettings()
                 }
             }
-            .setPositiveButton("Plus tard", null)
+            .setPositiveButton("Plus tard") { _, _ ->
+                window.decorView.postDelayed({ restoreLauncherFocus(force = true) }, 100L)
+            }
             .show()
     }
 

@@ -27,6 +27,12 @@
         <activity android:name=".MinimalHomeActivity"
             android:label="SatNova TV Home"
             android:banner="@drawable/satnova_tv_banner"
-            android:exported="true" android:screenOrientation="landscape"/>
+            android:exported="true" android:screenOrientation="landscape">
+            <!-- Allow relaunch from LifeMax apps before selecting default HOME. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
     </application>
 </manifest>

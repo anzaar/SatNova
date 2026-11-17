@@ -8,7 +8,7 @@
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
     <application tools:replace="android:label" android:label="SatNova TV Home"
         android:banner="@drawable/satnova_tv_banner">
-        <!-- TV package exposes only Android TV HOME + LEANBACK_LAUNCHER. -->
+        <!-- Expose HOME, LEANBACK_LAUNCHER and a normal apps-list shortcut. -->
         <activity android:name=".MobilePreviewActivity" tools:node="remove"/>
         <service android:name=".Zen4PersistentService"
             android:exported="false"
@@ -20,6 +20,12 @@
         <activity android:name=".MinimalHomeActivity"
             android:label="SatNova TV Home"
             android:banner="@drawable/satnova_tv_banner"
-            android:exported="true" android:screenOrientation="landscape"/>
+            android:exported="true" android:screenOrientation="landscape">
+            <!-- Allow relaunch from LifeMax apps before selecting default HOME. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
     </application>
 </manifest>
