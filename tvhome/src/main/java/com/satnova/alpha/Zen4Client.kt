@@ -48,7 +48,7 @@ internal class Zen4Client(private val context: Context, private val listener: Li
         fun catalogue(channels: List<ZenChannel>)
         fun playing(channelId: String)
         fun tuneConfirmed(channel: ZenChannel)
-        fun tuneFailed(channel: ZenChannel, reason: String)
+        fun tuneFailed(channel: ZenChannel, reason: String) { }
     }
 
     private val prefs = context.getSharedPreferences("zen4_tv", Context.MODE_PRIVATE)
