@@ -48,6 +48,7 @@ internal class Zen4Client(private val context: Context, private val listener: Li
         fun catalogue(channels: List<ZenChannel>)
         fun playing(channelId: String)
         fun tuneConfirmed(channel: ZenChannel)
+        fun tuneFailed(channel: ZenChannel, reason: String)
     }
 
     private val prefs = context.getSharedPreferences("zen4_tv", Context.MODE_PRIVATE)
@@ -193,33 +194,43 @@ internal class Zen4Client(private val context: Context, private val listener: Li
         return status
     }
 
-    /** Distinguish lost transport from a stale cached service ID or a write failure. */
+    /** Socket writes must never run on the Android UI thread. */
     fun tuneDetailed(channel: ZenChannel): TuneResult {
         val sock = session
         if (!authorized || sock == null || sock.isClosed || !sock.isConnected)
             return tuningOutcome(channel, TuneResult.DISCONNECTED)
         if (channels.none { it.id == channel.id })
             return tuningOutcome(channel, TuneResult.CHANNEL_NOT_FOUND)
+        pendingTune = channel.id
+        pendingTuneAt = SystemClock.elapsedRealtime()
         try {
-            val req = if (jsonMode) JSONObject().put("request", "1000")
-                .put("array", JSONArray().put(JSONObject()
-                    .put("TvState", if (channel.radio) "1" else "0")
-                    .put("ProgramId", channel.id))).toString()
-            else "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1000\"><parm><TvState>" +
-                (if (channel.radio) "1" else "0") + "</TvState><ProgramId>" + channel.id +
-                "</ProgramId></parm></Command>"
-            synchronized(writeLock) {
-                if (session !== sock || sock.isClosed) return tuningOutcome(channel, TuneResult.DISCONNECTED)
-                sendFrame(sock, req)
+            remote.execute {
+                try {
+                    if (!authorized || session !== sock || sock.isClosed) {
+                        main.post { listener.tuneFailed(channel, "Connexion Zen 4 interrompue") }
+                        return@execute
+                    }
+                    val req = if (jsonMode) JSONObject().put("request", "1000")
+                        .put("array", JSONArray().put(JSONObject()
+                            .put("TvState", if (channel.radio) "1" else "0")
+                            .put("ProgramId", channel.id))).toString()
+                    else "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><Command request=\"1000\"><parm><TvState>" +
+                        (if (channel.radio) "1" else "0") + "</TvState><ProgramId>" + channel.id +
+                        "</ProgramId></parm></Command>"
+                    synchronized(writeLock) {
+                        if (session !== sock || sock.isClosed) throw java.io.IOException("Session interrompue")
+                        sendFrame(sock, req)
+                    }
+                } catch (e: Exception) {
+                    pendingTune = ""
+                    main.post { listener.tuneFailed(channel, e.message ?: "Échec réseau") }
+                }
             }
-            pendingTune = channel.id
-            pendingTuneAt = SystemClock.elapsedRealtime()
-            return tuningOutcome(channel, TuneResult.SENT)
         } catch (_: Exception) {
             pendingTune = ""
-            try { sock.close() } catch (_: Exception) {}
             return tuningOutcome(channel, TuneResult.SEND_FAILED)
         }
+        return tuningOutcome(channel, TuneResult.SENT)
     }
 
     fun tune(channel: ZenChannel): Boolean = tuneDetailed(channel) == TuneResult.SENT

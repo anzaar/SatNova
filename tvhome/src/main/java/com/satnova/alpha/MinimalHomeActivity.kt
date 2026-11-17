@@ -81,6 +81,11 @@ open class MinimalHomeActivity : Activity() {
             override fun playing(channelId: String) {
                 observeChannel(channelId)
             }
+            override fun tuneFailed(channel: ZenChannel, reason: String) {
+                channelError("Commande non envoyée",
+                    "Impossible de sélectionner «${channel.name}». Détail : " + reason +
+                    ". Vérifiez la connexion Wi-Fi et réessayez.")
+            }
             override fun tuneConfirmed(channel: ZenChannel) {
                 if (previewMode) {
                     Toast.makeText(this@MinimalHomeActivity,
