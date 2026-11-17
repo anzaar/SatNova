@@ -112,3 +112,26 @@ jobs:
             gh release edit v0.5.12-tv-home-diagnostic --target "$GITHUB_SHA"
           fi
           gh release upload v0.5.12-tv-home-diagnostic SatNova-TV-Home-Safe-0.5.12.apk --clobber
+
+      - name: Publish optional HDMI Bridge APK directly
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          LATEST_SHA="$(gh api "repos/${GH_REPO}/commits/${GITHUB_REF_NAME}" --jq '.sha')"
+          if [ "$LATEST_SHA" != "$GITHUB_SHA" ]; then
+            echo "Skipping stale bridge build"
+            exit 0
+          fi
+          cp tvhome/build/outputs/apk/tvbridge/debug/tvhome-tvbridge-debug.apk SatNova-TV-Home-HDMI-Bridge-0.5.12.apk
+          if ! gh release view v0.5.12-tv-hdmi-bridge >/dev/null 2>&1; then
+            gh release create v0.5.12-tv-hdmi-bridge --prerelease \
+              --title "SatNova TV Home 0.5.12 - Optional HDMI Bridge" \
+              --target "$GITHUB_SHA" \
+              --notes "Experimental HDMI remote forwarding via user-enabled Accessibility. Android 14 installation and key interception are device-dependent. HOME, power, source and volume remain system-controlled. Debug-signed APK."
+          else
+            gh release edit v0.5.12-tv-hdmi-bridge --target "$GITHUB_SHA"
+          fi
+          gh release upload v0.5.12-tv-hdmi-bridge SatNova-TV-Home-HDMI-Bridge-0.5.12.apk --clobber
