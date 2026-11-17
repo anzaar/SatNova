@@ -80,6 +80,32 @@ open class MinimalHomeActivity : Activity() {
         })
     }
     private lateinit var content: LinearLayout
+    private var activeScroll: ScrollView? = null
+    private val savedRowScroll = mutableMapOf<String, Int>()
+
+    private fun snapshotRows(view: View?) {
+        if (view is HorizontalScrollView && view.tag is String) {
+            savedRowScroll[view.tag as String] = view.scrollX
+        }
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) snapshotRows(view.getChildAt(i))
+        }
+    }
+
+    private fun rememberRow(id: String, view: HorizontalScrollView): HorizontalScrollView {
+        view.tag = id
+        val oldX = savedRowScroll[id] ?: 0
+        if (oldX > 0) view.post { view.scrollTo(oldX, 0) }
+        return view
+    }
+
+    private fun findFocusable(root: View, description: String): View? {
+        if (root.isFocusable && root.contentDescription?.toString() == description) return root
+        if (root is ViewGroup) for (i in 0 until root.childCount) {
+            findFocusable(root.getChildAt(i), description)?.let { return it }
+        }
+        return null
+    }
 
     private data class AppItem(val label: String, val component: ComponentName, val info: ResolveInfo)
     private data class LocalPage(val title: String, val ids: MutableList<String>)
@@ -145,7 +171,7 @@ open class MinimalHomeActivity : Activity() {
      * Render 20 items immediately; append 20 more near the right edge,
      * preserving focus and horizontal scroll instead of rebuilding the screen.
      */
-    private fun <T> pagedHorizontal(items: List<T>,
+    private fun <T> pagedHorizontal(items: List<T>, rowId: String,
         renderer: (LinearLayout, T) -> Unit): HorizontalScrollView {
         val (scroll, row) = horizontalRow()
         var loaded = 0
@@ -155,10 +181,15 @@ open class MinimalHomeActivity : Activity() {
             loaded = next
         }
         appendBatch()
+        // Rebuild enough previous cards to restore horizontal position after
+        // receiver catalogue refresh, without rendering the entire list.
+        val required = ((savedRowScroll[rowId] ?: 0) /
+            (cardWidth() + dp(14)) + 8).coerceAtMost(items.size)
+        while (loaded < required) appendBatch()
         scroll.setOnScrollChangeListener { _, x, _, _, _ ->
             if (loaded < items.size && x + scroll.width >= row.width - dp(140)) appendBatch()
         }
-        return scroll
+        return rememberRow(rowId, scroll)
     }
 
     private fun cardWidth(): Int {
@@ -226,6 +257,10 @@ open class MinimalHomeActivity : Activity() {
     }
 
     private fun render() {
+        val oldFocus = currentFocus?.contentDescription?.toString()?.takeIf { it.isNotBlank() }
+        val oldY = activeScroll?.scrollY ?: 0
+        snapshotRows(activeScroll)
+        val firstDraw = activeScroll == null
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(bgColor)
@@ -264,12 +299,20 @@ open class MinimalHomeActivity : Activity() {
         }
         scroll.addView(content)
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        activeScroll = scroll
         setContentView(root)
         showApps()
         showTv()
         showRadios()
         if (prefs.getBoolean("show_history", false)) showHistory()
         showFavorites()
+        scroll.post {
+            if (isFinishing || isDestroyed || activeScroll !== scroll) return@post
+            scroll.scrollTo(0, oldY)
+            val focus = oldFocus?.let { findFocusable(root, it) }
+            if (focus != null) focus.requestFocus()
+            else if (firstDraw) header.getChildAt(0)?.requestFocus()
+        }
     }
 
     private fun installedApps(): List<AppItem> {
@@ -307,7 +350,7 @@ open class MinimalHomeActivity : Activity() {
                 { launchApp(app) }, { chooseApps() })
         }
         addCard(row, "Ajouter", null, getDrawable(android.R.drawable.ic_input_add), { chooseApps() })
-        content.addView(scroll)
+        content.addView(rememberRow("apps", scroll))
     }
 
     private fun showTv() {
@@ -342,11 +385,11 @@ open class MinimalHomeActivity : Activity() {
             addCard(row, if (online) "Chargement…" else "Récepteur non connecté",
                 if (online) "Lecture des chaînes" else "Connexion Wi-Fi",
                 getDrawable(android.R.drawable.ic_menu_info_details), { settings() })
-            content.addView(scroll)
+            content.addView(rememberRow("tv-empty", scroll))
             return
         }
         val tiles = families.tiles(channels)
-        content.addView(pagedHorizontal(tiles) { row, tile ->
+        content.addView(pagedHorizontal(tiles, "tv") { row, tile ->
             addCard(row, tile.label,
                 if (tile.isGroup) "${tile.members.size} chaînes" else ChannelDescription.summary(tile.first),
                 getDrawable(android.R.drawable.ic_media_play),
@@ -361,9 +404,9 @@ open class MinimalHomeActivity : Activity() {
             val (scroll, row) = horizontalRow()
             addCard(row, "Aucune radio", "En attente du catalogue",
                 getDrawable(android.R.drawable.ic_media_play), { settings() })
-            content.addView(scroll)
+            content.addView(rememberRow("radios-empty", scroll))
         } else {
-            content.addView(pagedHorizontal(radios) { row, radio ->
+            content.addView(pagedHorizontal(radios, "radios") { row, radio ->
                 addCard(row, radio.name, ChannelDescription.summary(radio),
                     getDrawable(android.R.drawable.ic_media_play),
                     { openChannel(radio) }, { addChannelToPage(radio) }, radio)
@@ -384,7 +427,7 @@ open class MinimalHomeActivity : Activity() {
             addCard(row, "Aucun historique", "Après 60 secondes de visionnage",
                 getDrawable(android.R.drawable.ic_menu_recent_history), { settings() })
         }
-        content.addView(scroll)
+        content.addView(rememberRow("history", scroll))
     }
 
     private fun history(): List<String> {
@@ -447,7 +490,7 @@ open class MinimalHomeActivity : Activity() {
             focusable(chip, { activePage = index; render() }, { editPage(index) })
             row.addView(chip, LinearLayout.LayoutParams(-2, dp(46)).apply { rightMargin = dp(10) })
         }
-        content.addView(tabs)
+        content.addView(rememberRow("favorite-tabs", tabs))
         val (scroll, favorites) = horizontalRow()
         val channelMap = (channels + radios).associateBy { it.id }
         val ids = list[activePage].ids
@@ -461,7 +504,8 @@ open class MinimalHomeActivity : Activity() {
                     { openChannel(channel) }, { removeFavorite(channel.id) }, channel)
             }
         }
-        content.addView(scroll, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14) })
+        content.addView(rememberRow("favorites:$activePage", scroll),
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14) })
     }
 
     /** A family tile opens a chooser, never tunes an arbitrary variant on first click. */
