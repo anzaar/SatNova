@@ -7,6 +7,8 @@ import android.graphics.*
 import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.Looper
+import android.widget.EditText
+import android.widget.Toast
 import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
@@ -58,6 +60,7 @@ internal class MoroccanHomePanel(
     private lateinit var prayerClock: TextView
     private lateinit var countdown: TextView
     private lateinit var weatherLabel: TextView
+    private lateinit var sourceLabel: TextView
 
     private fun dp(n: Int): Int = (n * activity.resources.displayMetrics.density + .5f).toInt()
     private fun city(): City = cities.firstOrNull { it.id == prefs.getInt("morocco_city_id", 2) } ?: cities[0]
@@ -108,7 +111,8 @@ internal class MoroccanHomePanel(
         countdown = text("--:--:--", if (preview) 25f else 32f, Color.rgb(217, 228, 161), true)
         prayerClock = text("الوقت: —", 17f)
         b.addView(cityLabel); b.addView(nextPrayer); b.addView(countdown); b.addView(prayerClock)
-        b.addView(text("وزارة الأوقاف · عبر مصدر وسيط غير رسمي", 12f, Color.rgb(161, 181, 176)))
+        sourceLabel = text("مواقيت منقولة عن الوزارة · مصدر غير رسمي", 12f, Color.rgb(161, 181, 176))
+        b.addView(sourceLabel)
         val c = column(.82f)
         weatherLabel = text(weather, if (preview) 17f else 22f, Color.WHITE, true)
         c.addView(text("الطقس الآن", 20f, Color.rgb(176, 221, 198), true))
@@ -137,14 +141,19 @@ internal class MoroccanHomePanel(
         date.text = now.format(DateTimeFormatter.ofPattern("d MMMM yyyy", arabic)) + " م"
         cityLabel.text = "📍 " + city().name
         weatherLabel.text = weather
-        val today = prayers[now.toLocalDate()]
+        val today = manualDay(now.toLocalDate()) ?: prayers[now.toLocalDate()]
+        sourceLabel.text = when {
+            manualDay(now.toLocalDate()) != null -> "مواقيت أدخلتها من الحصة الرسمية"
+            today != null -> "مواقيت منقولة عن الوزارة · مصدر غير رسمي"
+            else -> "تعذّر جلب الحصة الرسمية"
+        }
         hijri.text = if (today != null && today.hijri.isNotBlank()) today.hijri + " هـ"
             else "التاريخ الهجري: في انتظار التقويم الرسمي"
         var nextAt: ZonedDateTime? = null
         var name = ""
         for (offset in 0..1) {
             val d = now.toLocalDate().plusDays(offset.toLong())
-            val times = prayers[d]?.times ?: continue
+            val times = (manualDay(d) ?: prayers[d])?.times ?: continue
             for ((label, key) in names) {
                 val time = times[key] ?: continue
                 val candidate = d.atTime(time).atZone(zone)
@@ -265,6 +274,62 @@ internal class MoroccanHomePanel(
             all[d] = PrayerDay(timings, hijriText)
         }
         return all
+    }
+
+    private fun manualDay(date: LocalDate): PrayerDay? {
+        val key = "manual_habous_" + city().id + "_" + date.toString()
+        return try {
+            val raw = prefs.getString(key, null) ?: return null
+            val data = JSONObject(raw)
+            val times = names.associate { (label, field) ->
+                field to LocalTime.parse(data.getString(field))
+            }
+            PrayerDay(times, data.optString("hijri", ""))
+        } catch (_: Exception) { null }
+    }
+
+    /** Manual backup for ministry-issued city schedule when mirror is unavailable. */
+    fun editOfficialDay(tomorrow: Boolean, onChange: () -> Unit) {
+        val date = LocalDate.now(zone).plusDays(if (tomorrow) 1 else 0)
+        val previous = manualDay(date)
+        val input = EditText(activity).apply {
+            minLines = 3
+            maxLines = 5
+            setText(previous?.let { p ->
+                names.joinToString(",") { p.times[it.second]?.toString().orEmpty() } +
+                    "\n" + p.hijri
+            } ?: "")
+            hint = "05:26,12:14,15:00,17:26,18:42\n7 جمادى الآخرة 1448"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            setPadding(24, 20, 24, 20)
+        }
+        AlertDialog.Builder(activity)
+            .setTitle("الحصة الرسمية · " + city().name + " · " + date.toString())
+            .setMessage("أدخل مواقيت الصبح والظهر والعصر والمغرب والعشاء بالترتيب، مفصولة بفواصل، ثم التاريخ الهجري في السطر الثاني. المصدر: habous.gov.ma. لا تُقبل الساعات غير الصحيحة.")
+            .setView(input)
+            .setPositiveButton("حفظ") { _, _ ->
+                val lines = input.text.toString().trim().lines()
+                val values = lines.firstOrNull().orEmpty().split(",").map { it.trim() }
+                try {
+                    require(values.size == 5)
+                    val json = JSONObject()
+                    names.forEachIndexed { i, (_, key) ->
+                        val t = LocalTime.parse(values[i])
+                        json.put(key, t.format(DateTimeFormatter.ofPattern("HH:mm", Locale.US)))
+                    }
+                    json.put("hijri", lines.getOrNull(1).orEmpty().trim())
+                    prefs.edit().putString(
+                        "manual_habous_" + city().id + "_" + date.toString(), json.toString()
+                    ).apply()
+                    updateClock()
+                    onChange()
+                    Toast.makeText(activity, "تم حفظ أوقات " + date.toString(), Toast.LENGTH_SHORT).show()
+                } catch (_: Exception) {
+                    Toast.makeText(activity, "صيغة غير صحيحة: استعمل HH:mm لخمس صلوات", Toast.LENGTH_LONG).show()
+                }
+            }
+            .setNegativeButton("إلغاء", null).show()
     }
 
     fun chooseCity(onChange: () -> Unit) {
