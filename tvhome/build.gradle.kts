@@ -10,8 +10,8 @@ android {
         applicationId = "com.satnova.tvhome"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.4.1-system"
+        versionCode = 6
+        versionName = "0.5.0-offline-logos"
     }
     flavorDimensions += "device"
     productFlavors {
@@ -20,6 +20,13 @@ android {
             // New package to avoid replacing the already-installed phone test.
             applicationIdSuffix = ".tv"
             versionNameSuffix = "-tv"
+        }
+        create("tvbridge") {
+            dimension = "device"
+            // Optional HDMI-key bridge edition. Requires explicit Accessibility consent;
+            // TV firmware and Play Protect may refuse this feature.
+            applicationIdSuffix = ".tvbridge"
+            versionNameSuffix = "-tvbridge"
         }
         create("mobile") {
             dimension = "device"
