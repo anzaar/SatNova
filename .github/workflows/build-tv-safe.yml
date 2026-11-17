@@ -50,6 +50,34 @@ jobs:
           path: tvhome/build/outputs/apk/tvbridge/debug/tvhome-tvbridge-debug.apk
           if-no-files-found: error
           retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SatNova-TV-Home-Phone-Preview-0.5
+          path: tvhome/build/outputs/apk/mobile/debug/tvhome-mobile-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish phone preview APK from the same launcher source
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          LATEST_SHA="$(gh api "repos/${GH_REPO}/commits/${GITHUB_REF_NAME}" --jq '.sha')"
+          if [ "$LATEST_SHA" != "$GITHUB_SHA" ]; then
+            echo "Skipping stale preview"
+            exit 0
+          fi
+          cp tvhome/build/outputs/apk/mobile/debug/tvhome-mobile-debug.apk SatNova-TV-Home-Phone-Preview-0.5.apk
+          if ! gh release view v0.5-phone-preview >/dev/null 2>&1; then
+            gh release create v0.5-phone-preview --prerelease \
+              --title "SatNova TV Home 0.5 — Phone Preview" \
+              --target "$GITHUB_SHA" \
+              --notes "Compiled mobile preview from the same MinimalHomeActivity as the TV launcher. Touch/landscape preview; does NOT claim Android HOME, switch HDMI, or intercept physical TV remote keys. Zen 4 LAN connection and channel commands are real if paired to the same trusted Wi-Fi. This APK is debug-signed for testing."
+          else
+            gh release edit v0.5-phone-preview --target "$GITHUB_SHA"
+          fi
+          gh release upload v0.5-phone-preview SatNova-TV-Home-Phone-Preview-0.5.apk --clobber
       - name: Publish safe alpha only, never market as Play Protect approved
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
