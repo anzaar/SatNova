@@ -37,15 +37,16 @@ import java.util.concurrent.Executors
 /** Standalone Android TV launcher. The phone application is not installed on the TV. */
 open class MinimalHomeActivity : Activity() {
     protected open val previewMode: Boolean = false // Compact phone layout; real network commands stay enabled
-    private val bgColor = Color.rgb(15, 18, 23)
-    private val surface = Color.rgb(36, 41, 50)
-    private val selected = Color.rgb(56, 70, 90)
+    private val bgColor = Color.rgb(12, 25, 28)
+    private val surface = Color.rgb(29, 47, 49)
+    private val selected = Color.rgb(52, 79, 77)
     private val fg = Color.rgb(245, 247, 251)
     private val muted = Color.rgb(165, 175, 191)
-    private val border = Color.rgb(126, 159, 208)
+    private val border = Color.rgb(186, 209, 158)
     private val prefs by lazy { getSharedPreferences("satnova_minimal_home", Context.MODE_PRIVATE) }
     private val logos by lazy { ChannelLogoStore(this) }
     private val families by lazy { ChannelFamilies(prefs) }
+    private val islamicPanel by lazy { MoroccanHomePanel(this, prefs, previewMode) }
     private val fileProbeWorker = Executors.newSingleThreadExecutor()
     private var channels: List<ZenChannel> = emptyList()
     private var radios: List<ZenChannel> = emptyList()
@@ -131,6 +132,7 @@ open class MinimalHomeActivity : Activity() {
         if (::client.isInitialized) Zen4SessionHub.detach(this)
         fileProbeWorker.shutdownNow()
         logos.close()
+        islamicPanel.stop()
         super.onDestroy()
     }
 
@@ -271,7 +273,7 @@ open class MinimalHomeActivity : Activity() {
         val firstDraw = activeScroll == null
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(bgColor)
+            background = islamicPanel.backdrop()
             setPadding(dp(if (previewMode) 18 else 48), dp(if (previewMode) 12 else 24), dp(if (previewMode) 18 else 48), dp(if (previewMode) 12 else 24))
         }
         val header = LinearLayout(this).apply {
@@ -309,6 +311,9 @@ open class MinimalHomeActivity : Activity() {
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         activeScroll = scroll
         setContentView(root)
+        content.addView(islamicPanel.build(), LinearLayout.LayoutParams(-1, -2).apply {
+            topMargin = dp(12); bottomMargin = dp(5)
+        })
         showApps()
         showTv()
         showRadios()
@@ -363,31 +368,10 @@ open class MinimalHomeActivity : Activity() {
 
     private fun showTv() {
         section("TV")
-        val diagnosticsHeader = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        diagnosticsHeader.addView(
-            text(receiverMessage, 12f, color = if (online) Color.rgb(135, 206, 172) else muted),
-            LinearLayout.LayoutParams(0, -2, 1f)
-        )
-        val export = text("Exporter Zen 4", 12f, true).apply {
-            gravity = Gravity.CENTER
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-            background = rounded(surface)
-        }
-        focusable(export, { saveReceiverDiagnostic() })
-        diagnosticsHeader.addView(export)
-        val files = text("Fichiers Wi-Fi", 12f, true).apply {
-            gravity = Gravity.CENTER
-            setPadding(dp(12), dp(10), dp(12), dp(10))
-            background = rounded(surface)
-        }
-        focusable(files, { checkReceiverFileAccess() })
-        diagnosticsHeader.addView(files,
-            LinearLayout.LayoutParams(-2, -2).apply { leftMargin = dp(8) })
-        content.addView(diagnosticsHeader,
-            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(10) })
+        // Export and receiver-file shortcuts were retired from the TV home.
+        content.addView(text(receiverMessage, 14f, color = if (online)
+            Color.rgb(167, 225, 180) else muted),
+            LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(12) })
         if (channels.isEmpty()) {
             val (scroll, row) = horizontalRow()
             addCard(row, if (online) "Chargement…" else "Récepteur non connecté",
@@ -900,14 +884,14 @@ open class MinimalHomeActivity : Activity() {
     }
 
     private fun settings() {
-        val options = arrayOf("Applications favorites", "Ajouter une page Favoris",
+        val options = arrayOf(
+            "Applications favorites", "Ajouter une page Favoris",
             "Renommer la page Favoris", "Adresse IP de Zen 4",
-            "Afficher / masquer l'historique", "Entrée HDMI : détection automatique",
-            "Actualiser les logos", "Télécharger diagnostic Zen 4 (JSON)",
-            "Vérifier accès aux fichiers Zen 4 (Wi-Fi)",
+            "Afficher / masquer l'historique", "مدينة الصلاة والطقس",
+            "Entrée HDMI : détection automatique", "Actualiser les logos",
             "Réinitialiser les groupes TV", "Tester ouverture HDMI du récepteur",
-            "Choisir l'accueil TV par défaut",
-            "Télécommande Lifemaxx → Zen 4 (HDMI)")
+            "Choisir l'accueil TV par défaut", "Télécommande Lifemaxx → Zen 4 (HDMI)"
+        )
         AlertDialog.Builder(this).setTitle("Paramètres")
             .setItems(options) { _, index ->
                 when (index) {
@@ -920,17 +904,16 @@ open class MinimalHomeActivity : Activity() {
                         prefs.edit().putBoolean("show_history", next).apply()
                         render()
                     }
-                    5 -> Toast.makeText(this, "Détection HDMI automatique, HDMI 1 en secours", Toast.LENGTH_SHORT).show()
-                    6 -> { logos.retryFailed(); render() }
-                    7 -> saveReceiverDiagnostic()
-                    8 -> checkReceiverFileAccess()
-                    9 -> AlertDialog.Builder(this).setTitle("Réinitialiser les groupes ?")
+                    5 -> islamicPanel.chooseCity { render() }
+                    6 -> Toast.makeText(this, "Détection HDMI automatique, HDMI 1 en secours", Toast.LENGTH_SHORT).show()
+                    7 -> { logos.retryFailed(); render() }
+                    8 -> AlertDialog.Builder(this).setTitle("Réinitialiser les groupes ?")
                         .setMessage("Restaure les regroupements automatiques de l'application, sans modifier le récepteur.")
                         .setPositiveButton("Réinitialiser") { _, _ -> families.resetAll(); render() }
                         .setNegativeButton("Annuler", null).show()
-                    10 -> if (!previewMode) openHdmi1IfPossible()
-                    11 -> openHomeChoiceSettings()
-                    12 -> hdmiRemoteMenu()
+                    9 -> if (!previewMode) openHdmi1IfPossible()
+                    10 -> openHomeChoiceSettings()
+                    11 -> hdmiRemoteMenu()
                 }
             }.show()
     }
