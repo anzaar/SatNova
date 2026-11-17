@@ -1,6 +1,7 @@
 package com.satnova.alpha
 
 import android.app.Activity
+import android.app.role.RoleManager
 import android.app.AlertDialog
 import android.content.ComponentName
 import android.content.Context
@@ -10,6 +11,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.os.Build
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
@@ -129,6 +131,15 @@ open class MinimalHomeActivity : Activity() {
             }
         }
         render()
+        // Explain both optional setup steps only on the first TV launch.
+        // Dismissing either choice never changes the Android launcher or
+        // grants Accessibility permission without the user's consent.
+        if (!previewMode && !prefs.getBoolean("first_start_guide_v1_seen", false)) {
+            prefs.edit().putBoolean("first_start_guide_v1_seen", true).apply()
+            window.decorView.post {
+                if (!isFinishing && !isDestroyed) firstStartGuide()
+            }
+        }
     }
 
     override fun onResume() {
@@ -823,24 +834,116 @@ open class MinimalHomeActivity : Activity() {
             }.setNegativeButton("Annuler", null).show()
     }
 
-    private fun openHomeChoiceSettings() {
-        if (previewMode) return
-        val intents = listOf(
-            Intent(Settings.ACTION_HOME_SETTINGS),
-            Intent(Settings.ACTION_SETTINGS)
-        )
-        var opened = false
+    /** Only Android/system UI can assign or remove the default HOME app. */
+    private fun startSystemSettings(intents: List<Intent>, fallbackMessage: String) {
         for (intent in intents) {
             try {
                 startActivity(intent)
-                opened = true
-                break
-            } catch (_: Exception) {}
+                return
+            } catch (_: Exception) {
+                // Some Android TV firmwares omit stock Settings activities.
+            }
         }
-        if (!opened) Toast.makeText(this,
-            "Ouvrir les paramètres du téléviseur pour changer l'accueil",
-            Toast.LENGTH_LONG).show()
+        Toast.makeText(this, fallbackMessage, Toast.LENGTH_LONG).show()
     }
+
+    private fun openHomeChoiceSettings() {
+        if (previewMode) return
+        startSystemSettings(
+            listOf(Intent(Settings.ACTION_HOME_SETTINGS), Intent(Settings.ACTION_SETTINGS)),
+            "Choix HOME indisponible : utilisez Paramètres système du téléviseur"
+        )
+    }
+
+    private fun requestSatNovaHome() {
+        if (previewMode) return
+        if (Build.VERSION.SDK_INT >= 29) {
+            try {
+                val roles = getSystemService(RoleManager::class.java)
+                if (roles != null && roles.isRoleAvailable(RoleManager.ROLE_HOME)) {
+                    if (roles.isRoleHeld(RoleManager.ROLE_HOME)) {
+                        Toast.makeText(this, "SatNova est déjà votre accueil par défaut",
+                            Toast.LENGTH_LONG).show()
+                        return
+                    }
+                    startActivityForResult(
+                        roles.createRequestRoleIntent(RoleManager.ROLE_HOME), 7420)
+                    return
+                }
+            } catch (_: Exception) {
+                // Fall back to the device's own launcher selector.
+            }
+        }
+        openHomeChoiceSettings()
+    }
+
+    private fun restoreOriginalHome() {
+        if (previewMode) return
+        AlertDialog.Builder(this)
+            .setTitle("Revenir à l'accueil d'origine")
+            .setMessage("L'accueil d'origine n'a pas été supprimé. SatNova ouvrira les réglages Android TV : sélectionnez le lanceur LifeMax / d'origine et confirmez. Sur certains téléviseurs, le fabricant bloque ce choix ; SatNova ne peut pas le contourner.")
+            .setPositiveButton("Choisir l'accueil d'origine") { _, _ ->
+                openHomeChoiceSettings()
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
+    }
+
+    private fun openWifiSettings() {
+        if (previewMode) return
+        startSystemSettings(listOf(
+            Intent(Settings.ACTION_WIFI_SETTINGS),
+            Intent(Settings.ACTION_WIRELESS_SETTINGS),
+            Intent(Settings.ACTION_SETTINGS)
+        ), "Ouvrez Réseau et Internet dans les paramètres du téléviseur")
+    }
+
+    private fun openAccessibilitySettings() {
+        if (previewMode) return
+        startSystemSettings(listOf(
+            Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS),
+            Intent(Settings.ACTION_SETTINGS)
+        ), "Ouvrez Accessibilité dans les paramètres du téléviseur")
+    }
+
+    private fun firstStartGuide() {
+        AlertDialog.Builder(this)
+            .setTitle("Bienvenue dans SatNova TV Home")
+            .setMessage("Vous pouvez utiliser SatNova sans changer l'accueil par défaut. Deux réglages facultatifs sont disponibles : choisir SatNova comme HOME et autoriser « SatNova · Télécommande Zen 4 sur HDMI » dans Accessibilité. Android demandera votre accord. Vous pourrez revenir à l'accueil d'origine depuis Paramètres SatNova.")
+            .setItems(arrayOf(
+                "1 · Choisir SatNova comme accueil par défaut",
+                "2 · Autoriser la télécommande LifeMax → Zen 4",
+                "3 · Réglages Wi-Fi du téléviseur"
+            )) { _, which ->
+                when (which) {
+                    0 -> requestSatNovaHome()
+                    1 -> explainAccessibility()
+                    2 -> openWifiSettings()
+                }
+            }
+            .setPositiveButton("Plus tard", null)
+            .show()
+    }
+
+    private fun explainAccessibility() {
+        if (previewMode) return
+        if (hdmiBridgeEnabled()) {
+            AlertDialog.Builder(this)
+                .setTitle("Télécommande autorisée")
+                .setMessage("L'accès Accessibilité est activé. Le contrôle sur HDMI doit encore être lancé dans SatNova → Paramètres → Télécommande Lifemaxx → Zen 4. L'efficacité des touches MENU, OK et flèches dépend du firmware LifeMax.")
+                .setPositiveButton("Options de télécommande") { _, _ -> hdmiRemoteMenu() }
+                .setNegativeButton("Fermer", null)
+                .show()
+        } else {
+            AlertDialog.Builder(this)
+                .setTitle("Activer la télécommande sur HDMI")
+                .setMessage("La fonctionnalité est facultative. Dans les paramètres Android TV, recherchez « SatNova · Télécommande Zen 4 sur HDMI » dans Accessibilité, puis autorisez-la vous-même. Cela permet de transmettre certaines touches uniquement lorsque l'écran HDMI autorisé est actif. HOME, SOURCE, volume et alimentation restent contrôlés par LifeMax. Vous pouvez désactiver le service à tout moment.")
+                .setPositiveButton("Ouvrir Accessibilité") { _, _ -> openAccessibilitySettings() }
+                .setNegativeButton("Plus tard", null)
+                .show()
+        }
+    }
+
 
     /** HDMI input is not the HOME foreground app. The Accessibility permission
      * remains entirely under user's control in Android TV Settings. */
@@ -896,8 +999,7 @@ open class MinimalHomeActivity : Activity() {
                             AlertDialog.Builder(this).setTitle("Autorisation nécessaire")
                                 .setMessage("Autorisez volontairement le service SatNova · Télécommande Zen 4 sur HDMI dans les paramètres Accessibilité. Puis revenez ici.")
                                 .setPositiveButton("Accessibilité") { _, _ ->
-                                    try { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-                                    catch (_: Exception) { settings() }
+                                    openAccessibilitySettings()
                                 }.setNegativeButton("Annuler", null).show()
                         } else {
                             prefs.edit()
@@ -913,10 +1015,7 @@ open class MinimalHomeActivity : Activity() {
                                 .show()
                         }
                     }
-                    1 -> try { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-                        catch (_: Exception) {
-                            Toast.makeText(this, "Ouvrir Accessibilité depuis les paramètres TV", Toast.LENGTH_LONG).show()
-                        }
+                    1 -> explainAccessibility()
                     2 -> {
                         val forbidden = listOf("", packageName,
                             "com.android.systemui", "com.android.settings",
@@ -958,7 +1057,11 @@ open class MinimalHomeActivity : Activity() {
             "موقع وزارة الأوقاف الرسمي",
             "Entrée HDMI : détection automatique", "Actualiser les logos",
             "Réinitialiser les groupes TV", "Tester ouverture HDMI du récepteur",
-            "Choisir l'accueil TV par défaut", "Télécommande Lifemaxx → Zen 4 (HDMI)"
+            "Choisir SatNova comme accueil par défaut",
+            "Revenir à l'accueil LifeMax d'origine",
+            "Configurer Accessibilité · télécommande HDMI",
+            "Télécommande Lifemaxx → Zen 4 (HDMI)",
+            "Paramètres Wi-Fi du téléviseur"
         )
         AlertDialog.Builder(this).setTitle("Paramètres")
             .setItems(options) { _, index ->
@@ -988,8 +1091,11 @@ open class MinimalHomeActivity : Activity() {
                         .setPositiveButton("Réinitialiser") { _, _ -> families.resetAll(); render() }
                         .setNegativeButton("Annuler", null).show()
                     12 -> if (!previewMode) openHdmi1IfPossible()
-                    13 -> openHomeChoiceSettings()
-                    14 -> hdmiRemoteMenu()
+                    13 -> requestSatNovaHome()
+                    14 -> restoreOriginalHome()
+                    15 -> explainAccessibility()
+                    16 -> hdmiRemoteMenu()
+                    17 -> openWifiSettings()
                 }
             }.show()
     }
