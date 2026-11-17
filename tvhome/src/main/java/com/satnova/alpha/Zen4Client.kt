@@ -196,7 +196,7 @@ internal class Zen4Client(private val context: Context, private val listener: Li
                         .put("array", JSONArray().put(JSONObject()
                             .put("KeyValue", keyValue.toString()))).toString()
                     else "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>" +
-                        "<Command request=\\"1040\\"><parm><KeyValue>" +
+                        "<Command request=\"1040\"><parm><KeyValue>" +
                         keyValue + "</KeyValue></parm></Command>"
                     synchronized(writeLock) {
                         if (session === sock && authorized) sendFrame(sock, payload)
