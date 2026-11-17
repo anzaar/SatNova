@@ -1,0 +1,74 @@
+name: Build SatNova TV Home 0.5 Safe + Optional HDMI Bridge
+on:
+  push:
+    branches:
+      - fix/tvhome-safe-logos-20261117
+  workflow_dispatch:
+
+concurrency:
+  group: satnova-tv-safe-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  tv-launcher:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          SDK_MANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDK_MANAGER"
+          yes | "$SDK_MANAGER" --licenses >/dev/null || true
+          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build safe TV home, optional bridge and phone preview
+        run: gradle --no-daemon --stacktrace :tvhome:assembleTvDebug :tvhome:assembleTvbridgeDebug :tvhome:assembleMobileDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SatNova-TV-Home-Safe-0.5
+          path: tvhome/build/outputs/apk/tv/debug/tvhome-tv-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SatNova-TV-Home-HDMI-Bridge-Optional
+          path: tvhome/build/outputs/apk/tvbridge/debug/tvhome-tvbridge-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish safe alpha only, never market as Play Protect approved
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          LATEST_SHA="$(gh api "repos/${GH_REPO}/commits/${GITHUB_REF_NAME}" --jq '.sha')"
+          if [ "$LATEST_SHA" != "$GITHUB_SHA" ]; then
+            echo "Skipping stale build"
+            exit 0
+          fi
+          cp tvhome/build/outputs/apk/tv/debug/tvhome-tv-debug.apk SatNova-TV-Home-Safe-0.5.apk
+          if ! gh release view v0.5-tv-safe-logos >/dev/null 2>&1; then
+            gh release create v0.5-tv-safe-logos --prerelease \
+              --title "SatNova TV Home 0.5 - Offline Logos Safe Alpha" \
+              --target "$GITHUB_SHA" \
+              --notes "TV HOME launcher test build. No Accessibility service in standard APK. Zen 4 local connection, offline cached logos and manual logo import. HDMI-key forwarding NOT provided in this safe edition. Debug-signed; test on LifeMax, not a production certificate."
+          else
+            gh release edit v0.5-tv-safe-logos --target "$GITHUB_SHA"
+          fi
+          gh release upload v0.5-tv-safe-logos SatNova-TV-Home-Safe-0.5.apk --clobber
