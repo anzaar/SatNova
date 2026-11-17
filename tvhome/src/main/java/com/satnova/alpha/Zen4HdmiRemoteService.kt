@@ -65,10 +65,18 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         if (pkg.isBlank()) return
         currentPackage = pkg
         if (pkg == packageName) {
-            prefs.edit().putBoolean("armed", false).apply()
-            swallowed.clear()
+            // Do not disarm the initial button press in the launcher. Disarm
+            // only after an HDMI viewer was already observed and HOME returned.
+            if (prefs.getBoolean("hdmi_seen", false)) {
+                prefs.edit().putBoolean("armed", false)
+                    .putBoolean("hdmi_seen", false).apply()
+                swallowed.clear()
+            }
         } else if (pkg !in listOf("com.android.systemui", "com.android.settings",
                 "com.google.android.tvlauncher", "com.google.android.apps.tv.launcherx")) {
+            if (armValid() && approvedViewer(pkg)) {
+                prefs.edit().putBoolean("hdmi_seen", true).apply()
+            }
             // Observational only until user explicitly trusts an unknown HDMI
             // application package from SatNova TV settings.
             prefs.edit().putString("observed_viewer_package", pkg).apply()
