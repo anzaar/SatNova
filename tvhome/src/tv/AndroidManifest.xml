@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-feature android:name="android.software.leanback"
         android:required="true" tools:node="replace"/>
-    <application android:label="SatNova TV Home"
+    <application tools:replace="android:label" android:label="SatNova TV Home"
         android:banner="@drawable/satnova_tv_banner">
         <!-- TV package exposes only Android TV HOME + LEANBACK_LAUNCHER. -->
         <activity android:name=".MobilePreviewActivity" tools:node="remove"/>
