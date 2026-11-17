@@ -90,7 +90,9 @@ open class MinimalHomeActivity : Activity() {
                 if (previewMode) {
                     Toast.makeText(this@MinimalHomeActivity,
                         "Changement confirmé sur Zen 4 · ${channel.name}", Toast.LENGTH_LONG).show()
-                } else openHdmi1IfPossible()
+                }
+                // HDMI switching is initiated when the tune command is queued,
+                // not after Zen 4 acknowledges it.
             }
     }
     private lateinit var client: Zen4Client
@@ -804,8 +806,15 @@ open class MinimalHomeActivity : Activity() {
 
     private fun openChannel(channel: ZenChannel) {
         when (client.tuneDetailed(channel)) {
-            Zen4Client.TuneResult.SENT ->
-                Toast.makeText(this, "Commande envoyée à Zen 4 · ${channel.name}", Toast.LENGTH_SHORT).show()
+            Zen4Client.TuneResult.SENT -> {
+                // tuneDetailed queues the receiver command on its network executor.
+                // Start HDMI immediately on the UI thread, without awaiting the reply.
+                if (previewMode) {
+                    Toast.makeText(this, "Commande en cours · ${channel.name}", Toast.LENGTH_SHORT).show()
+                } else {
+                    openHdmi1IfPossible()
+                }
+            }
             Zen4Client.TuneResult.DISCONNECTED ->
                 channelError("Récepteur déconnecté",
                     "Impossible de sélectionner «${channel.name}». Zen 4 n'est pas connecté. Vérifiez le Wi-Fi du téléviseur et du récepteur, puis réessayez.")
