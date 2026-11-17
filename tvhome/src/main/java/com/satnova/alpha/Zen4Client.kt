@@ -3,6 +3,7 @@ package com.satnova.alpha
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.wifi.WifiManager
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -13,6 +14,8 @@ import java.io.ByteArrayInputStream
 import java.io.EOFException
 import java.net.Inet4Address
 import java.net.InetSocketAddress
+import java.net.DatagramPacket
+import java.net.DatagramSocket
 import java.net.NetworkInterface
 import java.net.Socket
 import java.net.SocketTimeoutException
@@ -130,16 +133,22 @@ internal class Zen4Client(private val context: Context, private val listener: Li
                     val remembered = lastIp.takeIf(::privateIp)
                     if (remembered != null && attempt(remembered)) continue
 
-                    // Do not stop at the first host with an open port. Login to every
-                    // candidate in the local Wi-Fi subnet until the genuine receiver
-                    // verifies its signature and physical-device identity.
+                    // Match the working phone app: first listen for G-MScreen
+                    // receiver advertisements on UDP 25860, then scan TCP 20000.
+                    tell(false, "Recherche Zen 4 · annonce réseau UDP…")
+                    var connectedOnce = false
+                    for (host in findUdpReceivers()) {
+                        if (!active.get()) break
+                        if (attempt(host)) { connectedOnce = true; break }
+                    }
+                    if (connectedOnce) continue
+                    // Do not stop at the first host with an open port. Every
+                    // candidate must pass an authenticated receiver handshake.
                     tell(false, "Recherche de Zen 4 sur le Wi-Fi…")
                     val found = findOnLan()
-                    // The user might enter the correct IP while discovery is running.
+                    // The user might enter a new IP during discovery.
                     val currentManual = lastIp.takeIf(::privateIp)
                     if (currentManual != null && attempt(currentManual)) continue
-
-                    var connectedOnce = false
                     for (host in found) {
                         if (!active.get()) break
                         if (attempt(host)) { connectedOnce = true; break }
@@ -292,6 +301,46 @@ internal class Zen4Client(private val context: Context, private val listener: Li
             }
         } catch (_: Exception) { }
         return result.toList()
+    }
+
+    /** 108-byte G-MScreen broadcast identical to the phone app's discovery.
+     * The beacon only identifies candidates; it does not authorize commands
+     * or pin the device identity. Only TCP login performs authentication. */
+    private fun findUdpReceivers(): List<String> {
+        val hosts = linkedSetOf<String>()
+        var multicast: WifiManager.MulticastLock? = null
+        try {
+            val wifi = context.applicationContext
+                .getSystemService(Context.WIFI_SERVICE) as WifiManager
+            multicast = wifi.createMulticastLock("satnova-home-zen4").apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+            DatagramSocket(null).use { sock ->
+                sock.reuseAddress = true
+                sock.bind(InetSocketAddress(25860))
+                sock.soTimeout = 650
+                val end = SystemClock.elapsedRealtime() + 2500L
+                while (active.get() && SystemClock.elapsedRealtime() < end) {
+                    val data = ByteArray(256)
+                    val packet = DatagramPacket(data, data.size)
+                    try {
+                        sock.receive(packet)
+                        val host = packet.address.hostAddress ?: continue
+                        if (packet.length != 108 || !privateIp(host)) continue
+                        val raw = packet.data.copyOfRange(
+                            packet.offset, packet.offset + packet.length)
+                        val decoded = raw.reversedArray()
+                            .map { (it.toInt() xor 0x5B).toByte() }.toByteArray()
+                        if (String(decoded, 0, 12, StandardCharsets.US_ASCII)
+                                == "39WwijOog54a") hosts.add(host)
+                    } catch (_: SocketTimeoutException) { }
+                }
+            }
+        } catch (_: Exception) { }
+        finally { try { if (multicast?.isHeld == true) multicast.release() }
+            catch (_: Exception) { } }
+        return hosts.toList()
     }
 
     /** Bounded TCP discovery, followed by an authenticated login in start(). */
