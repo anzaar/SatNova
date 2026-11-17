@@ -38,7 +38,7 @@ class Zen4PersistentService : Service() {
             channelId, "SatNova · Connexion Zen 4", NotificationManager.IMPORTANCE_LOW
         ).apply { description = "Connexion et reconnexion Wi-Fi à Zen 4 en arrière-plan" })
         val initial = notification()
-        if (Build.VERSION.SDK_INT >= 29) {
+        if (Build.VERSION.SDK_INT >= 34) {
             startForeground(notificationId, initial,
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
         } else {
