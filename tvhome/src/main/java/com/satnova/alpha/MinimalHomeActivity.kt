@@ -788,16 +788,29 @@ open class MinimalHomeActivity : Activity() {
             }.setNegativeButton("Annuler", null).show()
     }
 
+    private fun channelError(title: String, detail: String) {
+        if (isFinishing || isDestroyed) return
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(detail)
+            .setPositiveButton("Compris", null)
+            .show()
+    }
+
     private fun openChannel(channel: ZenChannel) {
-        val message = when (client.tuneDetailed(channel)) {
-            Zen4Client.TuneResult.SENT -> "Commande envoyée · ${channel.name}"
-            Zen4Client.TuneResult.DISCONNECTED -> "Zen 4 déconnecté · reconnexion nécessaire"
+        when (client.tuneDetailed(channel)) {
+            Zen4Client.TuneResult.SENT ->
+                Toast.makeText(this, "Commande envoyée à Zen 4 · ${channel.name}", Toast.LENGTH_SHORT).show()
+            Zen4Client.TuneResult.DISCONNECTED ->
+                channelError("Récepteur déconnecté",
+                    "Impossible de sélectionner «${channel.name}». Zen 4 n'est pas connecté. Vérifiez le Wi-Fi du téléviseur et du récepteur, puis réessayez.")
             Zen4Client.TuneResult.CHANNEL_NOT_FOUND ->
-                "Chaîne absente du catalogue actuel · actualiser Zen 4"
+                channelError("Chaîne introuvable",
+                    "«${channel.name}» n'existe plus dans le catalogue actuel de Zen 4. Actualisez les chaînes du récepteur, puis réessayez.")
             Zen4Client.TuneResult.SEND_FAILED ->
-                "Échec d'envoi de commande · vérifiez la connexion"
+                channelError("Commande non envoyée",
+                    "Impossible d'envoyer la commande pour «${channel.name}». Vérifiez que Zen 4 est allumé et accessible sur le réseau.")
         }
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
     }
 
     /**
@@ -843,9 +856,8 @@ open class MinimalHomeActivity : Activity() {
             } else false
         } catch (_: Exception) { false }
         if (!handled) {
-            Toast.makeText(this,
-                "Chaîne sélectionnée · utiliser SOURCE puis " + suggested,
-                Toast.LENGTH_LONG).show()
+            channelError("Passage HDMI indisponible",
+                "La commande de chaîne a été confirmée par Zen 4, mais le téléviseur n'a pas pu basculer automatiquement vers " + suggested + ". Appuyez sur SOURCE / INPUT de la télécommande et choisissez " + suggested + ".")
         }
     }
 
