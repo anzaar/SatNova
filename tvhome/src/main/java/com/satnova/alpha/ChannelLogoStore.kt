@@ -196,10 +196,18 @@ internal class ChannelLogoStore(context: Context, private val onIndexReady: () -
             pending[key] = mutableListOf(WeakReference(image))
         }
         executor.execute {
+            // Disk is always consulted before the network. This survives TV
+            // restarts and app upgrades; only missing logos need downloading.
             var found: Bitmap? = null
             for (url in urls) {
-                found = readDisk(url) ?: download(url)
+                found = readDisk(url)
                 if (found != null) break
+            }
+            if (found == null) {
+                for (url in urls) {
+                    found = download(url)
+                    if (found != null) break
+                }
             }
             synchronized(lock) {
                 if (found != null) cache.put(key, found)
