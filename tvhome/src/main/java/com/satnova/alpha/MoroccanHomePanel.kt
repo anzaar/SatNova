@@ -100,10 +100,10 @@ internal class MoroccanHomePanel(
             return col
         }
         val a = column(1.35f)
-        day = text("اليوم", 25f, Color.rgb(212, 223, 181), true)
+        day = text("اليوم", 29f, Color.rgb(212, 223, 181), true)
         clock = text("--:--", if (preview) 43f else 58f, Color.WHITE, true)
-        date = text("التاريخ الميلادي", 20f)
-        hijri = text("التاريخ الهجري: في انتظار التقويم الرسمي", 18f, Color.rgb(231, 202, 151))
+        date = text("التاريخ الميلادي", 26f)
+        hijri = text("التاريخ الهجري: في انتظار التقويم الرسمي", 23f, Color.rgb(231, 202, 151))
         a.addView(day); a.addView(clock); a.addView(date); a.addView(hijri)
         val b = column(1.18f)
         cityLabel = text("📍 " + city().name, 20f, Color.rgb(176, 221, 198), true)
