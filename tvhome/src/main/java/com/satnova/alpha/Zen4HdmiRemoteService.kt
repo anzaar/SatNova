@@ -3,6 +3,8 @@ package com.satnova.alpha
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
@@ -87,7 +89,23 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         }
     }
 
+    /** Launch the installed Android Shahid app, not a Zen 4 receiver command. */
+    private fun launchShahid(): Boolean {
+        return try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("shahid://"))
+                .addCategory(Intent.CATEGORY_BROWSABLE)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (intent.resolveActivity(packageManager) == null) return false
+            startActivity(intent)
+            true
+        } catch (_: Exception) { false }
+    }
+
     private fun receiverKey(code: Int): Int? = when (code) {
+        KeyEvent.KEYCODE_PROG_RED -> 6
+        KeyEvent.KEYCODE_PROG_GREEN -> 54
+        KeyEvent.KEYCODE_PROG_BLUE -> null
+
         KeyEvent.KEYCODE_DPAD_UP -> 1
         KeyEvent.KEYCODE_DPAD_DOWN -> 2
         KeyEvent.KEYCODE_DPAD_LEFT -> 3
@@ -118,6 +136,17 @@ class Zen4HdmiRemoteService : AccessibilityService() {
                 KeyEvent.KEYCODE_SETTINGS, KeyEvent.KEYCODE_APP_SWITCH
             )) return false
 
+        if (event.keyCode == KeyEvent.KEYCODE_PROG_YELLOW) {
+            if (!approvedViewer(currentPackage)) return false
+            if (event.action == KeyEvent.ACTION_UP) return swallowed.remove(event.keyCode)
+            if (event.action != KeyEvent.ACTION_DOWN) return false
+            if (event.repeatCount > 0) return swallowed.contains(event.keyCode)
+            val launched = launchShahid()
+            prefs.edit().putString("last_forward_result",
+                if (launched) "Shahid ouvert" else "Shahid indisponible").apply()
+            if (launched) swallowed.add(event.keyCode)
+            return launched
+        }
         val value = receiverKey(event.keyCode) ?: return false
         val viewer = currentPackage
         val permitted = approvedViewer(viewer)
