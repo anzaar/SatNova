@@ -1,0 +1,44 @@
+name: Build experimental SatNova color remote bridge
+on:
+  push:
+    branches: [feature/tvbridge-color-audio-20261118]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          SDK_MANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          yes | "$SDK_MANAGER" --licenses >/dev/null || true
+          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build HDMI Bridge
+        run: gradle --no-daemon --stacktrace :tvhome:assembleTvbridgeDebug
+      - name: Verify APK
+        run: |
+          APK=tvhome/build/outputs/apk/tvbridge/debug/tvhome-tvbridge-debug.apk
+          test -s "$APK"
+          unzip -t "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
+          sha256sum "$APK"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SatNova-HDMI-Bridge-0.5.13-TEST-UNVERIFIED-SIGNATURE
+          path: tvhome/build/outputs/apk/tvbridge/debug/tvhome-tvbridge-debug.apk
+          retention-days: 14
