@@ -103,6 +103,9 @@ class Zen4HdmiRemoteService : AccessibilityService() {
     private fun receiverKey(code: Int): Int? = when (code) {
         KeyEvent.KEYCODE_PROG_RED -> 6
         KeyEvent.KEYCODE_PROG_BLUE -> 54
+        // TV PAGE +/- keys control receiver volume; physical TV VOL keys stay native.
+        KeyEvent.KEYCODE_PAGE_UP -> 35
+        KeyEvent.KEYCODE_PAGE_DOWN -> 36
 
         KeyEvent.KEYCODE_DPAD_UP -> 1
         KeyEvent.KEYCODE_DPAD_DOWN -> 2
