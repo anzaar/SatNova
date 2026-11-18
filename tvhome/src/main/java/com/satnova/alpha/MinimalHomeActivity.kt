@@ -1287,7 +1287,9 @@ open class MinimalHomeActivity : Activity() {
         )
         AlertDialog.Builder(this).setTitle("Télécommande Lifemaxx → Zen 4")
             .setMessage(status)
-            .setItems(options) { _, index ->
+            .setPositiveButton("OPTIONS") { _, _ ->
+                AlertDialog.Builder(this).setTitle("Contrôle HDMI — actions")
+                    .setItems(options) { _, index ->
                 when (index) {
                     0 -> {
                         if (!hdmiBridgeEnabled()) {
@@ -1340,7 +1342,9 @@ open class MinimalHomeActivity : Activity() {
                         Toast.makeText(this, "Contrôle HDMI arrêté", Toast.LENGTH_SHORT).show()
                     }
                 }
-            }.setNegativeButton("Fermer", null).show()
+                    }.setNegativeButton("Fermer", null).show()
+            }
+            .setNegativeButton("Fermer", null).show()
     }
 
     private fun settings() {
