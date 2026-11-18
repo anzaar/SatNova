@@ -241,7 +241,7 @@ internal class Zen4Client(private val context: Context, private val listener: Li
      * Never blocks an AccessibilityService key callback on network I/O.
      */
     fun sendRemoteKey(keyValue: Int): Boolean {
-        if (keyValue !in (1..22) && keyValue !in listOf(23, 32, 35, 36, 69, 70))
+        if (keyValue !in (1..22) && keyValue !in listOf(23, 32, 35, 36, 54, 69, 70))
             return false
         val sock = session ?: return false
         if (!authorized || sock.isClosed || !sock.isConnected || !active.get()) return false
