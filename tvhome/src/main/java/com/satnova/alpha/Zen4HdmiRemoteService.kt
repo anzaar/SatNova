@@ -95,7 +95,6 @@ class Zen4HdmiRemoteService : AccessibilityService() {
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("shahid://"))
                 .addCategory(Intent.CATEGORY_BROWSABLE)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            if (intent.resolveActivity(packageManager) == null) return false
             startActivity(intent)
             true
         } catch (_: Exception) { false }
