@@ -4,7 +4,7 @@ on:
     branches: [feature/tvbridge-color-audio-20261118]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -42,3 +42,25 @@ jobs:
           name: SatNova-HDMI-Bridge-0.5.13-TEST-UNVERIFIED-SIGNATURE
           path: tvhome/build/outputs/apk/tvbridge/debug/tvhome-tvbridge-debug.apk
           retention-days: 14
+
+      - name: Publish experimental APK for Downloader
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          LATEST_SHA="$(gh api "repos/${GH_REPO}/commits/${GITHUB_REF_NAME}" --jq '.sha')"
+          if [ "$LATEST_SHA" != "$GITHUB_SHA" ]; then
+            echo "Skipping stale build"
+            exit 0
+          fi
+          cp tvhome/build/outputs/apk/tvbridge/debug/tvhome-tvbridge-debug.apk SatNova-TV-Home-HDMI-Bridge-0.5.13-TEST.apk
+          if ! gh release view v0.5.13-tvbridge-test >/dev/null 2>&1; then
+            gh release create v0.5.13-tvbridge-test --prerelease --target "$GITHUB_SHA" \
+              --title "SatNova HDMI Bridge 0.5.13 — Experimental" \
+              --notes "Fresh-install experimental build only. Different debug signing key from v0.5.12; cannot update in place. Keep original launcher enabled until installation and HOME/accessibility verification. Features: red MENU, green Shahid, blue AUDIO, PAGE +/- receiver volume, D-pad and digits."
+          else
+            gh release edit v0.5.13-tvbridge-test --target "$GITHUB_SHA"
+          fi
+          gh release upload v0.5.13-tvbridge-test SatNova-TV-Home-HDMI-Bridge-0.5.13-TEST.apk --clobber
