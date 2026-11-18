@@ -102,8 +102,7 @@ class Zen4HdmiRemoteService : AccessibilityService() {
 
     private fun receiverKey(code: Int): Int? = when (code) {
         KeyEvent.KEYCODE_PROG_RED -> 6
-        KeyEvent.KEYCODE_PROG_YELLOW -> 54
-        KeyEvent.KEYCODE_PROG_BLUE -> null
+        KeyEvent.KEYCODE_PROG_BLUE -> 54
 
         KeyEvent.KEYCODE_DPAD_UP -> 1
         KeyEvent.KEYCODE_DPAD_DOWN -> 2
