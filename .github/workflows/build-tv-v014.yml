@@ -1,0 +1,79 @@
+name: SatNova v0.5.14 - TV Home Sports Languages Quran
+on:
+  push:
+    branches: [feature/tvbridge-v0.5.14-onboarding-i18n-quran]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Create licensed Moulay Abdellah Stadium sports wallpaper
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check Pillow
+          python scripts/make_stadium_wallpaper.py
+          test -s tvhome/src/main/assets/satnova_sport_theme.webp
+      - name: Prepare Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          SDK_MANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDK_MANAGER"
+          yes | "$SDK_MANAGER" --licenses >/dev/null || true
+          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build TV HDMI Bridge 0.5.14
+        run: gradle --no-daemon --stacktrace :tvhome:assembleTvbridgeDebug
+      - name: Verify APK certificate, package and checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=tvhome/build/outputs/apk/tvbridge/debug/tvhome-tvbridge-debug.apk
+          test -s "$APK"
+          unzip -t "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
+          sha256sum "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | head -n 8
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SatNova-TV-Home-HDMI-Bridge-0.5.14-TEST-UNVERIFIED-SIGNATURE
+          path: tvhome/build/outputs/apk/tvbridge/debug/tvhome-tvbridge-debug.apk
+          retention-days: 14
+      - name: Publish experimental release APK
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          LATEST_SHA="$(gh api "repos/$GH_REPO/commits/$GITHUB_REF_NAME" --jq '.sha')"
+          if [ "$LATEST_SHA" != "$GITHUB_SHA" ]; then
+            echo "Skipping stale build"
+            exit 0
+          fi
+          cp tvhome/build/outputs/apk/tvbridge/debug/tvhome-tvbridge-debug.apk SatNova-TV-Home-HDMI-Bridge-0.5.14-TEST.apk
+          if ! gh release view v0.5.14-tvbridge-test >/dev/null 2>&1; then
+            gh release create v0.5.14-tvbridge-test --prerelease --target "$GITHUB_SHA" \
+              --title "SatNova TV Home HDMI Bridge v0.5.14 - Experimental" \
+              --notes "TEST ONLY. Fresh install; debug signature differs from v0.5.13. Keep original HOME launcher available. Languages ar/fr/en, Full HD licensed Moulay Abdellah sports theme, Islamic theme preserved, local wallpaper picker, worldwide city selector, Quran reader with cached MP3, optional adhan, no channel-favorites strip. HOME and HDMI remote must be tested on Lifemaxx. Photo credit: Reda Benkhadra (CC BY-SA 4.0)."
+          else
+            gh release edit v0.5.14-tvbridge-test --target "$GITHUB_SHA"
+          fi
+          gh release upload v0.5.14-tvbridge-test SatNova-TV-Home-HDMI-Bridge-0.5.14-TEST.apk --clobber
