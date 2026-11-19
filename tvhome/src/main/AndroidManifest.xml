@@ -27,9 +27,10 @@
         </activity>
         <activity android:name=".MinimalHomeActivity" android:exported="true"
             android:screenOrientation="landscape">
-            <!-- TV firmware's stock Google HOME filter has priority 2.
-                 Prefer SatNova when resolving HOME, without disabling recovery launcher. -->
-            <intent-filter android:priority="3">
+            <!-- Android caps positive intent priority to zero for non-privileged
+                 launchers. HOME must be selected by Android; a user-enabled
+                 Accessibility fallback can handle stock Google TV HOME. -->
+            <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.HOME"/>
                 <category android:name="android.intent.category.DEFAULT"/>
