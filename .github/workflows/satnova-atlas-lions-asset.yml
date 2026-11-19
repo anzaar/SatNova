@@ -1,0 +1,51 @@
+name: SatNova Atlas Lions 1080p Sport Wallpaper - v1 Asset
+on:
+  push:
+    branches: [feature/tvbridge-home-override-optin-20261119]
+    paths: [.github/workflows/satnova-atlas-lions-asset.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  generate-sport-theme:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate reproducible Moroccan team themed TV wallpaper
+        shell: bash
+        run: |
+          python3 -m pip install Pillow
+          python3 scripts/make_atlas_lions_wallpaper.py
+          test -s tvhome/src/main/assets/satnova_sport_theme.webp
+          test -s scripts/resources/moulay_abdellah_stadium_source.webp
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          image=Image.open("tvhome/src/main/assets/satnova_sport_theme.webp")
+          assert image.size==(1920,1080), image.size
+          Path("sports-theme-v1").mkdir(exist_ok=True)
+          image.save("sports-theme-v1/Atlas_Lions_Sports_1920x1080.png")
+          print("Generated:",image.size)
+          PY
+      - name: Commit new source stadium and packaged Atlas Lions artwork on experimental branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tvhome/src/main/assets/satnova_sport_theme.webp scripts/resources/moulay_abdellah_stadium_source.webp
+          if git diff --cached --quiet; then
+            echo "Artwork already committed"
+          else
+            git commit -m "Pack Morocco Atlas Lions sport theme for SatNova future v1"
+            git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
+          fi
+      - name: Save actual 1920x1080 sport wallpaper evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: SatNova-AtlasLions-Sport-Wallpaper-1920x1080
+          path: |
+            tvhome/src/main/assets/satnova_sport_theme.webp
+            sports-theme-v1/Atlas_Lions_Sports_1920x1080.png
+          retention-days: 14
