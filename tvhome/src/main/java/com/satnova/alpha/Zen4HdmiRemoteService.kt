@@ -26,6 +26,38 @@ class Zen4HdmiRemoteService : AccessibilityService() {
     private var zen: Zen4Client? = null
     private var currentPackage = ""
     private val swallowed = mutableSetOf<Int>()
+    private var lastHomeOverrideMs = 0L
+
+    /**
+     * Opt-in fallback for firmware where Google TV's privileged HOME handler
+     * outranks third-party launchers even when ROLE_HOME is granted.
+     * Never captures HOME key codes, disables stock packages, or intercepts
+     * arbitrary apps: it reacts only when a known stock HOME UI becomes visible.
+     */
+    private fun maybeOverrideStockHome(packageShown: String, eventType: Int) {
+        if (eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        if (!prefs.getBoolean("home_override_enabled", false)) return
+        if (packageShown !in setOf(
+                "com.google.android.apps.tv.launcherx",
+                "com.google.android.tvlauncher",
+                "com.google.android.leanbacklauncher",
+                "com.android.tv.launcher"
+            )) return
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastHomeOverrideMs < 3_000L) return
+        lastHomeOverrideMs = now
+        try {
+            startActivity(Intent(this, MinimalHomeActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            })
+            prefs.edit().putString("last_home_override_result", "SatNova demandée")
+                .putLong("last_home_override_at", System.currentTimeMillis()).apply()
+        } catch (error: Exception) {
+            prefs.edit().putString("last_home_override_result",
+                "Refus Android: " + error.javaClass.simpleName).apply()
+        }
+    }
 
     private fun approvedViewer(pkg: String): Boolean {
         if (pkg.isBlank() || pkg == packageName) return false
@@ -64,7 +96,11 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
             event?.eventType != AccessibilityEvent.TYPE_WINDOWS_CHANGED) return
         val pkg = event.packageName?.toString().orEmpty()
-        if (pkg.isBlank() || !armValid()) return
+        if (pkg.isBlank()) return
+        // This preference is independent from the time-limited HDMI key bridge.
+        // The original HOME/POWER/VOLUME keys remain owned by Android TV.
+        maybeOverrideStockHome(pkg, event.eventType)
+        if (!armValid()) return
         currentPackage = pkg
         if (pkg == packageName) {
             // Do not disarm the initial button press in the launcher. Disarm
