@@ -10,28 +10,41 @@ from io import BytesIO
 from pathlib import Path
 from urllib.request import Request, urlopen
 import math
+import time
 from PIL import Image, ImageEnhance, ImageFilter, ImageDraw
 
 OUT = Path("tvhome/src/main/assets/satnova_sport_theme.webp")
+if OUT.is_file() and OUT.stat().st_size > 50_000:
+    print(f"Reusing packaged stadium theme: {OUT}")
+    raise SystemExit(0)
+
 URLS = [
     "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Moulay_Abdellah_Stadium.jpg/1920px-Moulay_Abdellah_Stadium.jpg",
+    "https://upload.wikimedia.org/wikipedia/commons/0/09/Moulay_Abdellah_Stadium.jpg",
+    "https://wsrv.nl/?url=upload.wikimedia.org/wikipedia/commons/0/09/Moulay_Abdellah_Stadium.jpg&w=1920",
+    "https://images.weserv.nl/?url=upload.wikimedia.org/wikipedia/commons/0/09/Moulay_Abdellah_Stadium.jpg&w=1920",
     "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/Moulay_Abdellah_Stadium.jpg/1280px-Moulay_Abdellah_Stadium.jpg",
 ]
 raw = None
 for url in URLS:
     try:
-        with urlopen(Request(url, headers={"User-Agent": "SatNovaTVHome/0.5.14 (photo attribution in app)"}), timeout=24) as response:
+        with urlopen(Request(url, headers={
+            "User-Agent": "SatNova TV Home/0.5.14 (https://github.com/anzaar/SatNova; Wikimedia credit shown in UI)",
+            "Accept": "image/jpeg,image/webp,image/*"
+        }), timeout=25) as response:
             raw = response.read(9_000_001)
         if len(raw) > 9_000_000:
             raise ValueError("Photo larger than expected")
         photo = Image.open(BytesIO(raw)).convert("RGB")
         if photo.width < 1200:
             raise ValueError("Insufficient resolution")
+        print("Licensed photo loaded at", photo.size)
         break
     except Exception as e:
         print("Source unavailable", url, e)
+        time.sleep(3)
 else:
-    raise RuntimeError("Cannot fetch licensed stadium photograph; refusing to silently substitute a fake photo.")
+    raise RuntimeError("Cannot fetch licensed stadium photo from approved sources.")
 
 # Keep the pitch as visual anchor, with seats and the stadium roof visible.
 w, h = photo.size
