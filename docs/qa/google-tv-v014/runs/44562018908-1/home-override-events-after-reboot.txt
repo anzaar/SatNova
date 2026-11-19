@@ -1,0 +1,24 @@
+--------- beginning of system
+11-19 16:14:56.510   517   543 W ActivityTaskManager: Skip updateConfiguration because mWindowManager isn't set
+11-19 16:15:00.114   517   517 W ActivityTaskManager: startActivity called from non-Activity context; forcing Intent.FLAG_ACTIVITY_NEW_TASK for: Intent { flg=0x840000 cmp=com.android.systemui/.sensorprivacy.television.TvSensorPrivacyChangedActivity (has extras) }
+11-19 16:15:00.139   517   517 W ActivityTaskManager: startActivity called from non-Activity context; forcing Intent.FLAG_ACTIVITY_NEW_TASK for: Intent { flg=0x840000 cmp=com.android.systemui/.sensorprivacy.television.TvSensorPrivacyChangedActivity (has extras) }
+11-19 16:15:00.147   517   517 W ActivityTaskManager: startActivity called from non-Activity context; forcing Intent.FLAG_ACTIVITY_NEW_TASK for: Intent { flg=0x840000 cmp=com.android.systemui/.sensorprivacy.television.TvSensorPrivacyChangedActivity (has extras) }
+11-19 16:15:00.148   517   517 W ActivityTaskManager: startActivity called from non-Activity context; forcing Intent.FLAG_ACTIVITY_NEW_TASK for: Intent { flg=0x840000 cmp=com.android.systemui/.sensorprivacy.television.TvSensorPrivacyChangedActivity (has extras) }
+11-19 16:15:00.953   517   546 W ActivityTaskManager: Activity top resumed state loss timeout for ActivityRecord{d26889 u0 com.android.systemui/.sensorprivacy.television.TvSensorPrivacyChangedActivity t2}
+11-19 16:15:00.953   517   546 W ActivityTaskManager: Activity pause timeout for ActivityRecord{d26889 u0 com.android.systemui/.sensorprivacy.television.TvSensorPrivacyChangedActivity t2}
+--------- beginning of main
+11-19 16:15:12.898  1203  1203 I SatNovaHomeOverride: Accessibility service connected, home opt-in=true
+11-19 16:15:12.918  1203  1203 I SatNovaHomeOverride: Detected opt-in stock launcher: com.google.android.apps.tv.launcherx eventType=32
+11-19 16:15:13.002  1203  1203 I SatNovaHomeOverride: Requested SatNova from stock launcher: com.google.android.apps.tv.launcherx
+11-19 16:15:13.485   517   546 W ActivityTaskManager: Activity top resumed state loss timeout for ActivityRecord{23a3485 u0 com.google.android.apps.tv.launcherx/.home.HomeActivity t10}
+11-19 16:15:13.485   517   546 W ActivityTaskManager: Activity pause timeout for ActivityRecord{23a3485 u0 com.google.android.apps.tv.launcherx/.home.HomeActivity t10}
+11-19 16:15:16.320  1203  1203 I SatNovaHomeOverride: service-start HOME probe delay=600 activePackage=
+11-19 16:15:16.371  1203  1203 I SatNovaHomeOverride: service-start HOME probe delay=1600 activePackage=
+11-19 16:15:16.372  1203  1203 I SatNovaHomeOverride: Detected opt-in stock launcher: com.google.android.apps.tv.launcherx eventType=32
+11-19 16:15:16.376  1203  1203 I SatNovaHomeOverride: Requested SatNova from stock launcher: com.google.android.apps.tv.launcherx
+11-19 16:15:19.977   517   546 W ActivityTaskManager: Activity top resumed state loss timeout for ActivityRecord{dca281a u0 com.satnova.tvhome.tvbridge/com.satnova.alpha.MinimalHomeActivity t11}
+11-19 16:15:22.193  1203  1203 I SatNovaHomeOverride: service-start HOME probe delay=3500 activePackage=com.google.android.apps.tv.launcherx
+11-19 16:15:22.193  1203  1203 I SatNovaHomeOverride: Detected opt-in stock launcher: com.google.android.apps.tv.launcherx eventType=32
+11-19 16:15:22.235  1203  1203 I SatNovaHomeOverride: Requested SatNova from stock launcher: com.google.android.apps.tv.launcherx
+11-19 16:15:22.735   517   546 W ActivityTaskManager: Activity pause timeout for ActivityRecord{23a3485 u0 com.google.android.apps.tv.launcherx/.home.HomeActivity t10}
+11-19 16:15:23.722  1203  1203 I SatNovaHomeOverride: service-start HOME probe delay=7000 activePackage=com.google.android.apps.tv.launcherx

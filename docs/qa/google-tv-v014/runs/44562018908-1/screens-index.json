@@ -1,0 +1,262 @@
+[
+  {
+    "name": "01_first_start",
+    "caption": "Initial first-run screen, before granting any permissions",
+    "screenshot": true
+  },
+  {
+    "name": "02_islamic_home",
+    "caption": "Original Islamic theme and live TV app grid",
+    "screenshot": true
+  },
+  {
+    "name": "05_atlas_lions_sport",
+    "caption": "Real Google TV SatNova sports mode and stadium wallpaper",
+    "screenshot": true
+  },
+  {
+    "name": "06_sports_lower",
+    "caption": "Real Google TV sports theme after scrolling rows",
+    "screenshot": true
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Settings",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "الإعدادات",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Settings",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "الإعدادات",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": true
+  },
+  {
+    "action": "click",
+    "target": "Thèmes et fond",
+    "ok": true
+  },
+  {
+    "name": "04_theme_picker",
+    "caption": "Available Islamic, Atlas Lions sport, and custom wallpapers",
+    "screenshot": true
+  },
+  {
+    "action": "click",
+    "target": "Stade Moulay Abdellah",
+    "ok": true
+  },
+  {
+    "name": "05_atlas_lions_sport",
+    "caption": "Actual 1080p Atlas Lions sports wallpaper and Moroccan colors",
+    "screenshot": true
+  },
+  {
+    "name": "06_sports_lower",
+    "caption": "Sport mode after scrolling TV, radios and Quran",
+    "screenshot": true
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": true
+  },
+  {
+    "action": "click",
+    "target": "Ville météo et prières",
+    "ok": true
+  },
+  {
+    "name": "07_city_picker",
+    "caption": "Prayer-time and worldwide weather city list",
+    "screenshot": true
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": true
+  },
+  {
+    "action": "click",
+    "target": "Saint Coran",
+    "ok": true
+  },
+  {
+    "name": "08_quran_114",
+    "caption": "Real Quran 114-surah selection dialog",
+    "screenshot": true
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": true
+  },
+  {
+    "action": "click",
+    "target": "Audio de l'adhan",
+    "ok": true
+  },
+  {
+    "name": "09_adhan",
+    "caption": "Adhan reciters and enable/disable options",
+    "screenshot": true
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": true
+  },
+  {
+    "action": "click",
+    "target": "Télécommande ZEN 4 via HDMI",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "ZEN 4 remote via HDMI",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "تيليكوموند ZEN 4 عبر HDMI",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": true
+  },
+  {
+    "action": "click",
+    "target": "Contournement HOME (facultatif)",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Optional Home override",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "تجاوز الواجهة الأصلية اختيارياً",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": true
+  },
+  {
+    "action": "click",
+    "target": "Diagnostic HOME",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "HOME diagnostics",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "تشخيص HOME",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": true
+  },
+  {
+    "action": "click",
+    "target": "Applications favorites",
+    "ok": true
+  },
+  {
+    "name": "13_app_chooser",
+    "caption": "Real TV app favorites selection",
+    "screenshot": true
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": true
+  },
+  {
+    "action": "click",
+    "target": "Langue",
+    "ok": true
+  },
+  {
+    "name": "14_languages",
+    "caption": "Language options",
+    "screenshot": true
+  },
+  {
+    "action": "click",
+    "target": "English",
+    "ok": true
+  },
+  {
+    "name": "15_home_en",
+    "caption": "English-language home, sports mode retained",
+    "screenshot": true
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Settings",
+    "ok": true
+  },
+  {
+    "action": "click",
+    "target": "Language",
+    "ok": true
+  },
+  {
+    "action": "click",
+    "target": "العربية",
+    "ok": true
+  },
+  {
+    "name": "16_home_ar",
+    "caption": "Arabic-language home, sports mode retained",
+    "screenshot": true
+  },
+  {
+    "name": "17_home_key",
+    "caption": "Actual HOME button outcome, not a simulated launcher",
+    "screenshot": true
+  },
+  {
+    "name": "18_final_home",
+    "caption": "SatNova after returning from stock Google TV",
+    "screenshot": true
+  }
+]
