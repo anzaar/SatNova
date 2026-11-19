@@ -44,7 +44,7 @@ def hit(target,which=0,scroll=False):
         for elem in root.iter("node"):
             val=" ".join(elem.attrib.get(k,"") for k in ("text","content-desc")).lower()
             if t not in val: continue
-            m=re.search(r"\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]",elem.attrib.get("bounds",""))
+            m=re.search(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",elem.attrib.get("bounds",""))
             if m: cands.append(tuple(map(int,m.groups())))
         if len(cands)>which:
             x1,y1,x2,y2=cands[which]
