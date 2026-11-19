@@ -2,7 +2,7 @@ name: SatNova TV - Permanent Signature (MANUAL)
 on:
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   permanently-signed:
     runs-on: ubuntu-latest
@@ -73,7 +73,11 @@ jobs:
           ACTUAL="$(sed -nE 's/.*Signer #1 certificate SHA-256 digest: ([a-f0-9]{64}).*/\1/p' /tmp/signer.txt | head -n 1)"
           test -n "$ACTUAL"
           echo "Certificate SHA-256: $ACTUAL"
-          if [[ -n "$SATNOVA_EXPECTED_CERT_SHA256" && "$ACTUAL" != "$SATNOVA_EXPECTED_CERT_SHA256" ]]; then
+          if [[ -z "$SATNOVA_EXPECTED_CERT_SHA256" ]]; then
+            echo "::error::Missing SATNOVA_EXPECTED_CERT_SHA256; not releasing an unverified certificate"
+            exit 1
+          fi
+          if [[ "$ACTUAL" != "$SATNOVA_EXPECTED_CERT_SHA256" ]]; then
             echo "::error::Certificate mismatch: refusing to release a different signature."
             exit 1
           fi
@@ -85,3 +89,20 @@ jobs:
           name: SatNova-TV-Home-HDMI-Bridge-0.5.14-PERMANENT-SIGNATURE
           path: tvhome/build/outputs/apk/tvbridge/release/tvhome-tvbridge-release.apk
           retention-days: 30
+
+      - name: Publish permanently signed APK for normal Android installation
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          APK=tvhome/build/outputs/apk/tvbridge/release/tvhome-tvbridge-release.apk
+          OUT=SatNova-TV-Home-HDMI-Bridge-0.5.14-PERMANENT.apk
+          cp "$APK" "$OUT"
+          if ! gh release view v0.5.14-tvbridge-permanent >/dev/null 2>&1; then
+            gh release create v0.5.14-tvbridge-permanent --prerelease --target "$GITHUB_SHA" \
+              --title "SatNova v0.5.14 - PERMANENT SIGNATURE - initial install" \
+              --notes "PERMANENT-SIGNATURE BUILD. This is NOT an in-place upgrade over previously debug-signed SatNova. Enable the TV's original HOME and back up settings BEFORE uninstalling debug SatNova. Subsequent builds signed with the same JKS can upgrade in place. HDMI button support must still be tested on Lifemaxx."
+          fi
+          gh release upload v0.5.14-tvbridge-permanent "$OUT" --clobber
