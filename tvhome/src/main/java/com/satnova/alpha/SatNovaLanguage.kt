@@ -8,6 +8,9 @@ internal class SatNovaLanguage(private val prefs: SharedPreferences) {
     fun name(): String = when(code()) { "ar" -> "العربية"; "en" -> "English"; else -> "Français" }
     fun t(key: String): String {
         val words = mapOf(
+            "weatherNow" to arrayOf("الطقس الآن", "Météo actuelle", "Current weather"),
+            "nextPrayer" to arrayOf("الصلاة المقبلة", "Prochaine prière", "Next prayer"),
+            "hijriCalendar" to arrayOf("التقويم الهجري المغربي", "Calendrier hégirien marocain", "Moroccan Hijri calendar"),
             "home" to arrayOf("الرئيسية", "Accueil", "Home"),
             "search" to arrayOf("بحث", "Recherche", "Search"),
             "settings" to arrayOf("الإعدادات", "Paramètres", "Settings"),
