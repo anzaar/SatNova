@@ -24,10 +24,12 @@ echo "HOME holder at baseline:"
 adb shell cmd role get-role-holders android.app.role.HOME | tee home-override-evidence/role-before.txt
 # App receives its opt-in preference before the service is enabled.
 adb shell am force-stop "$PKG" || true
-adb shell run-as "$PKG" sh -c 'mkdir -p shared_prefs'
+# Use run-as with direct executable arguments; adb shell strips sh -c
+# quoting and the previous test accidentally passed an empty mkdir command.
+adb shell run-as "$PKG" mkdir -p shared_prefs
 printf '%s\n' '<?xml version="1.0" encoding="utf-8" standalone="yes" ?>' \
   '<map><boolean name="home_override_enabled" value="true"/></map>' \
-  | adb shell run-as "$PKG" sh -c 'cat > shared_prefs/zen4_hdmi_bridge.xml'
+  | adb shell run-as "$PKG" tee shared_prefs/zen4_hdmi_bridge.xml > /dev/null
 adb shell run-as "$PKG" cat shared_prefs/zen4_hdmi_bridge.xml | tee home-override-evidence/opt-in-test-preference.txt
 echo "Enabling service as a diagnostic via ADB on the ephemeral emulator ONLY"
 adb shell settings put secure enabled_accessibility_services "$PKG/$SERVICE"
