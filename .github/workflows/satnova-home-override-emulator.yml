@@ -13,7 +13,7 @@ on:
       - tvhome/src/main/java/com/satnova/alpha/MinimalHomeActivity.kt
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   optional-home-emulator:
     runs-on: ubuntu-latest
@@ -72,11 +72,45 @@ jobs:
         run: |
           python3 -m pip install --disable-pip-version-check Pillow
           python3 scripts/satnova-screenshot-contact-sheet.py
-      - name: Preserve screenshots, focus state and logs
+      - name: Preserve real screenshot contact sheet and evidence in branch
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: SatNova-GoogleTV14-Accessibility-HOME-Evidence
-          path: home-override-evidence/
-          if-no-files-found: warn
-          retention-days: 10
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEST=docs/qa/google-tv-v014
+          mkdir -p "$DEST/screens"
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          import json, shutil
+          src=Path('home-override-evidence/screens')
+          dst=Path('docs/qa/google-tv-v014/screens')
+          copied=0
+          for path in sorted(src.glob('*.png')) if src.is_dir() else []:
+              im=Image.open(path).convert('RGB')
+              im.thumbnail((1280,720),Image.Resampling.LANCZOS)
+              im.save(dst/(path.stem+'.webp'),'WEBP',quality=76,method=5)
+              copied+=1
+          index=src/'index.json'
+          if index.exists(): shutil.copy(index,Path('docs/qa/google-tv-v014/screens-index.json'))
+          source=Path('home-override-evidence/SatNova_v1_Real_Screenshot_Contact_Sheet.jpg')
+          if source.exists():
+              shutil.copy(source,Path('docs/qa/google-tv-v014/contact-sheet.jpg'))
+          print('Saved real emulator screenshots:',copied)
+          Path('docs/qa/google-tv-v014/README.md').write_text(
+              '# SatNova v0.5.14 Google TV 14 virtual evidence\n\n'
+              'These are screenshots taken from the real Android emulator, not mockups.\n'
+              'They are only diagnostic, **not proof** of HDMI/Zen4 or Lifemaxx HOME support.\n'
+              'The official Google TV setup may obscure HOME; see index for missing screens.\n'
+              'Screenshot count: '+str(copied)+'\n')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f "$DEST"
+          if git diff --cached --quiet; then
+            echo "No new screenshot evidence"
+            exit 0
+          fi
+          git commit -m "Record real SatNova Google TV emulator interface screenshots [skip ci]"
+          git pull --rebase origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
