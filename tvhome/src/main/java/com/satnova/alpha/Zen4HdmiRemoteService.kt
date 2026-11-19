@@ -35,7 +35,8 @@ class Zen4HdmiRemoteService : AccessibilityService() {
      * arbitrary apps: it reacts only when a known stock HOME UI becomes visible.
      */
     private fun maybeOverrideStockHome(packageShown: String, eventType: Int) {
-        if (eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        if (eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
+            eventType != AccessibilityEvent.TYPE_WINDOWS_CHANGED) return
         if (!prefs.getBoolean("home_override_enabled", false)) return
         if (packageShown !in setOf(
                 "com.google.android.apps.tv.launcherx",
@@ -46,6 +47,9 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         val now = SystemClock.elapsedRealtime()
         if (now - lastHomeOverrideMs < 3_000L) return
         lastHomeOverrideMs = now
+        android.util.Log.i("SatNovaHomeOverride",
+            "Detected opt-in stock launcher: " + packageShown +
+            " eventType=" + eventType)
         try {
             startActivity(Intent(this, MinimalHomeActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or
@@ -53,9 +57,11 @@ class Zen4HdmiRemoteService : AccessibilityService() {
             })
             prefs.edit().putString("last_home_override_result", "SatNova demandée")
                 .putLong("last_home_override_at", System.currentTimeMillis()).apply()
+            android.util.Log.i("SatNovaHomeOverride", "Requested SatNova home activity")
         } catch (error: Exception) {
             prefs.edit().putString("last_home_override_result",
                 "Refus Android: " + error.javaClass.simpleName).apply()
+            android.util.Log.w("SatNovaHomeOverride", "Android rejected home launch", error)
         }
     }
 
@@ -90,6 +96,8 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         }
         zen = Zen4SessionHub.attach(this, this)
         prefs.edit().putBoolean("service_active", true).apply()
+        android.util.Log.i("SatNovaHomeOverride", "Accessibility service connected, home opt-in=" +
+            prefs.getBoolean("home_override_enabled", false))
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
