@@ -59,22 +59,69 @@ fi
 echo "Reboot disposable Google TV emulator and test HOME after auto-reconnect"
 adb reboot
 adb wait-for-device
+boot_ready=0
 for n in $(seq 1 100); do
-  [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ] && break
+  if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+    boot_ready=1
+    break
+  fi
   sleep 2
 done
+if [ "$boot_ready" -ne 1 ]; then
+  echo "RESULT: FAIL; emulator did not complete reboot"
+  exit 43
+fi
+# Record stock/default role plus accessibility state AFTER reboot;
+# distinguish OEM launcher precedence from service lost at boot.
+echo "HOME role holder after reboot:"
+adb shell cmd role get-role-holders android.app.role.HOME \
+  | tee home-override-evidence/role-after-reboot.txt || true
+echo "Enabled accessibility services after reboot:"
+adb shell settings get secure enabled_accessibility_services \
+  | tee home-override-evidence/enabled-services-after-reboot.txt || true
+echo "Accessibility global flag after reboot:"
+adb shell settings get secure accessibility_enabled \
+  | tee home-override-evidence/accessibility-flag-after-reboot.txt || true
+adb shell dumpsys accessibility > home-override-evidence/accessibility-after-reboot.txt || true
+adb shell run-as "$PKG" cat shared_prefs/zen4_hdmi_bridge.xml \
+  > home-override-evidence/opt-in-after-reboot.txt || true
+adb shell dumpsys activity activities > home-override-evidence/activities-boot.txt
+adb logcat -d -s SatNovaHomeOverride:V ActivityTaskManager:W \
+  > home-override-evidence/home-override-events-after-reboot.txt || true
+grep -m1 'topResumedActivity=' home-override-evidence/activities-boot.txt || true
+
 sleep 7
+echo "Testing FIRST HOME press after reboot"
 adb shell input keyevent 3
 sleep 8
-adb shell dumpsys activity activities > home-override-evidence/activities-after-reboot.txt
-adb shell dumpsys accessibility > home-override-evidence/accessibility-after-reboot.txt || true
+adb shell dumpsys activity activities > home-override-evidence/activities-after-first-home.txt
 adb exec-out screencap -p > home-override-evidence/reboot-home.png || true
-grep -m1 'topResumedActivity=' home-override-evidence/activities-after-reboot.txt || true
-if grep -Eq "topResumedActivity=.*$PKG" home-override-evidence/activities-after-reboot.txt; then
-  echo "RESULT: PASS; opt-in fallback restored HOME after reboot"
+grep -m1 'topResumedActivity=' home-override-evidence/activities-after-first-home.txt || true
+if grep -Eq "topResumedActivity=.*$PKG" home-override-evidence/activities-after-first-home.txt; then
+  echo "RESULT: PASS; first HOME press after reboot opened SatNova"
 else
-  echo "RESULT: WARN; reboot HOME still not SatNova (OEM/Google TV restrictions)"
+  echo "RESULT: WARN; first HOME press after reboot did NOT open SatNova"
+  # Recovering on retry is NOT a first-press PASS.
+  recovered=0
+  for retry in 1 2 3; do
+    sleep 5
+    echo "Retry HOME after reboot: $retry"
+    adb shell input keyevent 3
+    sleep 7
+    adb shell dumpsys activity activities > "home-override-evidence/activities-home-retry-${retry}.txt"
+    if grep -Eq "topResumedActivity=.*$PKG" "home-override-evidence/activities-home-retry-${retry}.txt"; then
+      echo "RESULT: RECOVERED; HOME worked only on retry $retry after reboot"
+      recovered=1
+      break
+    fi
+  done
+  if [ "$recovered" -eq 0 ]; then
+    echo "RESULT: WARN; HOME still unavailable after reboot retries"
+  fi
 fi
+adb logcat -d -s SatNovaHomeOverride:V AccessibilityManagerService:W ActivityTaskManager:W \
+  > home-override-evidence/home-override-events-after-reboot.txt || true
+# The stock launcher remains installed and enabled during every test.
 adb logcat -d -b crash > home-override-evidence/crash-log.txt || true
 if grep -Fq "Process: $PKG" home-override-evidence/crash-log.txt; then
   echo "RESULT: FAIL; SatNova crashed"
