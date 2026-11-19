@@ -17,7 +17,7 @@ import android.view.accessibility.AccessibilityEvent
  * hardware key filtering, if supported by the TV firmware.
  *
  * This bridge only forwards a documented subset of G-MScreen 1040 commands.
- * HOME / SOURCE / volume / power are always left to the television.
+ * HOME is passed to TV unless the user explicitly enables optional HOME override.\n * SOURCE / volume / power are always left to the television.
  * Explicit "armed" session, 2-hour maximum and HDMI-app whitelist prevent
  * remapping remote buttons across ordinary Android apps.
  */
@@ -27,6 +27,25 @@ class Zen4HdmiRemoteService : AccessibilityService() {
     private var currentPackage = ""
     private val swallowed = mutableSetOf<Int>()
     private var lastHomeOverrideMs = 0L
+    private var homeDownConsumed = false
+
+    private fun openSatNovaFromSystem(trigger: String): Boolean {
+        return try {
+            startActivity(Intent(this, MinimalHomeActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            })
+            prefs.edit().putString("last_home_override_result", "SatNova demandée: " + trigger)
+                .putLong("last_home_override_at", System.currentTimeMillis()).apply()
+            android.util.Log.i("SatNovaHomeOverride", "Requested SatNova from " + trigger)
+            true
+        } catch (error: Exception) {
+            prefs.edit().putString("last_home_override_result",
+                "Refus Android: " + error.javaClass.simpleName).apply()
+            android.util.Log.w("SatNovaHomeOverride", "Android rejected HOME from " + trigger, error)
+            false
+        }
+    }
 
     /**
      * Opt-in fallback for firmware where Google TV's privileged HOME handler
@@ -50,19 +69,7 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         android.util.Log.i("SatNovaHomeOverride",
             "Detected opt-in stock launcher: " + packageShown +
             " eventType=" + eventType)
-        try {
-            startActivity(Intent(this, MinimalHomeActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            })
-            prefs.edit().putString("last_home_override_result", "SatNova demandée")
-                .putLong("last_home_override_at", System.currentTimeMillis()).apply()
-            android.util.Log.i("SatNovaHomeOverride", "Requested SatNova home activity")
-        } catch (error: Exception) {
-            prefs.edit().putString("last_home_override_result",
-                "Refus Android: " + error.javaClass.simpleName).apply()
-            android.util.Log.w("SatNovaHomeOverride", "Android rejected home launch", error)
-        }
+        openSatNovaFromSystem("stock launcher: " + packageShown)
     }
 
     private fun approvedViewer(pkg: String): Boolean {
@@ -171,8 +178,26 @@ class Zen4HdmiRemoteService : AccessibilityService() {
     }
 
     override fun onKeyEvent(event: KeyEvent?): Boolean {
-        if (event == null || !armValid()) return false
-        // Never intercept the television's essential system controls.
+        if (event == null) return false
+
+        // Optional HOME key fallback if the OEM routes HOME to Accessibility.
+        // If Android does not deliver this key, window-change fallback handles it.
+        // When disabled or blocked, HOME passes through untouched to the TV.
+        if (event.keyCode == KeyEvent.KEYCODE_HOME &&
+            prefs.getBoolean("home_override_enabled", false)) {
+            if (event.action == KeyEvent.ACTION_UP) {
+                val consumed = homeDownConsumed
+                homeDownConsumed = false
+                return consumed
+            }
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
+                homeDownConsumed = openSatNovaFromSystem("HOME key")
+                return homeDownConsumed
+            }
+            return homeDownConsumed
+        }
+        if (!armValid()) return false
+        // SOURCE, volume and power always belong to the television.
         if (event.keyCode in listOf(
                 KeyEvent.KEYCODE_HOME, KeyEvent.KEYCODE_TV_INPUT,
                 KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN,
