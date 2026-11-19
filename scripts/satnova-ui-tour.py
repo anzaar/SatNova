@@ -65,8 +65,40 @@ def restart():
     a("am","start","-W","-n",f"{PKG}/{ACT}")
     pause(3)
 def menu():
-    # Click the real system-settings cog in SatNova's top bar.
-    return hit("Paramètres") or hit("Settings") or hit("الإعدادات")
+    # Prefer a verified UI element. A first-start dialog or OEM overlay can
+    # leave the accessibility hierarchy without the top-bar icon.
+    if hit("Paramètres") or hit("Settings") or hit("الإعدادات"):
+        return True
+    # Bring SatNova to the foreground explicitly, not the stock Android HOME.
+    a("am", "start", "-W", "-n", f"{PKG}/{ACT}")
+    pause(1.2)
+    if hit("Paramètres") or hit("Settings") or hit("الإعدادات"):
+        return True
+    # Fallback to the real cog's layout position: 48dp outer padding and
+    # 52dp button at the far right; the top bar starts at 24dp.
+    size, _ = a("wm", "size")
+    density, _ = a("wm", "density")
+    m = re.search(r"(?:Override|Physical) size:\s*(\\d+)x(\\d+)", size)
+    d = re.search(r"(?:Override|Physical) density:\s*(\\d+)", density)
+    if not m:
+        print("SKIP settings tap; unknown display size:", size[:120], flush=True)
+        return False
+    width, _ = map(int, m.groups())
+    scale = int(d.group(1)) / 160.0 if d else 1.0
+    x, y = width - round(74 * scale), round(50 * scale)
+    a("input", "tap", str(x), str(y))
+    pause(1.0)
+    root = hierarchy("settings-cog-fallback")
+    values = [" ".join(node.attrib.get(k, "") for k in ("text", "content-desc")).lower()
+              for node in root.iter("node")]
+    tokens = ["thèmes et fond", "themes & wallpaper", "الخلفية والثيم"]
+    verified = any(any(token in value for token in tokens) for value in values)
+    if verified:
+        print("CLICK Settings cog by measured TV coordinates", x, y, flush=True)
+        return True
+    print("SKIP settings fallback; foreground hierarchy:",
+          [v[:70] for v in values if v][:16], flush=True)
+    return False
 def enter_option(*names):
     if not menu(): return False
     for name in names:
