@@ -77,3 +77,18 @@ jobs:
             gh release edit v0.5.14-tvbridge-test --target "$GITHUB_SHA"
           fi
           gh release upload v0.5.14-tvbridge-test SatNova-TV-Home-HDMI-Bridge-0.5.14-TEST.apk --clobber
+
+      - name: Cache sports theme in the source repository for reproducible future builds
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE=tvhome/src/main/assets/satnova_sport_theme.webp
+          if git ls-files --error-unmatch "$FILE" >/dev/null 2>&1; then
+            echo "Sports wallpaper already versioned"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f "$FILE"
+          git commit -m "Vendor licensed high-quality 1080p Moulay Abdellah wallpaper for offline operation"
+          git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
