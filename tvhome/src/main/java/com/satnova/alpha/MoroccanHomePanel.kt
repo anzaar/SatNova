@@ -111,7 +111,8 @@ internal class MoroccanHomePanel(
         if (bold) setTypeface(null, Typeface.BOLD)
     }
 
-    private val wallpaper by lazy { SatNovaWallpaper(activity) }
+    private val wallpaper by lazy { SatNovaWallpaper(activity, prefs) }
+    fun refreshBackground() = wallpaper.reload()
     fun backdrop(): Drawable = wallpaper
 
     fun build(): View {
