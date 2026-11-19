@@ -17,7 +17,8 @@ import android.view.accessibility.AccessibilityEvent
  * hardware key filtering, if supported by the TV firmware.
  *
  * This bridge only forwards a documented subset of G-MScreen 1040 commands.
- * HOME is passed to TV unless the user explicitly enables optional HOME override.\n * SOURCE / volume / power are always left to the television.
+ * HOME is passed to TV unless the user explicitly enables optional HOME override.
+ * SOURCE / volume / power are always left to the television.
  * Explicit "armed" session, 2-hour maximum and HDMI-app whitelist prevent
  * remapping remote buttons across ordinary Android apps.
  */
