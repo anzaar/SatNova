@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
 concurrency:
   group: satnova-google-tv-qa-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 permissions:
   contents: write
 jobs:
@@ -75,48 +75,50 @@ jobs:
         run: |
           python3 -m pip install --disable-pip-version-check Pillow
           python3 scripts/satnova-screenshot-contact-sheet.py
-      - name: Preserve real screenshot contact sheet and evidence in branch
+      - name: Preserve emulator screenshots in unique run directory (no shared-image conflicts)
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          DEST=docs/qa/google-tv-v014
+          # Each run writes only to its own immutable subfolder.
+          export DEST="docs/qa/google-tv-v014/runs/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           mkdir -p "$DEST/screens"
           python3 - <<'PY'
+          import os, json, shutil
           from pathlib import Path
           from PIL import Image
-          import json, shutil
-          src=Path('home-override-evidence/screens')
-          dst=Path('docs/qa/google-tv-v014/screens')
+          dest=Path(os.environ["DEST"])
+          src=Path("home-override-evidence/screens")
           copied=0
-          for path in sorted(src.glob('*.png')) if src.is_dir() else []:
-              im=Image.open(path).convert('RGB')
-              im.thumbnail((1280,720),Image.Resampling.LANCZOS)
-              im.save(dst/(path.stem+'.webp'),'WEBP',quality=76,method=5)
-              copied+=1
-          index=src/'index.json'
-          if index.exists(): shutil.copy(index,Path('docs/qa/google-tv-v014/screens-index.json'))
-          tour=Path('home-override-evidence/ui-tour.log')
-          if tour.exists(): shutil.copy(tour,Path('docs/qa/google-tv-v014/ui-tour.log'))
-          testlog=Path('home-override-evidence/test.log')
-          if testlog.exists():
-              lines=testlog.read_text(errors='replace').splitlines()
-              relevant=[line for line in lines if
-                  ('RESULT:' in line or 'HOME holder' in line or
-                   'Home from' in line or 'Android API' in line or
-                   'Google TV' in line)]
-              Path('docs/qa/google-tv-v014/test-result.txt').write_text(
-                  '\\n'.join(relevant) + '\\n')
-          source=Path('home-override-evidence/SatNova_v1_Real_Screenshot_Contact_Sheet.jpg')
-          if source.exists():
-              shutil.copy(source,Path('docs/qa/google-tv-v014/contact-sheet.jpg'))
-          print('Saved real emulator screenshots:',copied)
-          Path('docs/qa/google-tv-v014/README.md').write_text(
-              '# SatNova v0.5.14 Google TV 14 virtual evidence\n\n'
-              'These are screenshots taken from the real Android emulator, not mockups.\n'
-              'They are only diagnostic, **not proof** of HDMI/Zen4 or Lifemaxx HOME support.\n'
-              'The official Google TV setup may obscure HOME; see index for missing screens.\n'
-              'Screenshot count: '+str(copied)+'\n')
+          if src.is_dir():
+              for path in sorted(src.glob("*.png")):
+                  im=Image.open(path).convert("RGB")
+                  im.thumbnail((1280,720), Image.Resampling.LANCZOS)
+                  im.save(dest/"screens"/(path.stem+".webp"), "WEBP", quality=76, method=5)
+                  copied+=1
+          for name,source in (
+              ("screens-index.json",src/"index.json"),
+              ("ui-tour.log",Path("home-override-evidence/ui-tour.log")),
+          ):
+              if source.is_file():
+                  shutil.copy2(source,dest/name)
+          testlog=Path("home-override-evidence/test.log")
+          if testlog.is_file():
+              lines=testlog.read_text(errors="replace").splitlines()
+              relevant=[line for line in lines if any(term in line for term in
+                  ("RESULT:", "HOME holder", "Android API:", "Google TV",
+                   "Enabled services", "reboot", "ACCESSIBILITY"))]
+              (dest/"test-result.txt").write_text("\n".join(relevant)+"\n")
+          sheet=Path("home-override-evidence/SatNova_v1_Real_Screenshot_Contact_Sheet.jpg")
+          if sheet.is_file():
+              shutil.copy2(sheet,dest/"contact-sheet.jpg")
+          (dest/"README.md").write_text(
+              "# SatNova Google TV 14 emulator — run "+os.environ["GITHUB_RUN_ID"]+
+              "\n\nActual emulator screenshots, not mockups. "
+              "HOME and reboot results are recorded separately in test-result.txt.\n"
+              "This does NOT prove HDMI/Zen4 or Lifemaxx compatibility.\n\n"
+              "Screenshots captured: "+str(copied)+"\n")
+          print("Saved real emulator screenshots:",copied,"in",dest)
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -125,6 +127,16 @@ jobs:
             echo "No new screenshot evidence"
             exit 0
           fi
-          git commit -m "Record real SatNova Google TV emulator interface screenshots [skip ci]"
-          git pull --rebase origin "$GITHUB_REF_NAME"
-          git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
+          git commit -m "Save Google TV QA images in unique run ${GITHUB_RUN_ID} [skip ci]"
+          for attempt in 1 2 3; do
+            git fetch origin "$GITHUB_REF_NAME"
+            git rebase "origin/$GITHUB_REF_NAME"
+            if git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"; then
+              echo "QA images published to $DEST"
+              exit 0
+            fi
+            echo "Remote changed during upload; retry $attempt"
+            sleep 2
+          done
+          echo "Failed to publish unique QA folder after retries" >&2
+          exit 1
