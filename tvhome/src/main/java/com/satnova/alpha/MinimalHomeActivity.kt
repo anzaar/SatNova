@@ -923,10 +923,12 @@ open class MinimalHomeActivity : Activity() {
                             .putString("satnova_expected_hdmi_viewer", viewer.packageName)
                             .putLong("satnova_hdmi_requested_at", now)
                             .putString("last_forward_result", "Attente affichage HDMI")
-                        if (bridgePrefs.getBoolean("auto_arm", false)) {
-                            e.putBoolean("armed", true).putBoolean("hdmi_seen", false)
-                                .putLong("armed_since", now)
-                        }
+                        // Selecting HDMI from SatNova is an explicit user action.
+                        // Always prepare this one bounded control session when
+                        // Accessibility is authorized; the separate auto_arm
+                        // switch governs only later unattended HDMI returns.
+                        e.putBoolean("armed", true).putBoolean("hdmi_seen", false)
+                            .putLong("armed_since", now)
                         e.apply()
                     }
                     true
