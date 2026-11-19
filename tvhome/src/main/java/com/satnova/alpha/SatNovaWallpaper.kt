@@ -14,6 +14,7 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.RadialGradient
 import android.graphics.Shader
+import android.graphics.LinearGradient
 import android.graphics.drawable.Drawable
 import android.view.View
 import java.io.File
@@ -64,6 +65,26 @@ internal class SatNovaWallpaper(
         bitmap?.let {
             val b = bounds
             canvas.drawBitmap(it, null, Rect(b.left, b.top, b.right, b.bottom), paint)
+        }
+        if (mode == "sport") {
+            // Like the Islamic composition, keep the left side calm and dark
+            // for channels, while the real Rabat stadium lights remain on
+            // the right side. Gradient is GPU-friendly and scales to TV size.
+            val b = bounds
+            val shade = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                shader = LinearGradient(
+                    b.left.toFloat(), b.top.toFloat(), b.right.toFloat(), b.top.toFloat(),
+                    intArrayOf(
+                        Color.rgb(3, 28, 26),
+                        Color.argb(252, 3, 28, 26),
+                        Color.argb(187, 3, 28, 26),
+                        Color.TRANSPARENT
+                    ),
+                    floatArrayOf(0f, .23f, .53f, .86f),
+                    Shader.TileMode.CLAMP
+                )
+            }
+            canvas.drawRect(b, shade)
         }
         if (mode == "custom") {
             val overlay = Paint().apply { color = Color.argb(105, 0, 18, 22) }
