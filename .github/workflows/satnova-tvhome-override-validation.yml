@@ -42,7 +42,9 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump xmltree "$APK" AndroidManifest.xml > tvhome-merged-manifest.txt
           grep -Fq "Zen4HdmiRemoteService" tvhome-merged-manifest.txt
           grep -Fq "android.accessibilityservice.AccessibilityService" tvhome-merged-manifest.txt
-          if grep -Fq "android.intent.category.HOME" tvhome-merged-manifest.txt; then
+          # QUERY visibility may mention HOME; only activity intent-filters must not.
+          sed -n '/E: application/,$p' tvhome-merged-manifest.txt > tvhome-app-manifest.txt
+          if grep -Fq "android.intent.category.HOME" tvhome-app-manifest.txt; then
             echo "::error::Zen addon must not declare Android HOME or replace Secreto"
             exit 1
           fi
