@@ -82,6 +82,11 @@ open class MinimalHomeActivity : Activity() {
                 val changed = online != connected || receiverMessage != message
                 online = connected
                 receiverMessage = message
+                if (connected && changed) {
+                    // Populate local logo files on the first successful reconnection.
+                    logos.retryFailed()
+                    logos.prefetchFirstChannels(channels)
+                }
                 if (changed) scheduleRender()
                 if (connected && setupActive && setupStage == 0) {
                     setupHandler.post { driveSetupWizard() }
@@ -90,6 +95,8 @@ open class MinimalHomeActivity : Activity() {
             override fun catalogue(channels: List<ZenChannel>) {
                 this@MinimalHomeActivity.channels = channels.filter { !it.radio }.sortedBy { it.position }
                 this@MinimalHomeActivity.radios = channels.filter { it.radio }.sortedBy { it.position }
+                // Only background work; a cached Zen catalogue stays on-screen offline.
+                if (online) logos.prefetchFirstChannels(this@MinimalHomeActivity.channels)
                 scheduleRender()
             }
             override fun playing(channelId: String) {

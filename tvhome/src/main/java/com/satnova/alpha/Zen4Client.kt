@@ -102,6 +102,8 @@ internal class Zen4Client(private val context: Context, private val listener: Li
         if (!active.compareAndSet(false, true)) return
         restoreCache()
         control.execute {
+            // Short recovery attempts on a known, authenticated receiver come before LAN discovery.
+            var fastRetry = 0
             while (active.get()) {
                 try {
                     val tried = linkedSetOf<String>()
@@ -132,7 +134,19 @@ internal class Zen4Client(private val context: Context, private val listener: Li
 
                     // First try the receiver explicitly selected or previously authenticated.
                     val remembered = lastIp.takeIf(::privateIp)
-                    if (remembered != null && attempt(remembered)) continue
+                    if (remembered != null) {
+                        if (attempt(remembered)) {
+                            fastRetry = 0
+                            continue
+                        }
+                        if (fastRetry < 2) {
+                            fastRetry++
+                            // A Wi-Fi hiccup should not force a 254-host network scan.
+                            Thread.sleep(if (fastRetry == 1) 400L else 900L)
+                            continue
+                        }
+                    }
+                    fastRetry = 0
 
                     // Match the working phone app: first listen for G-MScreen
                     // receiver advertisements on UDP 25860, then scan TCP 20000.
@@ -430,6 +444,7 @@ internal class Zen4Client(private val context: Context, private val listener: Li
             tpRequested = false
             lastStatePoll = 0
             lastChannelPoll = 0
+            var lastReplyAt = SystemClock.elapsedRealtime()
             while (active.get() && session === sock) {
                 val now = SystemClock.elapsedRealtime()
                 if (now - lastStatePoll > 5000) {
@@ -454,7 +469,15 @@ internal class Zen4Client(private val context: Context, private val listener: Li
                     }
                     lastChannelPoll = now
                 }
-                try { readReply(sock) } catch (_: SocketTimeoutException) { }
+                try {
+                    readReply(sock)
+                    lastReplyAt = SystemClock.elapsedRealtime()
+                } catch (_: SocketTimeoutException) { }
+                // TCP isConnected may remain true after Wi-Fi loss. Poll replies are expected;
+                // never leave the UI falsely marked online on an indefinitely silent socket.
+                if (SystemClock.elapsedRealtime() - lastReplyAt > 16_000L) {
+                    throw SocketTimeoutException("Zen 4 ne répond plus; reconnexion")
+                }
                 if (pendingTune.isNotBlank() && SystemClock.elapsedRealtime() - pendingTuneAt > 9000) {
                     pendingTune = ""
                     tell(true, "Changement de chaîne non confirmé")

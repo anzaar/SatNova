@@ -237,6 +237,25 @@ internal class ChannelLogoStore(context: Context, private val onIndexReady: () -
         }
     }
 
+    /** Download the first row's artwork ahead of time so it remains visible without Zen 4.
+     * Only a bounded batch is warmed: other logos still cache automatically when viewed.
+     * Never hold UI focus, never delete previously cached artwork on disconnection. */
+    fun prefetchFirstChannels(channels: List<ZenChannel>) {
+        val urls = channels.asSequence().take(70).flatMap { channel ->
+            (listOfNotNull(ChannelLogoSource.verifiedHttpLogo(channel.logoUrl),
+                badr?.url(channel)) + ChannelLogoSource.urls(channel)).asSequence()
+        }.distinct().take(80).toList()
+        if (urls.isEmpty()) return
+        try {
+            executor.execute {
+                for (url in urls) {
+                    if (Thread.currentThread().isInterrupted) break
+                    if (readDisk(url) == null) download(url)
+                }
+            }
+        } catch (_: java.util.concurrent.RejectedExecutionException) { }
+    }
+
     fun retryFailed() = synchronized(lock) { failed.clear() }
 
     fun close() {
