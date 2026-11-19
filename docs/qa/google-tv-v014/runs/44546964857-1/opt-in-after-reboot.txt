@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <boolean name="service_active" value="true" />
+    <boolean name="hdmi_seen" value="false" />
+    <string name="last_home_override_result">SatNova demandée: stock launcher: com.google.android.apps.tv.launcherx</string>
+    <boolean name="armed" value="false" />
+    <boolean name="home_override_enabled" value="true" />
+    <long name="last_home_override_at" value="1795099959222" />
+</map>
