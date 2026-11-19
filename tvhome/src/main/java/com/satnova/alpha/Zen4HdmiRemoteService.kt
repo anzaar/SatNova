@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.media.tv.TvInputInfo
 import android.media.tv.TvInputManager
+import android.media.tv.TvContract
 import android.net.Uri
 import android.os.SystemClock
 import android.os.Handler
@@ -31,6 +32,74 @@ class Zen4HdmiRemoteService : AccessibilityService() {
     private var zen: Zen4Client? = null
     private var currentPackage = ""
     private val swallowed = mutableSetOf<Int>()
+
+    private val secretoOverlay by lazy { SecretoZenPanel(this) }
+    private val labelCache = mutableMapOf<String, Boolean>()
+    private val zenObserver = object : Zen4Client.Listener {
+        override fun state(connected: Boolean, message: String) {
+            secretoOverlay.setConnected(connected)
+        }
+        override fun catalogue(channels: List<ZenChannel>) {
+            secretoOverlay.setChannels(channels)
+        }
+        override fun playing(channelId: String) { }
+        override fun tuneConfirmed(channel: ZenChannel) { }
+    }
+
+    /** Detect the actual Secreto HOME package, not arbitrary app content. */
+    private fun isSecretoHome(pkg: String): Boolean {
+        if (pkg.isBlank() || pkg == packageName) return false
+        val configured = prefs.getString("secreto_home_package", "").orEmpty()
+        if (configured.isNotBlank()) return pkg == configured
+        return labelCache.getOrPut(pkg) {
+            if (pkg.contains("secreto", true)) true else try {
+                val info = packageManager.getApplicationInfo(pkg, 0)
+                packageManager.getApplicationLabel(info)
+                    .toString().contains("Secreto TV", ignoreCase = true)
+            } catch (_: Exception) { false }
+        }
+    }
+
+    /** SatNova's connected-HDMI selection, with the same original remote-arming gates. */
+    private fun openHdmiFromSecreto(): Boolean {
+        return try {
+            val tv = getSystemService(Context.TV_INPUT_SERVICE) as? TvInputManager
+                ?: return false
+            val inputs = tv.tvInputList.filter { it.type == TvInputInfo.TYPE_HDMI }
+            val connected = inputs.filter { input ->
+                try { tv.getInputState(input.id) == TvInputManager.INPUT_STATE_CONNECTED }
+                catch (_: Exception) { false }
+            }
+            val hdmi1 = connected.firstOrNull { input ->
+                val label = input.loadLabel(this).toString().replace(Regex("\\s+"), "")
+                label.equals("HDMI1", ignoreCase = true) ||
+                    input.id.contains("HDMI1", ignoreCase = true) ||
+                    input.id.contains("HDMI_1", ignoreCase = true)
+            }
+            val target = if (connected.size == 1) connected.first()
+                else hdmi1 ?: return false
+            val intent = Intent(Intent.ACTION_VIEW,
+                TvContract.buildChannelUriForPassthroughInput(target.id))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val viewer = intent.resolveActivity(packageManager) ?: return false
+            startActivity(intent)
+            val now = System.currentTimeMillis()
+            prefs.edit()
+                .putString("satnova_selected_hdmi_input_id", target.id)
+                .putString("satnova_expected_hdmi_viewer", viewer.packageName)
+                .putLong("satnova_hdmi_requested_at", now)
+                .putBoolean("armed", true)
+                .putBoolean("hdmi_seen", false)
+                .putLong("armed_since", now)
+                .putString("last_forward_result", "Attente affichage HDMI")
+                .apply()
+            true
+        } catch (error: Exception) {
+            android.util.Log.w("AltaPlayZen", "HDMI request unavailable", error)
+            false
+        }
+    }
+
     private var lastHomeOverrideMs = 0L
     private var homeDownConsumed = false
     private val homeProbeHandler = Handler(Looper.getMainLooper())
@@ -247,7 +316,7 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         serviceInfo = serviceInfo.apply {
             flags = flags or AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
         }
-        zen = Zen4SessionHub.attach(this, this)
+        zen = Zen4SessionHub.attach(this, this, zenObserver)
         prefs.edit().putBoolean("service_active", true).apply()
         android.util.Log.i("SatNovaHomeOverride", "Accessibility service connected, home opt-in=" +
             prefs.getBoolean("home_override_enabled", false))
@@ -267,6 +336,10 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         // Track every window transition, including time spent in HOME/Shahid.
         // A vetted HDMI viewer can resume a still-valid, opted-in session.
         currentPackage = pkg
+        // Secreto stays HOME. Only the supplemental channel strip is ours.
+        val focused = try { rootInActiveWindow?.packageName?.toString().orEmpty() }
+            catch (_: Exception) { "" }
+        secretoOverlay.setSecretoForeground(isSecretoHome(focused.ifBlank { pkg }))
         maybeRearmOnHdmiReturn(pkg)
         if (!armValid()) return
         if (pkg == packageName) {
@@ -360,6 +433,10 @@ class Zen4HdmiRemoteService : AccessibilityService() {
             currentPackage = activePackage
             maybeRearmOnHdmiReturn(activePackage)
         }
+        // Only intercept GUIDE/selection while Secreto itself is visible.
+        // The known-working HDMI key translation below is unchanged.
+        if (secretoOverlay.isSecretoForeground() &&
+            secretoOverlay.handleKey(event, zen, ::openHdmiFromSecreto)) return true
         if (!armValid()) return false
         // BACK must remain the TV's own navigation key. EXIT for Zen 4 is
         // exclusively mapped to the yellow remote button on approved HDMI.
@@ -415,6 +492,7 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         ++homeProbeGeneration
         ++bootProbeGeneration
         homeProbeHandler.removeCallbacksAndMessages(null)
+        secretoOverlay.close()
         Zen4SessionHub.detach(this)
         zen = null
         swallowed.clear()
