@@ -44,10 +44,9 @@ jobs:
           grep -Fq "android.accessibilityservice.AccessibilityService" tvhome-merged-manifest.txt
           grep -Fq "android.intent.category.HOME" tvhome-merged-manifest.txt
           sha256sum "$APK"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: SatNova-HOME-Override-UNSIGNED-EXPERIMENTAL-DEBUG
-          path: |
-            tvhome/build/outputs/apk/tvbridge/debug/tvhome-tvbridge-debug.apk
-            tvhome-merged-manifest.txt
-          retention-days: 10
+      - name: Build verification summary
+        shell: bash
+        run: |
+          echo "Debug candidate compiled, manifest checked and apksigner verified."
+          echo "Artifact upload intentionally disabled while GitHub storage quota is full."
+          echo "Production nova.apk remains unchanged."
