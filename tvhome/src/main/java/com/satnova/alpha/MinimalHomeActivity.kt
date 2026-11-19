@@ -520,6 +520,7 @@ open class MinimalHomeActivity : Activity() {
         showTv()
         showRadios()
         if (prefs.getBoolean("show_history", false)) showHistory()
+        showQuran()
         scroll.post {
             if (isFinishing || isDestroyed || activeScroll !== scroll) return@post
             scroll.scrollTo(0, oldY)
@@ -619,6 +620,15 @@ open class MinimalHomeActivity : Activity() {
                     { openChannel(radio) }, { channelActions(radio) }, radio, kind = "radio")
             }))
         }
+    }
+
+    private fun showQuran() {
+        section(lang.t("quran"))
+        val (scroll, row) = horizontalRow()
+        addCard(row, lang.t("quran"), "114 سورة · قراءة واستماع MP3",
+            getDrawable(android.R.drawable.ic_media_play), { quran.open() },
+            kind = "radio")
+        content.addView(withArrows(rememberRow("quran", scroll)))
     }
 
     private fun showHistory() {
