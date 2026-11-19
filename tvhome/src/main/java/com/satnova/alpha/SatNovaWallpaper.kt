@@ -2,7 +2,6 @@ package com.satnova.alpha
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -17,7 +16,6 @@ import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.graphics.drawable.Drawable
 import android.view.View
-import java.io.File
 import java.io.File
 import java.net.URL
 import java.util.concurrent.Executors
