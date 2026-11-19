@@ -1,0 +1,13 @@
+Android API: 34
+HOME holder at baseline:
+     Enabled services:{{com.satnova.tvhome.tvbridge/com.satnova.alpha.Zen4HdmiRemoteService}}
+RESULT: PASS; SatNova took focus after physical-equivalent HOME event
+Reboot disposable Google TV emulator and test HOME after auto-reconnect
+HOME role holder after reboot:
+Enabled accessibility services after reboot:
+Accessibility global flag after reboot:
+Testing FIRST HOME press after reboot
+RESULT: WARN; first HOME press after reboot did NOT open SatNova
+Retry HOME after reboot: 1
+RESULT: RECOVERED; HOME worked only on retry 1 after reboot
+RESULT: done; never disabled stock HOME or required production ADB
