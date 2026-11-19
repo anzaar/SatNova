@@ -12,6 +12,9 @@ on:
       - tvhome/src/main/java/com/satnova/alpha/Zen4HdmiRemoteService.kt
       - tvhome/src/main/java/com/satnova/alpha/MinimalHomeActivity.kt
   workflow_dispatch:
+concurrency:
+  group: satnova-google-tv-qa-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: write
 jobs:
