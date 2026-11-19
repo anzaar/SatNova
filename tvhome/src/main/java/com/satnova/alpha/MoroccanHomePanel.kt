@@ -118,7 +118,7 @@ internal class MoroccanHomePanel(
     fun build(): View {
         loadPrayerCache()
         val sporty = prefs.getString("ui_theme", "islamic") == "sport"
-        val ui = SatNovaLanguage(prefs)
+        val language = SatNovaLanguage(prefs)
         val panelShape = android.graphics.drawable.GradientDrawable().apply {
             cornerRadius = dp(17).toFloat()
             setColor(if (sporty) Color.argb(229, 36, 24, 30) else Color.argb(224, 3, 46, 34))
@@ -172,7 +172,7 @@ internal class MoroccanHomePanel(
 
         val weatherCol = column(.96f)
         weatherLabel = center(text(weather, if (preview) 15f else 19f, Color.WHITE, true))
-        weatherCol.addView(center(text("☁ " + ui.t("weatherNow"), 15f, Color.rgb(199, 219, 198), true)))
+        weatherCol.addView(center(text("☁ " + language.t("weatherNow"), 15f, Color.rgb(199, 219, 198), true)))
         weatherCol.addView(weatherLabel)
         divider()
 
@@ -182,7 +182,7 @@ internal class MoroccanHomePanel(
         divider()
 
         val prayerCol = column(1.48f)
-        nextPrayer = center(text(ui.t("nextPrayer"), 16f, Color.rgb(201, 229, 169), true))
+        nextPrayer = center(text(language.t("nextPrayer"), 16f, Color.rgb(201, 229, 169), true))
         countdown = center(text("--:--:--", if (preview) 21f else 27f,
             Color.rgb(229, 246, 203), true))
         prayerClock = center(text("الوقت: —", 13f))
@@ -193,7 +193,7 @@ internal class MoroccanHomePanel(
 
         val hijriCol = column(1.40f)
         hijri = center(text("بانتظار التقويم المغربي", if (preview) 14f else 18f, Color.WHITE, true))
-        hijriCol.addView(center(text(ui.t("hijriCalendar"), 12f,
+        hijriCol.addView(center(text(language.t("hijriCalendar"), 12f,
             Color.rgb(208, 224, 192))))
         hijriCol.addView(hijri)
         divider()
