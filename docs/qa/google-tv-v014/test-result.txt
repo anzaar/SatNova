@@ -1,0 +1,1 @@
+Android API: 34\nHOME holder at baseline:\nRESULT: PASS; SatNova took focus after physical-equivalent HOME event\nReboot disposable Google TV emulator and test HOME after auto-reconnect\nRESULT: PASS; opt-in fallback restored HOME after reboot\nRESULT: done; never disabled stock HOME or required production ADB\n
