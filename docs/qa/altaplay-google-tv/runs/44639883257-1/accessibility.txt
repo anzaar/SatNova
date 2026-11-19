@@ -1,0 +1,42 @@
+ACCESSIBILITY MANAGER (dumpsys accessibility)
+
+currentUserId=0
+hasWindowMagnificationConnection=false
+Magnifier on display#0
+    MagnificationConfig[mode: 1, activated: false, scale: 1.0, centerX: 0.0, centerY: 0.0] 
+    Magnification region=SkRegion((4,4,1916,1076))
+    IdOfLastServiceToMagnify=-1
+    SupportWindowMagnification=false
+    WindowMagnificationConnectionState=DISCONNECTED
+User state[
+     attributes:{id=0, touchExplorationEnabled=false, serviceHandlesDoubleTap=false, requestMultiFingerGestures=false, requestTwoFingerPassthrough=false, sendMotionEventsEnabledfalse, displayMagnificationEnabled=false, autoclickEnabled=false, nonInteractiveUiTimeout=0, interactiveUiTimeout=0, installedServiceCount=4, magnificationModes={0=1}, magnificationCapabilities=3, audioDescriptionByDefaultEnabled=false, magnificationFollowTypingEnabled=true, alwaysOnMagnificationEnabled=true}
+     shortcut key:{com.google.android.marvin.talkback/.TalkBackService}
+     button:{}
+     button target:{null}
+     Bound services:{Service[label=AltaPlay · Zen 4 (HDMI), feedbackType[FEEDBACK_GENERIC], capabilities=9, eventTypes=[TYPE_WINDOW_STATE_CHANGED, TYPE_WINDOWS_CHANGED], notificationTimeout=100, requestA11yBtn=false]}
+     Enabled services:{{com.altaplay.launcher/com.satnova.alpha.Zen4HdmiRemoteService}}
+     Binding services:{}
+     Crashed services:{}
+     Client list info:{
+          Client list callbacks: 5
+          Client list killed: false
+          Client list broadcasts count: -1
+          Registered clients:{
+[com.google.android.katniss][com.android.tv.provision][com.google.android.inputmethod.latin][com.altaplay.launcher][com.google.android.katniss]}]
+
+Window attributes:[{20=AccessibilityWindowAttributes{mAccessibilityWindowTitle=nullmLocales=[en_US]}, 21=AccessibilityWindowAttributes{mAccessibilityWindowTitle=nullmLocales=[en_US]}, 22=AccessibilityWindowAttributes{mAccessibilityWindowTitle=AltaPlay · Zen 4mLocales=[en_US]}, 23=AccessibilityWindowAttributes{mAccessibilityWindowTitle=AltaPlay LaunchermLocales=[en_US]}, 24=AccessibilityWindowAttributes{mAccessibilityWindowTitle=HomemLocales=[en_US]}}]
+A11yInputFilter Info : 
+Enabled features of Display [0] = [KeyboardInterceptor]
+Global client list info:{
+    Client list callbacks: 6
+    Client list killed: false
+    Client list broadcasts count: -1
+    Registered clients:{
+[com.google.android.permissioncontroller][com.google.android.gms, com.google.android.gsf][com.google.android.apps.tv.launcherx][com.android.tv.settings, com.android.inputdevices, android, com.android.providers.settings, com.android.keychain, com.android.dynsystem, com.android.location.fused, com.android.emulator.multidisplay, com.android.wallpaperbackup, com.android.localtransport][com.android.inputdevices, android, com.android.keychain, com.android.dynsystem, com.android.providers.settings, com.android.location.fused, com.android.tv.settings, com.android.emulator.multidisplay, com.android.wallpaperbackup, com.android.localtransport][com.android.systemui]
+
+Proxy manager state:
+    Number of proxy connections: 0
+    Registered proxy connections:
+Accessibility Display Listener:
+    SystemUI uid: 10103
+    1 valid display: 0

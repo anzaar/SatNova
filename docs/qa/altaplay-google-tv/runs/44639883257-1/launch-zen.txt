@@ -1,0 +1,7 @@
+Starting: Intent { cmp=com.altaplay.launcher/com.satnova.alpha.AltaPlayZenActivity }
+Status: ok
+LaunchState: WARM
+Activity: com.altaplay.launcher/com.satnova.alpha.AltaPlayZenActivity
+TotalTime: 797
+WaitTime: 866
+Complete
