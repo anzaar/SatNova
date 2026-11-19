@@ -1,0 +1,128 @@
+name: SatNova v0.5.14 - Permanent Signed APK
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/satnova-signed-release.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  signed-tv-bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout reviewed v0.5.14 source
+        uses: actions/checkout@v4
+        with:
+          ref: 367aa0b0169edae554f6be9093bb41cf12767ef3
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare an EPHEMERAL signing key for CI smoke-test only
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
+          PASS="$(openssl rand -hex 24)"
+          echo "::add-mask::$PASS"
+          KEYSTORE="$RUNNER_TEMP/satnova-ci-smoke.jks"
+          keytool -genkeypair -noprompt -storetype JKS \
+            -keystore "$KEYSTORE" -storepass "$PASS" -keypass "$PASS" \
+            -alias satnova-tv-release -keyalg RSA -keysize 4096 -validity 365 \
+            -dname 'CN=TEMP CI SIGNING NOT FOR USERS, O=SatNova Smoke Test, C=MA'
+          echo "SATNOVA_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
+          echo "SATNOVA_STORE_PASSWORD=$PASS" >> "$GITHUB_ENV"
+          echo "SATNOVA_KEY_PASSWORD=$PASS" >> "$GITHUB_ENV"
+          echo "SATNOVA_KEY_ALIAS=satnova-tv-release" >> "$GITHUB_ENV"
+          echo "SIGNING_SMOKE_ONLY=true" >> "$GITHUB_ENV"
+      - name: Prepare REAL permanent signing key from TWO private repository secrets
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          SATNOVA_KEYSTORE_B64: ${{ secrets.SATNOVA_KEYSTORE_B64 }}
+          SATNOVA_SIGNING_PASSWORD: ${{ secrets.SATNOVA_SIGNING_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SATNOVA_KEYSTORE_B64" ] || [ -z "$SATNOVA_SIGNING_PASSWORD" ]; then
+            echo "::error::Please add SATNOVA_KEYSTORE_B64 and SATNOVA_SIGNING_PASSWORD in GitHub repository Actions Secrets first."
+            exit 1
+          fi
+          echo "::add-mask::$SATNOVA_SIGNING_PASSWORD"
+          KEYSTORE="$RUNNER_TEMP/satnova-production-private.jks"
+          printf '%s' "$SATNOVA_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+          chmod 600 "$KEYSTORE"
+          test -s "$KEYSTORE"
+          keytool -list -keystore "$KEYSTORE" -storepass "$SATNOVA_SIGNING_PASSWORD" -alias satnova-tv-release >/dev/null
+          echo "SATNOVA_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
+          echo "SATNOVA_STORE_PASSWORD=$SATNOVA_SIGNING_PASSWORD" >> "$GITHUB_ENV"
+          echo "SATNOVA_KEY_PASSWORD=$SATNOVA_SIGNING_PASSWORD" >> "$GITHUB_ENV"
+          echo "SATNOVA_KEY_ALIAS=satnova-tv-release" >> "$GITHUB_ENV"
+          echo "SIGNING_SMOKE_ONLY=false" >> "$GITHUB_ENV"
+      - name: Prepare Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          SDK_MANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDK_MANAGER"
+          yes | "$SDK_MANAGER" --licenses >/dev/null || true
+          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Compile signed production-variant APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s tvhome/src/main/assets/satnova_wallpaper.webp
+          test -s tvhome/src/main/assets/satnova_sport_theme.webp
+          gradle --no-daemon --stacktrace :tvhome:assembleTvbridgeRelease
+      - name: Verify APK package, release version, signature and pinned certificate
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=tvhome/build/outputs/apk/tvbridge/release/tvhome-tvbridge-release.apk
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          BADGING="$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK")"
+          printf '%s\n' "$BADGING" | grep -Fq "package: name='com.satnova.tvhome.tvbridge'"
+          printf '%s\n' "$BADGING" | grep -Fq "versionCode='20'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" | tee /tmp/signer.txt
+          ACTUAL="$(sed -nE 's/.*Signer #1 certificate SHA-256 digest: ([a-f0-9]{64}).*/\1/p' /tmp/signer.txt | head -n 1)"
+          test -n "$ACTUAL"
+          EXPECTED=4c4373d5917ec908c6f12310531dee83ac4bf613680e59aef59e0935ddcf3118
+          if [ "$SIGNING_SMOKE_ONLY" = "false" ] && [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "::error::Certificate mismatch; refusing to publish APK."
+            exit 1
+          fi
+          echo "Certificate SHA256: $ACTUAL"
+          sha256sum "$APK"
+          cp "$APK" SatNova-TV-Home-HDMI-Bridge-0.5.14-SIGNED.apk
+      - name: Upload permanently signed APK
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: SatNova-TV-Home-HDMI-Bridge-0.5.14-SIGNED
+          path: SatNova-TV-Home-HDMI-Bridge-0.5.14-SIGNED.apk
+          retention-days: 30
+      - name: Publish official-key prerelease for safe fresh-install test
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG=v0.5.14-tvbridge-signed
+          if ! gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GH_REPO" --prerelease \
+              --target 367aa0b0169edae554f6be9093bb41cf12767ef3 \
+              --title "SatNova TV Home v0.5.14 · Permanently Signed (Beta)" \
+              --notes "Beta for Lifemaxx + Echolink ZEN PRO 4. Certificate SHA256: 4c4373d5917ec908c6f12310531dee83ac4bf613680e59aef59e0935ddcf3118. First stable signing identity: prior debug APKs cannot be updated in place. Keep original Google TV Home enabled during testing; HOME and Accessibility need user consent; HDMI remote mapping may depend on firmware. Sports backdrop uses Wikimedia photo credited in app."
+          fi
+          gh release upload "$TAG" SatNova-TV-Home-HDMI-Bridge-0.5.14-SIGNED.apk \
+            --repo "$GH_REPO" --clobber
