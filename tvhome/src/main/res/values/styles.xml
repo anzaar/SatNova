@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="SatNovaLaunchTheme" parent="android:style/Theme.Material.NoActionBar">
-        <item name="android:windowBackground">#0C191C</item>
+        <item name="android:windowBackground">@drawable/satnova_launch_background</item>
     </style>
 </resources>
