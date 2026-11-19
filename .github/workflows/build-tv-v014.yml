@@ -51,6 +51,26 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
           sha256sum "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | head -n 8
+      - name: Validate permanent signing Gradle path with disposable CI-only key
+        shell: bash
+        run: |
+          set -euo pipefail
+          # This is a throwaway key used ONLY to check that the release build works.
+          # Do not upload or publish this APK. The real key is only in GitHub Secrets.
+          export SATNOVA_STORE_PASSWORD="disposableOnlyNeverUseInRelease4713"
+          export SATNOVA_KEY_PASSWORD="disposableOnlyNeverUseInRelease4713"
+          export SATNOVA_KEY_ALIAS="satnova_ci_check"
+          export SATNOVA_KEYSTORE_PATH="$RUNNER_TEMP/ci-disposable.jks"
+          keytool -genkeypair -storetype JKS -keystore "$SATNOVA_KEYSTORE_PATH" \
+            -storepass "$SATNOVA_STORE_PASSWORD" -keypass "$SATNOVA_KEY_PASSWORD" \
+            -alias "$SATNOVA_KEY_ALIAS" -keyalg RSA -keysize 2048 \
+            -validity 2 -dname "CN=SatNova CI Check, O=Not for Release, C=MA" -noprompt
+          gradle --no-daemon --stacktrace :tvhome:assembleTvbridgeRelease
+          TEST_APK=tvhome/build/outputs/apk/tvbridge/release/tvhome-tvbridge-release.apk
+          test -s "$TEST_APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$TEST_APK"
+          rm -f "$TEST_APK" "$SATNOVA_KEYSTORE_PATH"
+          echo "Production release signing configuration validated; no key or release APK uploaded."
       - uses: actions/upload-artifact@v4
         with:
           name: SatNova-TV-Home-HDMI-Bridge-0.5.14-TEST-UNVERIFIED-SIGNATURE
