@@ -8,6 +8,7 @@ PKG=com.satnova.tvhome.tvbridge
 ACT=com.satnova.alpha.MinimalHomeActivity
 SERVICE=com.satnova.alpha.Zen4HdmiRemoteService
 APK=tvhome/build/outputs/apk/tvbridge/debug/tvhome-tvbridge-debug.apk
+first_home_failed=0
 echo "== SatNova optional HOME override virtual integration =="
 echo "Android API: $(adb shell getprop ro.build.version.sdk)"
 echo "Android product: $(adb shell getprop ro.product.name)"
@@ -86,6 +87,7 @@ adb shell dumpsys accessibility > home-override-evidence/accessibility-after-reb
 adb shell run-as "$PKG" cat shared_prefs/zen4_hdmi_bridge.xml \
   > home-override-evidence/opt-in-after-reboot.txt || true
 adb shell dumpsys activity activities > home-override-evidence/activities-boot.txt
+adb logcat -d -s SatNovaHomeOverride:V > home-override-evidence/accessibility-startup-events.txt || true
 adb logcat -d -s SatNovaHomeOverride:V ActivityTaskManager:W \
   > home-override-evidence/home-override-events-after-reboot.txt || true
 grep -m1 'topResumedActivity=' home-override-evidence/activities-boot.txt || true
@@ -101,6 +103,7 @@ if grep -Eq "topResumedActivity=.*$PKG" home-override-evidence/activities-after-
   echo "RESULT: PASS; first HOME press after reboot opened SatNova"
 else
   echo "RESULT: WARN; first HOME press after reboot did NOT open SatNova"
+  first_home_failed=1
   # Recovering on retry is NOT a first-press PASS.
   recovered=0
   for retry in 1 2 3; do
@@ -126,5 +129,9 @@ adb logcat -d -b crash > home-override-evidence/crash-log.txt || true
 if grep -Fq "Process: $PKG" home-override-evidence/crash-log.txt; then
   echo "RESULT: FAIL; SatNova crashed"
   exit 42
+fi
+if [ "$first_home_failed" -eq 1 ]; then
+  echo "RESULT: FAIL; strict regression: first HOME press after reboot must work"
+  exit 44
 fi
 echo "RESULT: done; never disabled stock HOME or required production ADB"

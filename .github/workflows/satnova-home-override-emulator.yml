@@ -10,6 +10,7 @@ on:
       - tvhome/src/main/java/com/satnova/alpha/AtlasLionsEmblemView.kt
       - tvhome/src/main/java/com/satnova/alpha/MoroccanHomePanel.kt
       - tvhome/src/main/java/com/satnova/alpha/Zen4HdmiRemoteService.kt
+      - tvhome/src/tvbridge/res/xml/zen4_hdmi_remote_service.xml
       - tvhome/src/main/java/com/satnova/alpha/MinimalHomeActivity.kt
   workflow_dispatch:
 concurrency:
@@ -102,6 +103,19 @@ jobs:
           ):
               if source.is_file():
                   shutil.copy2(source,dest/name)
+          for name in (
+              "role-after-reboot.txt",
+              "enabled-services-after-reboot.txt",
+              "accessibility-flag-after-reboot.txt",
+              "accessibility-startup-events.txt",
+              "home-override-events-after-reboot.txt",
+              "activities-after-first-home.txt",
+              "opt-in-after-reboot.txt",
+          ):
+              source=Path("home-override-evidence")/name
+              if source.is_file():
+                  # Keep enough log evidence to investigate startup and HOME.
+                  (dest/name).write_text(source.read_text(errors="replace")[-120000:])
           testlog=Path("home-override-evidence/test.log")
           if testlog.is_file():
               lines=testlog.read_text(errors="replace").splitlines()

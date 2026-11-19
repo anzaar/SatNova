@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.SystemClock
+import android.os.Handler
+import android.os.Looper
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 
@@ -29,6 +31,49 @@ class Zen4HdmiRemoteService : AccessibilityService() {
     private val swallowed = mutableSetOf<Int>()
     private var lastHomeOverrideMs = 0L
     private var homeDownConsumed = false
+    private val homeProbeHandler = Handler(Looper.getMainLooper())
+    private var homeProbeGeneration = 0
+
+    private val stockHomePackages = setOf(
+        "com.google.android.apps.tv.launcherx",
+        "com.google.android.tvlauncher",
+        "com.google.android.leanbacklauncher",
+        "com.android.tv.launcher"
+    )
+
+    /**
+     * After a reboot the OEM HOME screen can already be on top before
+     * Accessibility starts listening. The first HOME press then produces no
+     * window-transition event. For an explicitly opted-in user, inspect only
+     * the active window's package name at service connection and for a few
+     * seconds afterwards. Never read node text or store window content.
+     *
+     * If Android/OEM denies window retrieval, retain the event-based fallback.
+     * These finite, debounced probes do not run when HOME override is off.
+     */
+    private fun scheduleHomeRestoreProbe() {
+        if (!prefs.getBoolean("home_override_enabled", false)) return
+        val generation = ++homeProbeGeneration
+        listOf(600L, 1_600L, 3_500L, 7_000L).forEach { delay ->
+            homeProbeHandler.postDelayed({
+                if (generation != homeProbeGeneration ||
+                    !prefs.getBoolean("home_override_enabled", false)) return@postDelayed
+                val foregroundPackage = try {
+                    rootInActiveWindow?.packageName?.toString().orEmpty()
+                } catch (error: Exception) {
+                    android.util.Log.w("SatNovaHomeOverride", "Active HOME probe blocked", error)
+                    ""
+                }
+                android.util.Log.i("SatNovaHomeOverride",
+                    "service-start HOME probe delay=" + delay +
+                    " activePackage=" + foregroundPackage)
+                if (foregroundPackage in stockHomePackages) {
+                    maybeOverrideStockHome(
+                        foregroundPackage, AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
+                }
+            }, delay)
+        }
+    }
 
     private fun openSatNovaFromSystem(trigger: String): Boolean {
         return try {
@@ -58,12 +103,7 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         if (eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
             eventType != AccessibilityEvent.TYPE_WINDOWS_CHANGED) return
         if (!prefs.getBoolean("home_override_enabled", false)) return
-        if (packageShown !in setOf(
-                "com.google.android.apps.tv.launcherx",
-                "com.google.android.tvlauncher",
-                "com.google.android.leanbacklauncher",
-                "com.android.tv.launcher"
-            )) return
+        if (packageShown !in stockHomePackages) return
         val now = SystemClock.elapsedRealtime()
         if (now - lastHomeOverrideMs < 3_000L) return
         lastHomeOverrideMs = now
@@ -106,6 +146,7 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         prefs.edit().putBoolean("service_active", true).apply()
         android.util.Log.i("SatNovaHomeOverride", "Accessibility service connected, home opt-in=" +
             prefs.getBoolean("home_override_enabled", false))
+        scheduleHomeRestoreProbe()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -246,6 +287,8 @@ class Zen4HdmiRemoteService : AccessibilityService() {
     override fun onInterrupt() { }
 
     override fun onDestroy() {
+        ++homeProbeGeneration
+        homeProbeHandler.removeCallbacksAndMessages(null)
         Zen4SessionHub.detach(this)
         zen = null
         swallowed.clear()

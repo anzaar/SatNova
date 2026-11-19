@@ -5,4 +5,5 @@
     android:accessibilityFlags="flagRequestFilterKeyEvents"
     android:notificationTimeout="100"
     android:canRequestFilterKeyEvents="true"
+    android:canRetrieveWindowContent="true"
     android:description="@string/hdmi_remote_service_description"/>
