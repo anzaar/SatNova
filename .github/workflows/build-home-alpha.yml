@@ -1,0 +1,75 @@
+name: Build SatNova TV Home + Phone Preview Alpha
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/minimal-tv-home-alpha
+  pull_request:
+    branches: [main]
+concurrency:
+  group: minimal-home-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          SDK_MANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDK_MANAGER"
+          yes | "$SDK_MANAGER" --licenses >/dev/null || true
+          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Compile dedicated TV launcher and separate phone preview
+        run: gradle --no-daemon --stacktrace :tvhome:assembleTvDebug :tvhome:assembleMobileDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SatNova-TV-Lifemaxx-Alpha
+          path: tvhome/build/outputs/apk/tv/debug/tvhome-tv-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SatNova-Home-Phone-Preview
+          path: tvhome/build/outputs/apk/mobile/debug/tvhome-mobile-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish dedicated Lifemaxx TV Alpha APK
+        if: github.ref == 'refs/heads/feature/minimal-tv-home-alpha'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          LATEST_SHA="$(gh api "repos/${GH_REPO}/commits/feature/minimal-tv-home-alpha" --jq '.sha')"
+          if [ "$LATEST_SHA" != "$GITHUB_SHA" ]; then
+            echo "Skipping obsolete TV launcher APK"
+            exit 0
+          fi
+          cp tvhome/build/outputs/apk/tv/debug/tvhome-tv-debug.apk SatNova-TV-Lifemaxx-Alpha.apk
+          if ! gh release view v0.2-tv-alpha >/dev/null 2>&1; then
+            gh release create v0.2-tv-alpha --prerelease \
+              --title "SatNova TV Home — Lifemaxx Alpha" \
+              --target "$GITHUB_SHA" \
+              --notes "Standalone Android TV HOME launcher, remote control navigation, Zen 4 Wi-Fi catalogue, TV/radio strips, groups, picons and HDMI pass-through attempt. TV use only: no mobile preview activity. HDMI switching must be verified on Lifemaxx; no CEC device is yet detected. Old SatNova phone app and former Home Preview APK are not modified."
+          else
+            gh release edit v0.2-tv-alpha --target "$GITHUB_SHA"
+          fi
+          gh release upload v0.2-tv-alpha SatNova-TV-Lifemaxx-Alpha.apk --clobber
+          echo "https://github.com/${GH_REPO}/releases/download/v0.2-tv-alpha/SatNova-TV-Lifemaxx-Alpha.apk"

@@ -5,3 +5,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "SatNova"
 include(":app")
+include(":tvhome")
