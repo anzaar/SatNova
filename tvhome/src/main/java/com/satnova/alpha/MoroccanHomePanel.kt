@@ -30,18 +30,28 @@ internal class MoroccanHomePanel(
     private val prefs: SharedPreferences,
     private val preview: Boolean
 ) {
-    private data class City(val name: String, val id: Int, val lat: Double, val lon: Double)
+    private data class City(val name: String, val id: Int, val lat: Double, val lon: Double,
+        val country: String = "Morocco", val timezone: String = "Africa/Casablanca")
     private val cities = listOf(
         City("الخميسات", 2, 33.8242, -6.0663),
         City("الرباط", 1, 34.0209, -6.8416),
         City("تيفلت", 3, 33.8940, -6.3060)
     )
     private data class PrayerDay(val times: Map<String, LocalTime>, val hijri: String)
-    private val zone = java.time.ZoneOffset.UTC // Morocco legal GMT since Sep 2026; TV tzdb may be stale
+    private fun zone(): ZoneId {
+        val selected = city()
+        // GMT was restored by Morocco in September 2026.
+        if (selected.country.equals("Morocco", true) ||
+            selected.country.equals("المغرب", true)) return java.time.ZoneOffset.UTC
+        return try { ZoneId.of(selected.timezone) }
+            catch (_: Exception) { ZoneId.systemDefault() }
+    }
     private val arabic = Locale("ar", "MA")
     private val names = listOf("الفجر" to "fajr", "الظهر" to "dhuhr",
         "العصر" to "asr", "المغرب" to "maghrib", "العشاء" to "ishaa")
     private val prayers = mutableMapOf<LocalDate, PrayerDay>()
+    private val adhan by lazy { SatNovaAdhan(activity, prefs) }
+    fun chooseAdhan() = adhan.choose()
     private val executor = Executors.newSingleThreadExecutor()
     private val ui = Handler(Looper.getMainLooper())
     private var prayerFetchAt = 0L
@@ -76,7 +86,20 @@ internal class MoroccanHomePanel(
     private lateinit var sourceLabel: TextView
 
     private fun dp(n: Int): Int = (n * activity.resources.displayMetrics.density + .5f).toInt()
-    private fun city(): City = cities.firstOrNull { it.id == prefs.getInt("morocco_city_id", 2) } ?: cities[0]
+    private fun city(): City {
+        val custom = prefs.getString("user_city_name", "").orEmpty()
+        if (custom.isNotBlank()) {
+            val lat = java.lang.Double.longBitsToDouble(
+                prefs.getLong("user_city_lat", java.lang.Double.doubleToRawLongBits(33.8242)))
+            val lon = java.lang.Double.longBitsToDouble(
+                prefs.getLong("user_city_lon", java.lang.Double.doubleToRawLongBits(-6.0663)))
+            val country = prefs.getString("user_city_country", "Morocco") ?: "Morocco"
+            val tz = prefs.getString("user_city_timezone", "Africa/Casablanca") ?: "Africa/Casablanca"
+            return City(custom, -10000 - (custom + lat + lon).hashCode().and(0x7fff),
+                lat, lon, country, tz)
+        }
+        return cities.firstOrNull { it.id == prefs.getInt("morocco_city_id", 2) } ?: cities[0]
+    }
     private fun text(s: String, size: Float, color: Int = Color.rgb(240, 242, 236),
                      bold: Boolean = false) = TextView(activity).apply {
         this.text = s
@@ -191,7 +214,7 @@ internal class MoroccanHomePanel(
 
     private fun updateClock() {
         if (!::clock.isInitialized) return
-        val now = ZonedDateTime.now(zone)
+        val now = ZonedDateTime.now(zone())
         clock.text = now.format(DateTimeFormatter.ofPattern("HH:mm", Locale.US))
         day.text = now.format(DateTimeFormatter.ofPattern("EEEE", arabic))
         date.text = now.format(DateTimeFormatter.ofPattern("d MMMM yyyy", arabic)) + " م"
@@ -217,10 +240,21 @@ internal class MoroccanHomePanel(
             val times = (manualDay(d) ?: prayers[d])?.times ?: continue
             for ((label, key) in names) {
                 val time = times[key] ?: continue
-                val candidate = d.atTime(time).atZone(zone)
+                val candidate = d.atTime(time).atZone(zone())
                 if (candidate.isAfter(now)) { nextAt = candidate; name = label; break }
             }
             if (nextAt != null) break
+        }
+        val todayForAdhan = now.toLocalDate()
+        val available = (manualDay(todayForAdhan) ?: prayers[todayForAdhan])?.times
+        if (available != null) {
+            for ((_, code) in names) {
+                val time = available[code] ?: continue
+                if (time.hour == now.hour && time.minute == now.minute) {
+                    adhan.onPrayer(todayForAdhan.toString() + ":" + code)
+                    break
+                }
+            }
         }
         val next = nextAt
         if (next == null) {
@@ -258,19 +292,20 @@ internal class MoroccanHomePanel(
                 // a live verified ministry API, and reject old/mismatched calendar dates.
                 var response = ""
                 var source = "habous"
-                var result = try {
+                var result = if (target.id > 0) try {
                     response = fetch("https://habous-prayer-times-api.onrender.com/api/v1/prayer-times?cityId=" + target.id)
                     parseMonth(response)
-                } catch (_: Exception) { emptyMap() }
+                } catch (_: Exception) { emptyMap() } else emptyMap()
                 if (result.isEmpty()) {
                     // Fallback is a calculated Morocco-method schedule, NOT the
                     // ministry's directly published city schedule.
                     try {
-                        val today = LocalDate.now(zone)
+                        val today = LocalDate.now(zone())
                         val url = "https://api.aladhan.com/v1/calendarByCity/" +
                             today.year + "/" + today.monthValue +
                             "?city=" + java.net.URLEncoder.encode(target.name, "UTF-8") +
-                            "&country=Morocco&method=21"
+                            "&country=" + java.net.URLEncoder.encode(target.country, "UTF-8") +
+                            "&method=" + if (target.country.equals("Morocco", true)) "21" else "3"
                         val fallback = fetch(url)
                         val parsed = parseAladhanMonth(fallback)
                         if (parsed.isNotEmpty()) {
@@ -304,7 +339,7 @@ internal class MoroccanHomePanel(
                 val result = try {
                     val url = "https://api.open-meteo.com/v1/forecast?latitude=" + target.lat +
                         "&longitude=" + target.lon +
-                        "&current=temperature_2m,weather_code&timezone=Africa%2FCasablanca"
+                        "&current=temperature_2m,weather_code&timezone=auto"
                     val current = JSONObject(fetch(url)).getJSONObject("current")
                     val degrees = current.getDouble("temperature_2m")
                     val code = current.optInt("weather_code", -1)
@@ -359,7 +394,7 @@ internal class MoroccanHomePanel(
                 LocalDate.of(parts[2].toInt(), parts[1].toInt(), parts[0].toInt())
             } catch (_: Exception) { continue }
             if (kotlin.math.abs(java.time.temporal.ChronoUnit.DAYS.between(
-                    LocalDate.now(zone), date)) > 36) continue
+                    LocalDate.now(zone()), date)) > 36) continue
             val times = entry.optJSONObject("timings") ?: continue
             val mapped = mutableMapOf<String, LocalTime>()
             for ((key, apiKey) in mapping) {
@@ -388,7 +423,7 @@ internal class MoroccanHomePanel(
             val d = try { LocalDate.of(greg.getInt("year"), month, greg.getInt("day")) }
                 catch (_: Exception) { continue }
             if (kotlin.math.abs(java.time.temporal.ChronoUnit.DAYS.between(
-                    LocalDate.now(zone), d)) > 36) continue
+                    LocalDate.now(zone()), d)) > 36) continue
             val p = item.optJSONObject("prayers") ?: continue
             val timings = mutableMapOf<String, LocalTime>()
             for (key in keys) try { timings[key] = LocalTime.parse(p.getString(key)) }
@@ -417,7 +452,7 @@ internal class MoroccanHomePanel(
 
     /** Manual backup for ministry-issued city schedule when mirror is unavailable. */
     fun editOfficialDay(tomorrow: Boolean, onChange: () -> Unit) {
-        val date = LocalDate.now(zone).plusDays(if (tomorrow) 1 else 0)
+        val date = LocalDate.now(zone()).plusDays(if (tomorrow) 1 else 0)
         val previous = manualDay(date)
         val input = EditText(activity).apply {
             minLines = 3
@@ -460,21 +495,87 @@ internal class MoroccanHomePanel(
     }
 
     fun chooseCity(onChange: () -> Unit) {
+        val options = cities.map { it.name + " · المغرب" } + "🔎 البحث عن مدينة أخرى (جميع البلدان)"
         AlertDialog.Builder(activity)
-            .setTitle("مدينة مواقيت الصلاة والطقس")
-            .setSingleChoiceItems(cities.map { it.name }.toTypedArray(),
-                cities.indexOf(city())) { dialog, which ->
-                prefs.edit().putInt("morocco_city_id", cities[which].id).apply()
-                prayers.clear()
-                prayerFetchAt = 0L; weatherFetchAt = 0L
-                loadingPrayer = false; loadingWeather = false
-                weather = "جاري تحميل الطقس…"
-                dialog.dismiss()
-                onChange()
+            .setTitle("مدينة الطقس ومواقيت الصلاة")
+            .setItems(options.toTypedArray()) { _, which ->
+                if (which == cities.size) {
+                    searchCity(onChange)
+                } else {
+                    prefs.edit().putString("user_city_name", "")
+                        .putInt("morocco_city_id", cities[which].id).apply()
+                    resetLocation()
+                    onChange()
+                }
+            }.setNegativeButton("إلغاء", null).show()
+    }
+
+    private fun resetLocation() {
+        prayers.clear()
+        cachedCityId = -1
+        prayerFetchAt = 0L; weatherFetchAt = 0L
+        loadingPrayer = false; loadingWeather = false
+        weather = "جاري تحميل الطقس…"
+    }
+
+    private fun searchCity(onChange: () -> Unit) {
+        val entry = EditText(activity).apply {
+            hint = "اسم المدينة · Rabat, Paris, Cairo…"
+            isSingleLine = true
+            setText(city().name)
+        }
+        AlertDialog.Builder(activity).setTitle("البحث عن مدينة")
+            .setView(entry).setPositiveButton("بحث") { _, _ ->
+                val term = entry.text.toString().trim()
+                if (term.length < 2) {
+                    Toast.makeText(activity, "أدخل اسم المدينة", Toast.LENGTH_LONG).show()
+                    return@setPositiveButton
+                }
+                executor.execute {
+                    try {
+                        val url = "https://geocoding-api.open-meteo.com/v1/search?name=" +
+                            java.net.URLEncoder.encode(term, "UTF-8") +
+                            "&count=20&language=ar&format=json"
+                        val locations = JSONObject(fetch(url)).optJSONArray("results") ?: org.json.JSONArray()
+                        ui.post {
+                            if (stopped) return@post
+                            if (locations.length() == 0) {
+                                Toast.makeText(activity, "لم تُعثر على المدينة", Toast.LENGTH_LONG).show()
+                                return@post
+                            }
+                            val shown = (0 until locations.length()).map { i ->
+                                val item = locations.getJSONObject(i)
+                                item.optString("name") + " · " +
+                                    item.optString("admin1") + " · " + item.optString("country")
+                            }.toTypedArray()
+                            AlertDialog.Builder(activity).setTitle("اختر مدينتك")
+                                .setItems(shown) { _, index ->
+                                    val item = locations.getJSONObject(index)
+                                    val lat = item.getDouble("latitude")
+                                    val lon = item.getDouble("longitude")
+                                    val name = item.getString("name")
+                                    val country = if (item.optString("country_code") == "MA")
+                                        "Morocco" else item.optString("country")
+                                    prefs.edit()
+                                        .putString("user_city_name", name)
+                                        .putString("user_city_country", country)
+                                        .putString("user_city_timezone", item.optString("timezone", "UTC"))
+                                        .putLong("user_city_lat", java.lang.Double.doubleToRawLongBits(lat))
+                                        .putLong("user_city_lon", java.lang.Double.doubleToRawLongBits(lon))
+                                        .apply()
+                                    resetLocation()
+                                    onChange()
+                                }.setNegativeButton("إلغاء", null).show()
+                        }
+                    } catch (_: Exception) {
+                        ui.post { Toast.makeText(activity, "فشل البحث عن المدينة", Toast.LENGTH_LONG).show() }
+                    }
+                }
             }.setNegativeButton("إلغاء", null).show()
     }
 
     fun stop() {
+        adhan.close()
         stopped = true
         ui.removeCallbacks(ticker)
         executor.shutdownNow()
