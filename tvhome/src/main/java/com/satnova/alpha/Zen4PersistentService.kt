@@ -64,7 +64,7 @@ class Zen4PersistentService : Service() {
         val pending = PendingIntent.getActivity(this, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         return Notification.Builder(this, channelId)
-            .setSmallIcon(R.drawable.satnova_home_icon)
+            .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setContentTitle("AltaPlay Launcher · Zen")
             .setContentText(status)
             .setContentIntent(pending)

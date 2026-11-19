@@ -343,7 +343,23 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         // Secreto stays HOME. Only the supplemental channel strip is ours.
         val focused = try { rootInActiveWindow?.packageName?.toString().orEmpty() }
             catch (_: Exception) { "" }
-        secretoOverlay.setSecretoForeground(isSecretoHome(focused.ifBlank { pkg }))
+        // This variation runs INSIDE the original Secreto code in a renamed
+        // application package.  Only show the strip over MainActivity, never
+        // over Secreto's Settings/Adhan/Wallpaper Studio or the Zen settings.
+        if (pkg == packageName) {
+            val cls = event.className?.toString().orEmpty()
+            if (cls == "com.gathin.tvhome.MainActivity" ||
+                cls.endsWith(".MainActivity") && cls.contains("gathin.tvhome")) {
+                secretoOverlay.setSecretoForeground(true)
+            } else if (cls.contains("AltaPlayZenActivity") ||
+                cls.contains("SettingsActivity") ||
+                cls.contains("WallpaperStudio") ||
+                cls.contains("AdhanActivity")) {
+                secretoOverlay.setSecretoForeground(false)
+            }
+        } else {
+            secretoOverlay.setSecretoForeground(false)
+        }
         maybeRearmOnHdmiReturn(pkg)
         if (!armValid()) return
         if (pkg == packageName) {
