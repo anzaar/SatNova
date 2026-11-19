@@ -1377,6 +1377,51 @@ open class MinimalHomeActivity : Activity() {
     @Deprecated("Used for compatibility with Android 8+ and the system document picker")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == backgroundPickerRequest) {
+            if (resultCode == Activity.RESULT_OK && data?.data != null) {
+                val uri = data.data!!
+                fileProbeWorker.execute {
+                    val success = try {
+                        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        contentResolver.openInputStream(uri)?.use {
+                            android.graphics.BitmapFactory.decodeStream(it, null, bounds)
+                        }
+                        val sample = (maxOf(bounds.outWidth / 1920, bounds.outHeight / 1080)).coerceAtLeast(1)
+                        val decode = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
+                        contentResolver.openInputStream(uri)?.use {
+                            val image = android.graphics.BitmapFactory.decodeStream(it, null, decode)
+                            if (image != null) {
+                                val output = android.graphics.Bitmap.createBitmap(1920, 1080,
+                                    android.graphics.Bitmap.Config.RGB_565)
+                                val canvas = android.graphics.Canvas(output)
+                                val scale = maxOf(1920f / image.width, 1080f / image.height)
+                                val outW = image.width * scale
+                                val outH = image.height * scale
+                                val rect = android.graphics.RectF((1920 - outW) / 2f, (1080 - outH) / 2f,
+                                    (1920 + outW) / 2f, (1080 + outH) / 2f)
+                                canvas.drawBitmap(image, null, rect, android.graphics.Paint(3))
+                                val dest = java.io.File(filesDir, "satnova_custom_background.jpg")
+                                dest.outputStream().use { target ->
+                                    output.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, target)
+                                }
+                                output.recycle()
+                                image.recycle()
+                                true
+                            } else false
+                        } ?: false
+                    } catch (_: Exception) { false }
+                    runOnUiThread {
+                        if (isFinishing || isDestroyed) return@runOnUiThread
+                        if (success) {
+                            prefs.edit().putString("ui_theme", "custom").apply()
+                            islamicPanel.refreshBackground()
+                            render()
+                        } else Toast.makeText(this, "Image non valide", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+            return
+        }
         if (requestCode == logoPickerRequest) {
             val channel = pendingLogoChannel
             pendingLogoChannel = null
