@@ -38,7 +38,7 @@ jobs:
           test -s "$APK"
           unzip -t "$APK" > /dev/null
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
-          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -F "com.satnova.tvhome.tvbridge"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -F "com.altaplay.launcher"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump xmltree "$APK" AndroidManifest.xml > tvhome-merged-manifest.txt
           grep -Fq "Zen4HdmiRemoteService" tvhome-merged-manifest.txt
           grep -Fq "android.accessibilityservice.AccessibilityService" tvhome-merged-manifest.txt
