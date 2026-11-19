@@ -121,7 +121,7 @@ internal class MoroccanHomePanel(
         val language = SatNovaLanguage(prefs)
         val panelShape = android.graphics.drawable.GradientDrawable().apply {
             cornerRadius = dp(17).toFloat()
-            setColor(if (sporty) Color.argb(229, 36, 24, 30) else Color.argb(224, 3, 46, 34))
+            setColor(if (sporty) Color.argb(237, 42, 22, 32) else Color.argb(224, 3, 46, 34))
             setStroke(dp(1), if (sporty) Color.rgb(228, 166, 76) else Color.rgb(177, 188, 98))
         }
         val panel = LinearLayout(activity).apply {
@@ -148,31 +148,23 @@ internal class MoroccanHomePanel(
         }
         fun divider() {
             panel.addView(View(activity).apply {
-                setBackgroundColor(Color.argb(115, 186, 177, 123))
+                setBackgroundColor(if (sporty) Color.argb(165, 228, 178, 114)
+                    else Color.argb(115, 186, 177, 123))
             }, LinearLayout.LayoutParams(dp(1), dp(76)).apply {
                 marginStart = dp(4); marginEnd = dp(4)
             })
         }
 
-        // The treasured Islamic theme stays unchanged. Sports has its own emblem.
-        val emblem: View = if (sporty) TextView(activity).apply {
-            text = "⚽\nRABAT"
-            gravity = Gravity.CENTER
-            textSize = if (preview) 21f else 25f
-            setTextColor(Color.rgb(243, 211, 128))
-            setTypeface(null, Typeface.BOLD)
-            background = android.graphics.drawable.GradientDrawable().apply {
-                cornerRadius = dp(18).toFloat()
-                setColor(Color.argb(220, 61, 22, 31))
-                setStroke(dp(2), Color.rgb(199, 159, 94))
-            }
-        } else IslamicLanternView(activity)
+        // Islamic lantern and its colors remain unchanged.
+        // Sports draws an original, vector Atlas Lions emblem rather than emoji.
+        val emblem: View = if (sporty) AtlasLionsEmblemView(activity)
+            else IslamicLanternView(activity)
         panel.addView(emblem, LinearLayout.LayoutParams(0, dp(112), 0.73f))
         divider()
 
         val weatherCol = column(.96f)
         weatherLabel = center(text(weather, if (preview) 15f else 19f, Color.WHITE, true))
-        weatherCol.addView(center(text("☁ " + language.t("weatherNow"), 15f, Color.rgb(199, 219, 198), true)))
+        weatherCol.addView(center(text("☁ " + language.t("weatherNow"), 15f, if (sporty) Color.rgb(243, 206, 142) else Color.rgb(199, 219, 198), true)))
         weatherCol.addView(weatherLabel)
         divider()
 
@@ -182,9 +174,9 @@ internal class MoroccanHomePanel(
         divider()
 
         val prayerCol = column(1.48f)
-        nextPrayer = center(text(language.t("nextPrayer"), 16f, Color.rgb(201, 229, 169), true))
+        nextPrayer = center(text(language.t("nextPrayer"), 16f, if (sporty) Color.rgb(245, 193, 117) else Color.rgb(201, 229, 169), true))
         countdown = center(text("--:--:--", if (preview) 21f else 27f,
-            Color.rgb(229, 246, 203), true))
+            if (sporty) Color.rgb(255, 222, 156) else Color.rgb(229, 246, 203), true))
         prayerClock = center(text("الوقت: —", 13f))
         prayerCol.addView(nextPrayer)
         prayerCol.addView(countdown)
@@ -204,7 +196,7 @@ internal class MoroccanHomePanel(
         divider()
 
         val timeCol = column(1.33f)
-        day = center(text("اليوم", 23f, Color.rgb(205, 234, 170), true))
+        day = center(text("اليوم", 23f, if (sporty) Color.rgb(255, 214, 142) else Color.rgb(205, 234, 170), true))
         clock = center(text("--:--", if (preview) 37f else 48f, Color.WHITE, true))
         timeCol.addView(day)
         timeCol.addView(clock)
