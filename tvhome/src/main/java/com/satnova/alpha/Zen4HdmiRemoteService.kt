@@ -33,6 +33,7 @@ class Zen4HdmiRemoteService : AccessibilityService() {
     private var homeDownConsumed = false
     private val homeProbeHandler = Handler(Looper.getMainLooper())
     private var homeProbeGeneration = 0
+    private var bootProbeGeneration = 0
 
     private val stockHomePackages = setOf(
         "com.google.android.apps.tv.launcherx",
@@ -71,6 +72,50 @@ class Zen4HdmiRemoteService : AccessibilityService() {
                     maybeOverrideStockHome(
                         foregroundPackage, AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
                 }
+            }, delay)
+        }
+    }
+
+    /**
+     * Boot-only fallback for OEMs that reopen the previous HDMI input.
+     * The marker is set by BOOT_COMPLETED only after user opt-in. It is consumed
+     * before launching to prevent repeated HDMI hijacking. Switching to HDMI
+     * manually later never triggers this code.
+     */
+    private fun maybeRestoreBootHome(pkg: String) {
+        val deadline = prefs.getLong("boot_home_pending_until_elapsed", 0L)
+        if (deadline <= 0L) return
+        if (!prefs.getBoolean("boot_home_enabled", false) ||
+            SystemClock.elapsedRealtime() !in 0L..deadline) {
+            prefs.edit().remove("boot_home_pending_until_elapsed").apply()
+            return
+        }
+        if (pkg == packageName) {
+            prefs.edit().remove("boot_home_pending_until_elapsed")
+                .putString("last_boot_home_result", "SatNova affichée après reboot").apply()
+            return
+        }
+        // Do not react to arbitrary apps or temporary system dialogs.
+        if (pkg !in stockHomePackages && !approvedViewer(pkg)) return
+        prefs.edit().remove("boot_home_pending_until_elapsed").apply()
+        val launched = openSatNovaFromSystem("startup HDMI/home: " + pkg)
+        prefs.edit().putString("last_boot_home_result",
+            if (launched) "Relance SatNova demandée depuis : " + pkg
+            else "Relance refusée depuis : " + pkg).apply()
+        android.util.Log.i("SatNovaBoot",
+            "One-shot boot fallback package=" + pkg + " requested=" + launched)
+    }
+
+    private fun scheduleBootHomeProbes() {
+        if (!prefs.getBoolean("boot_home_enabled", false)) return
+        val generation = ++bootProbeGeneration
+        listOf(1_000L, 2_800L, 5_500L, 9_000L, 14_000L).forEach { delay ->
+            homeProbeHandler.postDelayed({
+                if (generation != bootProbeGeneration) return@postDelayed
+                val pkg = try {
+                    rootInActiveWindow?.packageName?.toString().orEmpty()
+                } catch (_: Exception) { "" }
+                if (pkg.isNotBlank()) maybeRestoreBootHome(pkg)
             }, delay)
         }
     }
@@ -178,6 +223,7 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         android.util.Log.i("SatNovaHomeOverride", "Accessibility service connected, home opt-in=" +
             prefs.getBoolean("home_override_enabled", false))
         scheduleHomeRestoreProbe()
+        scheduleBootHomeProbes()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -188,6 +234,7 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         // This preference is independent from the time-limited HDMI key bridge.
         // The original HOME/POWER/VOLUME keys remain owned by Android TV.
         maybeOverrideStockHome(pkg, event.eventType)
+        maybeRestoreBootHome(pkg)
         // Track every window transition, including time spent in HOME/Shahid.
         // A vetted HDMI viewer can resume a still-valid, opted-in session.
         currentPackage = pkg
@@ -337,6 +384,7 @@ class Zen4HdmiRemoteService : AccessibilityService() {
 
     override fun onDestroy() {
         ++homeProbeGeneration
+        ++bootProbeGeneration
         homeProbeHandler.removeCallbacksAndMessages(null)
         Zen4SessionHub.detach(this)
         zen = null

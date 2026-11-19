@@ -269,7 +269,9 @@ open class MinimalHomeActivity : Activity() {
         if (!previewMode) {
             getSharedPreferences("zen4_hdmi_bridge", Context.MODE_PRIVATE)
                 .edit().putBoolean("armed", false)
-                .putBoolean("hdmi_seen", false).apply()
+                .putBoolean("hdmi_seen", false)
+                .remove("boot_home_pending_until_elapsed")
+                .apply()
         }
     }
 
@@ -1058,6 +1060,33 @@ open class MinimalHomeActivity : Activity() {
             .show()
     }
 
+    /** One-shot startup request only; does not force or disable OEM boot sources. */
+    private fun configureBootHome() {
+        if (previewMode) return
+        val bridge = hdmiBridgePrefs()
+        val enabled = bridge.getBoolean("boot_home_enabled", false)
+        val last = bridge.getString("last_boot_home_result", "Aucun essai").orEmpty()
+        AlertDialog.Builder(this)
+            .setTitle("Démarrer sur SatNova après reboot")
+            .setMessage(
+                "Démarrage sur SatNova : " + (if (enabled) "ACTIVÉ" else "DÉSACTIVÉ") +
+                "\\nDernier essai : " + last + "\\n\\n" +
+                "SatNova tente de s'afficher une seule fois au démarrage, avec " +
+                "un secours Accessibilité si Android ouvre HDMI ou son accueil. " +
+                "Le système peut refuser cette relance ; pour un résultat fiable, " +
+                "réglez aussi la page de démarrage du téléviseur sur HOME et non " +
+                "« Dernière source ». Ce réglage ne désactive pas le launcher d'origine, " +
+                "n'empêche jamais l'accès HDMI et n'agit pas sur les applications ordinaires."
+            )
+            .setPositiveButton(if (enabled) "Désactiver" else "Activer") { _, _ ->
+                bridge.edit().putBoolean("boot_home_enabled", !enabled)
+                    .remove("boot_home_pending_until_elapsed").apply()
+                Toast.makeText(this, if (enabled) "Démarrage SatNova désactivé"
+                    else "Démarrage SatNova activé pour le prochain reboot", Toast.LENGTH_LONG).show()
+            }
+            .setNegativeButton("Fermer", null).show()
+    }
+
     private fun restoreOriginalHome() {
         if (previewMode) return
         AlertDialog.Builder(this)
@@ -1344,7 +1373,8 @@ open class MinimalHomeActivity : Activity() {
             lang.t("habous"), lang.t("logos"), lang.t("groups"),
             lang.t("hdmi"), lang.t("homeSelect"), lang.t("homeRestore"),
             lang.t("accessibility"), lang.t("hdmiRemote"),
-            lang.t("systemSettings"), lang.t("diagnostics"), lang.t("homeOverride")
+            lang.t("systemSettings"), lang.t("diagnostics"), lang.t("homeOverride"),
+            "Démarrer sur SatNova après reboot"
         )
         AlertDialog.Builder(this).setTitle(lang.t("settings"))
             .setItems(options) { _, index ->
@@ -1384,6 +1414,7 @@ open class MinimalHomeActivity : Activity() {
                     20 -> androidSystemMenu()
                     21 -> showHomeDiagnostic()
                     22 -> configureHomeOverride()
+                    23 -> configureBootHome()
                 }
             }.show()
     }

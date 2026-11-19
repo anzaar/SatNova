@@ -6,10 +6,17 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"/>
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <application tools:replace="android:label" android:label="SatNova TV Home"
         android:banner="@drawable/satnova_tv_banner">
         <!-- Optional HDMI bridge edition: explicit Accessibility service and TV HOME. -->
         <activity android:name=".MobilePreviewActivity" tools:node="remove"/>
+        <!-- User-opt-in one-shot startup request. Android/OEM may reject background launch. -->
+        <receiver android:name=".SatNovaBootReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
         <service android:name=".Zen4PersistentService"
             android:exported="false"
             android:stopWithTask="false"
