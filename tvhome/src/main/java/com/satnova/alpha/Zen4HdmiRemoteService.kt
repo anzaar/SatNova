@@ -4,6 +4,8 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
+import android.media.tv.TvInputInfo
+import android.media.tv.TvInputManager
 import android.net.Uri
 import android.os.SystemClock
 import android.os.Handler
@@ -158,6 +160,32 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         openSatNovaFromSystem("stock launcher: " + packageShown)
     }
 
+    /**
+     * The TV does not expose video pixels/active HDMI port to an ordinary app.
+     * Require three separate signals: SatNova explicitly selected an input,
+     * the platform reports that very input as physically connected, and the
+     * approved viewer is now foreground. Unknown means NO key forwarding.
+     */
+    private fun selectedHdmiStillConnected(): Boolean {
+        val inputId = prefs.getString("satnova_selected_hdmi_input_id", "").orEmpty()
+        if (inputId.isBlank()) return false
+        return try {
+            val manager = getSystemService(Context.TV_INPUT_SERVICE) as? TvInputManager
+                ?: return false
+            val info = manager.tvInputList.firstOrNull { it.id == inputId }
+                ?: return false
+            info.type == TvInputInfo.TYPE_HDMI &&
+                manager.getInputState(inputId) == TvInputManager.INPUT_STATE_CONNECTED
+        } catch (_: Exception) { false }
+    }
+
+    private fun authorizedHdmiForeground(pkg: String): Boolean {
+        if (!selectedHdmiStillConnected()) return false
+        val expected = prefs.getString("satnova_expected_hdmi_viewer", "").orEmpty()
+        if (pkg == expected && expected.isNotBlank()) return true
+        return approvedViewer(pkg)
+    }
+
     private fun approvedViewer(pkg: String): Boolean {
         if (pkg.isBlank() || pkg == packageName) return false
         val known = listOf(
@@ -195,7 +223,8 @@ class Zen4HdmiRemoteService : AccessibilityService() {
      * Non-HDMI apps never receive redirected keys.
      */
     private fun maybeRearmOnHdmiReturn(viewerPackage: String) {
-        if (!approvedViewer(viewerPackage) || !prefs.getBoolean("auto_arm", false)) return
+        if (!authorizedHdmiForeground(viewerPackage) ||
+            !prefs.getBoolean("auto_arm", false)) return
         if (!sessionWithinLimit()) {
             prefs.edit().putBoolean("armed", false).putBoolean("auto_arm", false)
                 .putBoolean("hdmi_seen", false).apply()
@@ -250,7 +279,7 @@ class Zen4HdmiRemoteService : AccessibilityService() {
             }
         } else if (pkg !in listOf("com.android.systemui", "com.android.settings",
                 "com.google.android.tvlauncher", "com.google.android.apps.tv.launcherx")) {
-            if (approvedViewer(pkg)) {
+            if (authorizedHdmiForeground(pkg)) {
                 prefs.edit().putBoolean("hdmi_seen", true).apply()
             } else if (prefs.getBoolean("hdmi_seen", false)) {
                 // After verified HDMI, never keep remapping keys in unrelated apps.
@@ -345,7 +374,7 @@ class Zen4HdmiRemoteService : AccessibilityService() {
             )) return false
 
         if (event.keyCode == KeyEvent.KEYCODE_PROG_GREEN) {
-            if (!approvedViewer(currentPackage)) return false
+            if (!authorizedHdmiForeground(currentPackage)) return false
             if (event.action == KeyEvent.ACTION_UP) return swallowed.remove(event.keyCode)
             if (event.action != KeyEvent.ACTION_DOWN) return false
             if (event.repeatCount > 0) return swallowed.contains(event.keyCode)
@@ -357,7 +386,7 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         }
         val value = receiverKey(event.keyCode) ?: return false
         val viewer = currentPackage
-        val permitted = approvedViewer(viewer)
+        val permitted = authorizedHdmiForeground(viewer)
         if (event.action == KeyEvent.ACTION_UP) {
             return swallowed.remove(event.keyCode)
         }

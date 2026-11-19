@@ -61,6 +61,15 @@ open class MinimalHomeActivity : Activity() {
     private var radios: List<ZenChannel> = emptyList()
     private var online = false
     private var receiverMessage = "Récepteur non connecté"
+    private var setupActive = false
+    private var setupStage = 0
+    private var setupSkippedReceiver = false
+    private var setupSkippedHome = false
+    private var setupSkippedAccessibility = false
+    private var setupDialog: AlertDialog? = null
+    private var setupRequestedSystemSetting = false
+    private var setupWaitingForReturn = false
+    private val setupHandler = Handler(Looper.getMainLooper())
     private var diagnosticToSave: String? = null
     private val diagnosticSaveRequest = 7124
     private val logoPickerRequest = 7350
@@ -74,6 +83,9 @@ open class MinimalHomeActivity : Activity() {
                 online = connected
                 receiverMessage = message
                 if (changed) scheduleRender()
+                if (connected && setupActive && setupStage == 0) {
+                    setupHandler.post { driveSetupWizard() }
+                }
             }
             override fun catalogue(channels: List<ZenChannel>) {
                 this@MinimalHomeActivity.channels = channels.filter { !it.radio }.sortedBy { it.position }
@@ -221,13 +233,11 @@ open class MinimalHomeActivity : Activity() {
                 }
             }
         }
-        // Explain both optional setup steps only on the first TV launch.
-        // Dismissing either choice never changes the Android launcher or
-        // grants Accessibility permission without the user's consent.
-        if (!previewMode && !prefs.getBoolean("first_start_guide_v1_seen", false)) {
-            prefs.edit().putBoolean("first_start_guide_v1_seen", true).apply()
+        // Existing connections are detected automatically. Only Android's
+        // HOME/Accessibility grants require user interaction.
+        if (!previewMode && !prefs.getBoolean("guided_setup_v2_seen", false)) {
             window.decorView.post {
-                if (!isFinishing && !isDestroyed) firstStartGuide()
+                if (!isFinishing && !isDestroyed && ::client.isInitialized) startSetupWizard()
             }
         }
     }
@@ -272,10 +282,18 @@ open class MinimalHomeActivity : Activity() {
                 .putBoolean("hdmi_seen", false)
                 .remove("boot_home_pending_until_elapsed")
                 .apply()
+            if (setupActive && setupWaitingForReturn) {
+                setupWaitingForReturn = false
+                setupHandler.postDelayed({ driveSetupWizard() }, 400L)
+            }
         }
     }
 
     override fun onDestroy() {
+        setupActive = false
+        setupDialog?.dismiss()
+        setupDialog = null
+        setupHandler.removeCallbacksAndMessages(null)
         if (::client.isInitialized) Zen4SessionHub.detach(this)
         fileProbeWorker.shutdownNow()
         redrawHandler.removeCallbacks(redrawTask)
@@ -865,14 +883,8 @@ open class MinimalHomeActivity : Activity() {
      * Never guess an input if the TV does not expose it.
      */
     private fun openHdmi1IfPossible() {
-        if (!previewMode && hdmiBridgeEnabled()) {
-            val bridgePrefs = hdmiBridgePrefs()
-            if (bridgePrefs.getBoolean("auto_arm", false)) {
-                bridgePrefs.edit().putBoolean("armed", true)
-                    .putBoolean("hdmi_seen", false)
-                    .putLong("armed_since", System.currentTimeMillis()).apply()
-            }
-        }
+        val bridgePrefs = hdmiBridgePrefs()
+        // Do not arm keys before a connected HDMI passthrough request succeeds.
         var suggested = "HDMI 1"
         val handled = try {
             val manager = getSystemService(Context.TV_INPUT_SERVICE) as? TvInputManager
@@ -887,20 +899,43 @@ open class MinimalHomeActivity : Activity() {
                     input.id.contains("HDMI1", ignoreCase = true) ||
                     input.id.contains("HDMI_1", ignoreCase = true)
             }
-            val target = if (connected.size == 1) connected.first() else knownHdmi1
+            val target = if (connected.size == 1) connected.first()
+                else knownHdmi1?.takeIf { candidate ->
+                    connected.any { it.id == candidate.id }
+                }
             if (connected.size == 1 && target != null) {
                 suggested = target.loadLabel(this).toString()
             }
             if (target != null) {
                 val uri = TvContract.buildChannelUriForPassthroughInput(target.id)
                 val intent = Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                if (intent.resolveActivity(packageManager) != null) {
+                val viewer = intent.resolveActivity(packageManager)
+                if (viewer != null) {
                     startActivity(intent)
+                    if (hdmiBridgeEnabled()) {
+                        // The OS has accepted a passthrough request for a
+                        // physically CONNECTED HDMI input. Pin the target.
+                        // A matching foreground viewer is still required
+                        // on every TV remote key before forwarding.
+                        val now = System.currentTimeMillis()
+                        val e = bridgePrefs.edit()
+                            .putString("satnova_selected_hdmi_input_id", target.id)
+                            .putString("satnova_expected_hdmi_viewer", viewer.packageName)
+                            .putLong("satnova_hdmi_requested_at", now)
+                            .putString("last_forward_result", "Attente affichage HDMI")
+                        if (bridgePrefs.getBoolean("auto_arm", false)) {
+                            e.putBoolean("armed", true).putBoolean("hdmi_seen", false)
+                                .putLong("armed_since", now)
+                        }
+                        e.apply()
+                    }
                     true
                 } else false
             } else false
         } catch (_: Exception) { false }
         if (!handled) {
+            bridgePrefs.edit().putBoolean("armed", false)
+                .putBoolean("hdmi_seen", false).apply()
             channelError("Passage HDMI indisponible",
                 "La commande de chaîne a été confirmée par Zen 4, mais le téléviseur n'a pas pu basculer automatiquement vers " + suggested + ". Appuyez sur SOURCE / INPUT de la télécommande et choisissez " + suggested + ".")
         }
@@ -1178,36 +1213,177 @@ open class MinimalHomeActivity : Activity() {
         ), "Ouvrez Accessibilité dans les paramètres du téléviseur")
     }
 
-    private fun firstStartGuide() {
-        val bridgeAvailable = hdmiBridgeAvailable()
-        val actions = mutableListOf<Pair<String, () -> Unit>>(
-            lang.t("language") to { chooseLanguage() },
-            lang.t("wifi") to { openWifiSettings() },
-            lang.t("cityWeather") to { islamicPanel.chooseCity { render() } },
-            lang.t("themes") to { chooseBackground() },
-            lang.t("connection") to { changeIp() },
-            lang.t("homeSelect") to { requestSatNovaHome() }
-        )
-        if (bridgeAvailable) {
-            actions.add(lang.t("accessibility") to { explainAccessibility() })
-            actions.add(lang.t("homeOverride") to { configureHomeOverride() })
+    private fun homeRoleAssigned(): Boolean = try {
+        Build.VERSION.SDK_INT >= 29 &&
+            getSystemService(RoleManager::class.java)?.isRoleHeld(RoleManager.ROLE_HOME) == true
+    } catch (_: Exception) { false }
+
+    private fun startSetupWizard() {
+        if (previewMode || !::client.isInitialized) return
+        setupDialog?.dismiss()
+        setupDialog = null
+        setupActive = true
+        setupStage = 0
+        setupSkippedReceiver = false
+        setupSkippedHome = false
+        setupSkippedAccessibility = false
+        setupRequestedSystemSetting = false
+        setupWaitingForReturn = false
+        driveSetupWizard()
+    }
+
+    private fun setupNext() {
+        setupDialog?.dismiss()
+        setupDialog = null
+        setupRequestedSystemSetting = false
+        setupWaitingForReturn = false
+        setupStage += 1
+        driveSetupWizard()
+    }
+
+    private fun driveSetupWizard() {
+        if (!setupActive || isFinishing || isDestroyed || !::client.isInitialized) return
+        // Verified Zen 4 authentication, not just an open TCP port.
+        if (setupStage == 0 && client.connected && client.verifiedHost != null) {
+            setupNext()
+            return
         }
-        AlertDialog.Builder(this)
-            .setTitle("SatNova TV Home · " + lang.name())
-            .setItems(actions.mapIndexed { index, step ->
-                (index + 1).toString() + " · " + step.first
-            }.toTypedArray()) { _, index ->
-                actions[index].second.invoke()
+        if (setupStage == 1 && homeRoleAssigned()) {
+            setupNext()
+            return
+        }
+        if (setupStage == 2 && hdmiBridgeEnabled()) {
+            setupNext()
+            return
+        }
+        if (setupDialog?.isShowing == true) return
+        when (setupStage) {
+            0 -> {
+                setupDialog = AlertDialog.Builder(this)
+                    .setTitle("SatNova · Recherche du récepteur")
+                    .setMessage(
+                        "1/3 · Recherche automatique du Zen 4 sur le réseau local. " +
+                        "Si le récepteur est déjà connecté, cette étape se termine sans question.\\n\\n" +
+                        "Statut : " + receiverMessage + "\\n\\n" +
+                        "La connexion Zen 4 restera active en arrière-plan, y compris sur HDMI " +
+                        "si Android autorise le service."
+                    )
+                    .setPositiveButton("Saisir IP") { _, _ ->
+                        setupDialog = null
+                        val input = EditText(this).apply {
+                            hint = "192.168.1.100"
+                            setText(client.lastIp)
+                            isSingleLine = true
+                            inputType = android.text.InputType.TYPE_CLASS_PHONE
+                        }
+                        AlertDialog.Builder(this).setTitle("Adresse IP du Zen 4")
+                            .setView(input)
+                            .setPositiveButton("Connecter") { _, _ ->
+                                if (!client.setHost(input.text.toString().trim()))
+                                    Toast.makeText(this, "IP locale invalide",
+                                        Toast.LENGTH_LONG).show()
+                                driveSetupWizard()
+                            }
+                            .setNegativeButton("Retour") { _, _ -> driveSetupWizard() }
+                            .show()
+                    }
+                    .setNeutralButton("Wi-Fi") { _, _ ->
+                        setupDialog = null
+                        setupWaitingForReturn = true
+                        openWifiSettings()
+                    }
+                    .setNegativeButton("Plus tard") { _, _ ->
+                        setupSkippedReceiver = true
+                        setupNext()
+                    }
+                    .create()
+                setupDialog?.show()
             }
-            .setPositiveButton(lang.t("close")) { _, _ ->
-                window.decorView.postDelayed({ restoreLauncherFocus(force = true) }, 100L)
+            1 -> {
+                setupDialog = AlertDialog.Builder(this)
+                    .setTitle("SatNova · Accueil du téléviseur")
+                    .setMessage(
+                        "2/3 · Android doit autoriser SatNova comme accueil HOME. " +
+                        "Si ce rôle est déjà accordé, la configuration continue toute seule."
+                    )
+                    .setPositiveButton("Choisir SatNova") { _, _ ->
+                        setupDialog = null
+                        setupWaitingForReturn = true
+                        setupRequestedSystemSetting = true
+                        try {
+                            val manager = if (Build.VERSION.SDK_INT >= 29)
+                                getSystemService(RoleManager::class.java) else null
+                            if (manager != null && manager.isRoleAvailable(RoleManager.ROLE_HOME))
+                                startActivityForResult(
+                                    manager.createRequestRoleIntent(RoleManager.ROLE_HOME), 7421)
+                            else openHomeChoiceSettings()
+                        } catch (_: Exception) {
+                            setupWaitingForReturn = false
+                            driveSetupWizard()
+                        }
+                    }
+                    .setNegativeButton("Plus tard") { _, _ ->
+                        setupSkippedHome = true
+                        setupNext()
+                    }
+                    .create()
+                setupDialog?.show()
             }
-            .setNeutralButton("Aide") { _, _ ->
-                AlertDialog.Builder(this).setTitle("Première configuration SatNova")
-                    .setMessage("Sélectionnez une étape dans le guide. Aucune commande ADB n'est nécessaire pour utiliser les menus. Le choix HOME et Accessibilité demandent une confirmation Android TV ; démarrer sur HDMI dépend du firmware.")
-                    .setPositiveButton(lang.t("close"), null).show()
+            2 -> {
+                if (!hdmiBridgeAvailable()) { setupNext(); return }
+                setupDialog = AlertDialog.Builder(this)
+                    .setTitle("SatNova · Permission Accessibilité")
+                    .setMessage(
+                        "3/3 · Autorisez « SatNova · Télécommande Zen 4 sur HDMI » " +
+                        "dans Accessibilité Android.\\n\\n" +
+                        "SatNova pourra alors gérer les touches programmées uniquement " +
+                        "sur l'entrée HDMI vérifiée. BACK et les touches système " +
+                        "restent à la TV."
+                    )
+                    .setPositiveButton("Ouvrir Accessibilité") { _, _ ->
+                        setupDialog = null
+                        setupWaitingForReturn = true
+                        openAccessibilitySettings()
+                    }
+                    .setNegativeButton("Plus tard") { _, _ ->
+                        setupSkippedAccessibility = true
+                        setupNext()
+                    }
+                    .create()
+                setupDialog?.show()
             }
-            .show()
+            else -> finishSetupWizard()
+        }
+    }
+
+    private fun finishSetupWizard() {
+        setupDialog?.dismiss()
+        setupDialog = null
+        setupActive = false
+        setupWaitingForReturn = false
+        // No redundant yes/no questions. Only set automatic defaults after
+        // the corresponding OS permission is already granted.
+        val bridge = hdmiBridgePrefs()
+        val writer = bridge.edit()
+        if (homeRoleAssigned() && !bridge.contains("boot_home_enabled"))
+            writer.putBoolean("boot_home_enabled", true)
+        if (hdmiBridgeEnabled()) {
+            if (!bridge.contains("auto_arm")) writer.putBoolean("auto_arm", true)
+            if (homeRoleAssigned() && !bridge.contains("home_override_enabled"))
+                writer.putBoolean("home_override_enabled", true)
+        }
+        writer.apply()
+        prefs.edit()
+            .putBoolean("guided_setup_v2_seen", true)
+            .putBoolean("guided_setup_v2_complete",
+                client.connected && homeRoleAssigned() &&
+                    (!hdmiBridgeAvailable() || hdmiBridgeEnabled()))
+            .apply()
+        Toast.makeText(this,
+            if (client.connected) "Zen 4 connecté · contrôle HDMI automatique après ouverture depuis SatNova"
+            else "Recherche Zen 4 toujours active · Assistant disponible dans Paramètres",
+            Toast.LENGTH_LONG).show()
+        window.decorView.postDelayed({ restoreLauncherFocus(force = true) }, 150L)
     }
 
     private fun hdmiBridgeAvailable(): Boolean = try {
@@ -1374,7 +1550,8 @@ open class MinimalHomeActivity : Activity() {
             lang.t("hdmi"), lang.t("homeSelect"), lang.t("homeRestore"),
             lang.t("accessibility"), lang.t("hdmiRemote"),
             lang.t("systemSettings"), lang.t("diagnostics"), lang.t("homeOverride"),
-            "Démarrer sur SatNova après reboot"
+            "Démarrer sur SatNova après reboot",
+            "Assistant de configuration automatique"
         )
         AlertDialog.Builder(this).setTitle(lang.t("settings"))
             .setItems(options) { _, index ->
@@ -1415,6 +1592,7 @@ open class MinimalHomeActivity : Activity() {
                     21 -> showHomeDiagnostic()
                     22 -> configureHomeOverride()
                     23 -> configureBootHome()
+                    24 -> startSetupWizard()
                 }
             }.show()
     }
@@ -1503,6 +1681,12 @@ open class MinimalHomeActivity : Activity() {
     @Deprecated("Used for compatibility with Android 8+ and the system document picker")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 7421 && setupActive) {
+            setupWaitingForReturn = false
+            if (homeRoleAssigned()) setupNext()
+            else driveSetupWizard()
+            return
+        }
         if (requestCode == backgroundPickerRequest) {
             if (resultCode == Activity.RESULT_OK && data?.data != null) {
                 val uri = data.data!!
