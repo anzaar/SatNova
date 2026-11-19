@@ -40,6 +40,14 @@ jobs:
           grep -Fq 'KeyEvent.KEYCODE_PROG_YELLOW -> 7' tvhome/src/main/java/com/satnova/alpha/Zen4HdmiRemoteService.kt
           ! grep -Fq 'KeyEvent.KEYCODE_BACK -> 7' tvhome/src/main/java/com/satnova/alpha/Zen4HdmiRemoteService.kt
           grep -Fq 'KeyEvent.KEYCODE_BACK,' tvhome/src/main/java/com/satnova/alpha/Zen4HdmiRemoteService.kt
+      - name: Assert surah-by-surah Quran UI and streaming
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'pagedHorizontal(QuranLibrary.surahs()' tvhome/src/main/java/com/satnova/alpha/MinimalHomeActivity.kt
+          grep -Fq 'startStreamingAudio(audioUrl, token)' tvhome/src/main/java/com/satnova/alpha/QuranLibrary.kt
+          grep -Fq 'downloads.execute' tvhome/src/main/java/com/satnova/alpha/QuranLibrary.kt
+          grep -Fq 'KeyEvent.KEYCODE_PROG_YELLOW -> 7' tvhome/src/main/java/com/satnova/alpha/Zen4HdmiRemoteService.kt
       - name: Verify APK and identify installed package and certificate
         shell: bash
         run: |
@@ -58,13 +66,13 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          TAG="v0.5.14-tvbridge-yellow-exit-native-back-20261119-test"
-          APK_NAME="SatNova-TV-Home-HDMI-Bridge-0.5.14-YELLOW-EXIT-NATIVE-BACK-TEST.apk"
+          TAG="v0.5.14-tvbridge-quran-surahs-stream-20261119-test"
+          APK_NAME="SatNova-TV-Home-HDMI-Bridge-0.5.14-QURAN-STREAM-TEST.apk"
           cp tvhome/build/outputs/apk/tvbridge/debug/tvhome-tvbridge-debug.apk "$APK_NAME"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "::error::Test release tag already exists; refusing to overwrite other APK signatures"
             exit 1
           fi
-          gh release create "$TAG" "$APK_NAME"             --target "$GITHUB_SHA"             --prerelease             --title "SatNova TV Home - Yellow EXIT / Native TV BACK - Test"             --notes "EXPERIMENTAL Android TV APK fixing HDMI remote rearm after HOME/Shahid/SOURCE and mapping Lifemaxx yellow KEYCODE_PROG_YELLOW (185) to Zen 4 EXIT KeyValue 7 while leaving TV BACK KEYCODE_BACK (4) completely untouched, only within an authorized HDMI session (2-hour maximum). Google TV Android 14 previously passed first HOME press after reboot, but the updated HDMI re-arm must still be tested on real Lifemaxx 55 and Zen 4. This is a DEBUG-SIGNED TEST APK; existing APK installations may use a different certificate. If Android reports an incompatible update, DO NOT uninstall until settings and personal data are backed up. Keep factory Google TV HOME installed/enabled. The optional Accessibility HOME override requires explicit user consent. The APK is separate from the SatNova phone app."
+          gh release create "$TAG" "$APK_NAME"             --target "$GITHUB_SHA"             --prerelease             --title "SatNova TV Home - Quran 114 Surahs + Direct Streaming - Test"             --notes "EXPERIMENTAL Android TV APK showing all 114 surahs directly on the launcher with no remote catalogue or full-Quran preload, MP3Quran audio streaming immediately while only the selected surah downloads separately for offline listening. Preserves HDMI auto-rearm, yellow EXIT for Zen 4, and TV-native BACK key. Google TV Android 14 previously passed first HOME press after reboot, but the updated HDMI re-arm must still be tested on real Lifemaxx 55 and Zen 4. This is a DEBUG-SIGNED TEST APK; existing APK installations may use a different certificate. If Android reports an incompatible update, DO NOT uninstall until settings and personal data are backed up. Keep factory Google TV HOME installed/enabled. The optional Accessibility HOME override requires explicit user consent. The APK is separate from the SatNova phone app."
           echo "DIRECT_APK_URL=https://github.com/${GH_REPO}/releases/download/${TAG}/${APK_NAME}"
           echo "BUILT_SHA=$GITHUB_SHA"

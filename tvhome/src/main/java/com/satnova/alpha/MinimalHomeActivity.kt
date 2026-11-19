@@ -638,11 +638,15 @@ open class MinimalHomeActivity : Activity() {
 
     private fun showQuran() {
         section(lang.t("quran"))
-        val (scroll, row) = horizontalRow()
-        addCard(row, lang.t("quran"), "114 سورة · قراءة واستماع MP3",
-            getDrawable(android.R.drawable.ic_media_play), { quran.open() },
-            kind = "radio")
-        content.addView(withArrows(rememberRow("quran", scroll)))
+        // Show all 114 surahs as selectable launcher tiles, in batches of 20.
+        // Their names are bundled locally; selecting a surah never downloads
+        // the whole Quran or even a remote catalogue first.
+        content.addView(withArrows(pagedHorizontal(QuranLibrary.surahs(), "quran-surahs") { row, chapter ->
+            addCard(row, chapter.second,
+                "سورة " + chapter.first + " · قراءة أو استماع",
+                getDrawable(android.R.drawable.ic_media_play),
+                { quran.selectSurah(chapter.first) }, kind = "radio")
+        }))
     }
 
     private fun showHistory() {
