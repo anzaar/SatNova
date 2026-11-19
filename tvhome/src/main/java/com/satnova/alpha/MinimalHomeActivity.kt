@@ -1246,58 +1246,107 @@ open class MinimalHomeActivity : Activity() {
 
     private fun settings() {
         val options = arrayOf(
-            "Applications favorites", "Ajouter une page Favoris",
-            "Renommer la page Favoris", "Adresse IP de Zen 4",
-            "Afficher / masquer l'historique", "مدينة الصلاة والطقس",
-            "إدخال أوقات الوزارة لليوم", "إدخال أوقات الوزارة للغد",
-            "موقع وزارة الأوقاف الرسمي",
-            "Entrée HDMI : détection automatique", "Actualiser les logos",
-            "Réinitialiser les groupes TV", "Tester ouverture HDMI du récepteur",
-            "Choisir SatNova comme accueil par défaut",
-            "Revenir à l'accueil LifeMax d'origine",
-            "Configurer Accessibilité · télécommande HDMI",
-            "Télécommande Lifemaxx → Zen 4 (HDMI)",
-            "Paramètres Wi-Fi du téléviseur",
-            "Paramètres Android TV (système, développeur, ADB)",
-            "Diagnostic HOME · fabricant, rôle et accueil résolu"
+            lang.t("apps"), lang.t("language"), lang.t("themes"),
+            lang.t("cityWeather"), lang.t("time"), lang.t("wifi"),
+            lang.t("quran"), lang.t("adhan"), lang.t("connection"),
+            lang.t("history"), lang.t("prayerToday"), lang.t("prayerTomorrow"),
+            lang.t("habous"), lang.t("logos"), lang.t("groups"),
+            lang.t("hdmi"), lang.t("homeSelect"), lang.t("homeRestore"),
+            lang.t("accessibility"), lang.t("hdmiRemote"),
+            lang.t("systemSettings"), lang.t("diagnostics")
         )
-        AlertDialog.Builder(this).setTitle("Paramètres")
+        AlertDialog.Builder(this).setTitle(lang.t("settings"))
             .setItems(options) { _, index ->
                 when (index) {
                     0 -> chooseApps()
-                    1 -> askPageName(null)
-                    2 -> askPageName(activePage)
-                    3 -> changeIp()
-                    4 -> {
-                        val next = !prefs.getBoolean("show_history", false)
-                        prefs.edit().putBoolean("show_history", next).apply()
+                    1 -> chooseLanguage()
+                    2 -> chooseBackground()
+                    3 -> islamicPanel.chooseCity { render() }
+                    4 -> openTimeSettings()
+                    5 -> openWifiSettings()
+                    6 -> quran.open()
+                    7 -> islamicPanel.chooseAdhan()
+                    8 -> changeIp()
+                    9 -> {
+                        val value = !prefs.getBoolean("show_history", false)
+                        prefs.edit().putBoolean("show_history", value).apply()
                         render()
                     }
-                    5 -> islamicPanel.chooseCity { render() }
-                    6 -> islamicPanel.editOfficialDay(false) { render() }
-                    7 -> islamicPanel.editOfficialDay(true) { render() }
-                    8 -> try {
+                    10 -> islamicPanel.editOfficialDay(false) { render() }
+                    11 -> islamicPanel.editOfficialDay(true) { render() }
+                    12 -> try {
                         startActivity(Intent(Intent.ACTION_VIEW,
                             android.net.Uri.parse("https://www.habous.gov.ma/")))
                     } catch (_: Exception) {
                         Toast.makeText(this, "Navigateur indisponible", Toast.LENGTH_SHORT).show()
                     }
-                    9 -> Toast.makeText(this, "Détection HDMI automatique, HDMI 1 en secours", Toast.LENGTH_SHORT).show()
-                    10 -> { logos.retryFailed(); render() }
-                    11 -> AlertDialog.Builder(this).setTitle("Réinitialiser les groupes ?")
-                        .setMessage("Restaure les regroupements automatiques de l'application, sans modifier le récepteur.")
-                        .setPositiveButton("Réinitialiser") { _, _ -> families.resetAll(); render() }
-                        .setNegativeButton("Annuler", null).show()
-                    12 -> if (!previewMode) openHdmi1IfPossible()
-                    13 -> requestSatNovaHome()
-                    14 -> restoreOriginalHome()
-                    15 -> explainAccessibility()
-                    16 -> hdmiRemoteMenu()
-                    17 -> openWifiSettings()
-                    18 -> androidSystemMenu()
-                    19 -> showHomeDiagnostic()
+                    13 -> { logos.retryFailed(); render() }
+                    14 -> AlertDialog.Builder(this).setTitle(lang.t("groups"))
+                        .setMessage("Réinitialiser les groupes TV sans modifier le récepteur ?")
+                        .setPositiveButton("OK") { _, _ -> families.resetAll(); render() }
+                        .setNegativeButton(lang.t("close"), null).show()
+                    15 -> if (!previewMode) openHdmi1IfPossible()
+                    16 -> requestSatNovaHome()
+                    17 -> restoreOriginalHome()
+                    18 -> explainAccessibility()
+                    19 -> hdmiRemoteMenu()
+                    20 -> androidSystemMenu()
+                    21 -> showHomeDiagnostic()
                 }
             }.show()
+    }
+
+    private fun quickButton(symbol: String, desc: String, onClick: () -> Unit): TextView {
+        return TextView(this).apply {
+            text = symbol
+            textSize = 23f
+            textAlignment = View.TEXT_ALIGNMENT_CENTER
+            gravity = Gravity.CENTER
+            contentDescription = desc
+            background = rounded(surface)
+            focusable(this, onClick)
+        }
+    }
+
+    private fun chooseLanguage() {
+        val codes = arrayOf("ar", "fr", "en")
+        val labels = arrayOf("العربية", "Français", "English")
+        AlertDialog.Builder(this).setTitle(lang.t("language"))
+            .setSingleChoiceItems(labels, codes.indexOf(lang.code())) { dialog, index ->
+                prefs.edit().putString("ui_language", codes[index]).apply()
+                dialog.dismiss()
+                render()
+            }.setNegativeButton(lang.t("close"), null).show()
+    }
+
+    private fun chooseBackground() {
+        AlertDialog.Builder(this).setTitle(lang.t("themes"))
+            .setMessage("Sport : stade Moulay Abdellah, Rabat. Photo © Reda Benkhadra / CC BY-SA 4.0 (Wikimedia Commons), recadrée et assombrie pour SatNova.")
+            .setItems(arrayOf(lang.t("islamic"), lang.t("sport"), lang.t("custom"))) { _, choice ->
+                if (choice == 2) {
+                    try {
+                        val pick = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "image/*"
+                        }
+                        startActivityForResult(pick, backgroundPickerRequest)
+                    } catch (_: Exception) {
+                        Toast.makeText(this, "Sélecteur de photos indisponible", Toast.LENGTH_LONG).show()
+                    }
+                } else {
+                    prefs.edit().putString("ui_theme", if (choice == 0) "islamic" else "sport").apply()
+                    islamicPanel.refreshBackground()
+                    render()
+                }
+            }.setNegativeButton(lang.t("close"), null).show()
+    }
+
+    private fun openTimeSettings() {
+        if (previewMode) return
+        startSystemSettings(listOf(
+            Intent(Settings.ACTION_DATE_SETTINGS),
+            Intent(Settings.ACTION_SETTINGS)
+        ), "Paramètres date et heure indisponibles")
     }
 
     /**
