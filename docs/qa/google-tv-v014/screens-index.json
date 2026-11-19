@@ -1,0 +1,217 @@
+[
+  {
+    "name": "01_first_start",
+    "caption": "Initial first-run screen; permissions are not auto-granted",
+    "screenshot": true
+  },
+  {
+    "name": "02_islamic_home",
+    "caption": "Default original Islamic home layout",
+    "screenshot": true
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": true
+  },
+  {
+    "name": "03_settings",
+    "caption": "All TV launcher settings",
+    "screenshot": true
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": true
+  },
+  {
+    "action": "click",
+    "target": "Langue",
+    "ok": true
+  },
+  {
+    "name": "04_languages",
+    "caption": "Language options",
+    "screenshot": true
+  },
+  {
+    "action": "click",
+    "target": "العربية",
+    "ok": true
+  },
+  {
+    "name": "05_home_ar",
+    "caption": "Arabic labels in Islamic home",
+    "screenshot": true
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Settings",
+    "ok": true
+  },
+  {
+    "action": "click",
+    "target": "اللغة",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Langue",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Language",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Settings",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "الإعدادات",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Settings",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "الإعدادات",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Settings",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "الإعدادات",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Settings",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "الإعدادات",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Settings",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "الإعدادات",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Settings",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "الإعدادات",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Settings",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "الإعدادات",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Settings",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "الإعدادات",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Paramètres",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "Settings",
+    "ok": false
+  },
+  {
+    "action": "click",
+    "target": "الإعدادات",
+    "ok": false
+  },
+  {
+    "name": "18_key_home",
+    "caption": "Actual HOME-button outcome on stock Google TV",
+    "screenshot": true
+  },
+  {
+    "name": "19_final_home",
+    "caption": "SatNova starts again after HOME comparison",
+    "screenshot": true
+  }
+]
