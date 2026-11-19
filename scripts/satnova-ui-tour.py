@@ -114,6 +114,44 @@ try:
     screen("01_first_start","Initial first-run screen, before granting any permissions")
     back()
     screen("02_islamic_home","Original Islamic theme and live TV app grid")
+    # Capture REAL sports pixels without depending on flaky TV UI Automator:
+    # only the disposable debug emulator's prefs may be written, never a user's TV.
+    try:
+        print("SPORTS TEST: prepare temporary debug-only preference",flush=True)
+        a("am","force-stop",PKG)
+        output,rc=a("run-as",PKG,"mkdir","-p","shared_prefs")
+        if rc: raise RuntimeError("run-as mkdir failed: "+output[:100])
+        xml=('<?xml version="1.0" encoding="utf-8" standalone="yes" ?>\n'
+             '<map>\n'
+             '  <string name="ui_theme">sport</string>\n'
+             '  <boolean name="first_start_guide_v1_seen" value="true" />\n'
+             '</map>\n')
+        write=subprocess.run(["adb","shell","run-as",PKG,"tee",
+                              "shared_prefs/satnova_minimal_home.xml"],
+                             input=xml.encode(),stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE,timeout=20)
+        if write.returncode: raise RuntimeError(write.stderr.decode(errors="replace")[:180])
+        config,rc=a("run-as",PKG,"cat","shared_prefs/satnova_minimal_home.xml")
+        if rc or '<string name="ui_theme">sport</string>' not in config:
+            raise RuntimeError("Sports pref verification failed")
+        a("am","start","-W","-n",f"{PKG}/{ACT}")
+        pause(4)
+        screen("05_atlas_lions_sport","Real Google TV SatNova sports mode and stadium wallpaper")
+        islamic=OUT/"02_islamic_home.png"
+        sporty=OUT/"05_atlas_lions_sport.png"
+        if islamic.exists() and sporty.exists() and islamic.read_bytes()==sporty.read_bytes():
+            print("SPORTS WARNING: frame identical to Islamic; do not claim mode switched",flush=True)
+        else:
+            print("SPORTS TEST: saved real sports frame; preference verified and pixels differ",flush=True)
+        a("input","swipe","860","620","860","220","650")
+        pause(2)
+        screen("06_sports_lower","Real Google TV sports theme after scrolling rows")
+        a("input","swipe","860","250","860","640","650")
+        pause(1)
+    except Exception as exc:
+        print("SPORTS FAILED:",str(exc),flush=True)
+        results.append(dict(action="sports_capture",ok=False,error=str(exc)))
+        restart()
     if menu():
         screen("03_settings","Full TV launcher settings menu")
         back()
