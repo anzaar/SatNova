@@ -1078,26 +1078,24 @@ open class MinimalHomeActivity : Activity() {
 
     private fun firstStartGuide() {
         val bridgeAvailable = hdmiBridgeAvailable()
+        val actions = mutableListOf<Pair<String, () -> Unit>>(
+            lang.t("language") to { chooseLanguage() },
+            lang.t("wifi") to { openWifiSettings() },
+            lang.t("cityWeather") to { islamicPanel.chooseCity { render() } },
+            lang.t("themes") to { chooseBackground() },
+            lang.t("connection") to { changeIp() },
+            lang.t("homeSelect") to { requestSatNovaHome() }
+        )
+        if (bridgeAvailable) actions.add(lang.t("accessibility") to { explainAccessibility() })
         AlertDialog.Builder(this)
-            .setTitle("Bienvenue dans SatNova TV Home")
-            .setMessage(if (bridgeAvailable)
-                "SatNova peut devenir votre accueil par défaut. Le module facultatif de contrôle HDMI demande une autorisation Accessibilité distincte. Le choix HOME reste réversible."
-                else "SatNova peut devenir votre accueil par défaut, sans autorisation Accessibilité. Le retour à l'accueil original et les paramètres système restent accessibles.")
-            .setItems(if (bridgeAvailable) arrayOf(
-                "1 · Choisir SatNova comme accueil par défaut",
-                "2 · Autoriser la télécommande LifeMax → Zen 4",
-                "3 · Réglages Wi-Fi du téléviseur"
-            ) else arrayOf(
-                "1 · Choisir SatNova comme accueil par défaut",
-                "2 · Réglages Wi-Fi du téléviseur"
-            )) { _, which ->
-                when (which) {
-                    0 -> requestSatNovaHome()
-                    1 -> if (bridgeAvailable) explainAccessibility() else openWifiSettings()
-                    2 -> openWifiSettings()
-                }
+            .setTitle("SatNova TV Home · " + lang.name())
+            .setMessage("Sélectionnez une étape. Aucune commande ADB n'est nécessaire. Le choix HOME et Accessibilité demandent une confirmation dans Android TV. Le démarrage sur HDMI dépend du firmware et de ses paramètres d'alimentation.")
+            .setItems(actions.mapIndexed { index, step ->
+                (index + 1).toString() + " · " + step.first
+            }.toTypedArray()) { _, index ->
+                actions[index].second.invoke()
             }
-            .setPositiveButton("Plus tard") { _, _ ->
+            .setPositiveButton(lang.t("close")) { _, _ ->
                 window.decorView.postDelayed({ restoreLauncherFocus(force = true) }, 100L)
             }
             .show()
