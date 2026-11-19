@@ -256,7 +256,7 @@ open class MinimalHomeActivity : Activity() {
             setBackgroundColor(bgColor)
         }
         root.addView(TextView(this).apply {
-            text = "SatNova · Mode récupération"
+            text = "AltaPlay Launcher · Mode récupération"
             textSize = 26f
             setTextColor(fg)
         })
@@ -505,7 +505,7 @@ open class MinimalHomeActivity : Activity() {
         }
         header.addView(iconButton(R.drawable.satnova_home_icon, "Accueil") { render() },
             LinearLayout.LayoutParams(dp(46), dp(46)))
-        header.addView(text("SatNova TV Home", 23f, true,
+        header.addView(text("AltaPlay Launcher", 23f, true,
             if (sportsMode()) Color.rgb(247, 215, 163) else Color.rgb(215, 236, 187))
             .apply { gravity = Gravity.CENTER_VERTICAL },
             LinearLayout.LayoutParams(-2, dp(46)).apply { leftMargin = dp(16) })
@@ -1015,8 +1015,8 @@ open class MinimalHomeActivity : Activity() {
                 val manager = getSystemService(RoleManager::class.java)
                 when {
                     manager == null || !manager.isRoleAvailable(RoleManager.ROLE_HOME) -> "ROLE_HOME indisponible"
-                    manager.isRoleHeld(RoleManager.ROLE_HOME) -> "SatNova détient ROLE_HOME"
-                    else -> "SatNova ne détient pas ROLE_HOME"
+                    manager.isRoleHeld(RoleManager.ROLE_HOME) -> "AltaPlay détient ROLE_HOME"
+                    else -> "AltaPlay ne détient pas ROLE_HOME"
                 }
             } catch (_: Exception) { "ROLE_HOME non vérifiable" }
         } else "ROLE_HOME non disponible sur cet Android"
@@ -1026,14 +1026,14 @@ open class MinimalHomeActivity : Activity() {
             "\\nModèle: ${Build.MODEL}" +
             "\\nHOME résolu: $component" +
             "\\nRôle: $role" +
-            "\\nSatNova: $packageName" +
+            "\\nAltaPlay Launcher: $packageName" +
             "\\nCes informations ne prouvent pas que la touche HOME physique suit le choix Android."
         AlertDialog.Builder(this)
             .setTitle("Diagnostic accueil HOME")
             .setMessage(report)
             .setPositiveButton("Copier") { _, _ ->
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("SatNova HOME", report))
+                clipboard.setPrimaryClip(ClipData.newPlainText("AltaPlay HOME", report))
                 Toast.makeText(this, "Diagnostic copié", Toast.LENGTH_SHORT).show()
             }
             .setNeutralButton("Choisir HOME") { _, _ -> requestSatNovaHome() }
@@ -1083,11 +1083,11 @@ open class MinimalHomeActivity : Activity() {
             .setTitle(lang.t("homeOverride"))
             .setMessage(
                 "Contournement HOME : $status\\n" +
-                "Accessibilité SatNova : $service\\n" +
+                "Accessibilité AltaPlay : $service\\n" +
                 "Dernier résultat : $note\\n\\n" +
                 "Certains Google TV gardent leur accueil malgré ROLE_HOME. " +
                 "Avec votre accord, SatNova détecte uniquement le retour à l'accueil " +
-                "Google TV / Android TV et rouvre SatNova. Cela ne désactive jamais " +
+                "Google TV / Android TV et rouvre AltaPlay. Cela ne désactive jamais " +
                 "l'accueil d'origine. La fonction peut être refusée par le firmware " +
                 "et exige une activation manuelle d'Accessibilité. " +
                 "Vous pourrez la désactiver ici ou via Retour à l'accueil original."
@@ -1111,11 +1111,11 @@ open class MinimalHomeActivity : Activity() {
         val enabled = bridge.getBoolean("boot_home_enabled", false)
         val last = bridge.getString("last_boot_home_result", "Aucun essai").orEmpty()
         AlertDialog.Builder(this)
-            .setTitle("Démarrer sur SatNova après reboot")
+            .setTitle("Démarrer sur AltaPlay après reboot")
             .setMessage(
-                "Démarrage sur SatNova : " + (if (enabled) "ACTIVÉ" else "DÉSACTIVÉ") +
+                "Démarrage sur AltaPlay : " + (if (enabled) "ACTIVÉ" else "DÉSACTIVÉ") +
                 "\\nDernier essai : " + last + "\\n\\n" +
-                "SatNova tente de s'afficher une seule fois au démarrage, avec " +
+                "AltaPlay tente de s'afficher une seule fois au démarrage, avec " +
                 "un secours Accessibilité si Android ouvre HDMI ou son accueil. " +
                 "Le système peut refuser cette relance ; pour un résultat fiable, " +
                 "réglez aussi la page de démarrage du téléviseur sur HOME et non " +
@@ -1125,8 +1125,8 @@ open class MinimalHomeActivity : Activity() {
             .setPositiveButton(if (enabled) "Désactiver" else "Activer") { _, _ ->
                 bridge.edit().putBoolean("boot_home_enabled", !enabled)
                     .remove("boot_home_pending_until_elapsed").apply()
-                Toast.makeText(this, if (enabled) "Démarrage SatNova désactivé"
-                    else "Démarrage SatNova activé pour le prochain reboot", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, if (enabled) "Démarrage AltaPlay désactivé"
+                    else "Démarrage AltaPlay activé pour le prochain reboot", Toast.LENGTH_LONG).show()
             }
             .setNegativeButton("Fermer", null).show()
     }
@@ -1135,7 +1135,7 @@ open class MinimalHomeActivity : Activity() {
         if (previewMode) return
         AlertDialog.Builder(this)
             .setTitle("Revenir à l'accueil d'origine")
-            .setMessage("L'accueil d'origine n'a pas été supprimé. SatNova ouvrira les réglages Android TV : sélectionnez le lanceur LifeMax / d'origine et confirmez. Sur certains téléviseurs, le fabricant bloque ce choix ; SatNova ne peut pas le contourner.")
+            .setMessage("L'accueil d'origine n'a pas été supprimé. AltaPlay ouvrira les réglages Android TV : sélectionnez le lanceur LifeMax / d'origine et confirmez. Sur certains téléviseurs, le fabricant bloque ce choix ; SatNova ne peut pas le contourner.")
             .setPositiveButton("Choisir l'accueil d'origine") { _, _ ->
                 // A permanent stock launcher restore must not be undone by
                 // SatNova's optional accessibility-based HOME fallback.
@@ -1158,7 +1158,7 @@ open class MinimalHomeActivity : Activity() {
         if (previewMode) return
         AlertDialog.Builder(this)
             .setTitle("Options pour les développeurs · ADB")
-            .setMessage("SatNova ouvre uniquement les réglages Android TV. Si les options développeur ne sont pas visibles, allez dans Paramètres système → À propos → Numéro de build et appuyez généralement 7 fois sur OK, si LifeMax le permet. Activez ensuite le débogage ADB/USB manuellement. SatNova n'active jamais ADB à votre place.")
+            .setMessage("AltaPlay ouvre uniquement les réglages Android TV. Si les options développeur ne sont pas visibles, allez dans Paramètres système → À propos → Numéro de build et appuyez généralement 7 fois sur OK, si LifeMax le permet. Activez ensuite le débogage ADB/USB manuellement. SatNova n'active jamais ADB à votre place.")
             .setPositiveButton("Ouvrir les options") { _, _ ->
                 startSystemSettings(listOf(
                     Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS),
@@ -1269,7 +1269,7 @@ open class MinimalHomeActivity : Activity() {
         when (setupStage) {
             0 -> {
                 setupDialog = AlertDialog.Builder(this)
-                    .setTitle("SatNova · Recherche du récepteur")
+                    .setTitle("AltaPlay · Recherche du récepteur")
                     .setMessage(
                         "1/3 · Recherche automatique du Zen 4 sur le réseau local. " +
                         "Si le récepteur est déjà connecté, cette étape se termine sans question.\\n\\n" +
@@ -1310,12 +1310,12 @@ open class MinimalHomeActivity : Activity() {
             }
             1 -> {
                 setupDialog = AlertDialog.Builder(this)
-                    .setTitle("SatNova · Accueil du téléviseur")
+                    .setTitle("AltaPlay · Accueil du téléviseur")
                     .setMessage(
-                        "2/3 · Android doit autoriser SatNova comme accueil HOME. " +
+                        "2/3 · Android doit autoriser AltaPlay comme accueil HOME. " +
                         "Si ce rôle est déjà accordé, la configuration continue toute seule."
                     )
-                    .setPositiveButton("Choisir SatNova") { _, _ ->
+                    .setPositiveButton("Choisir AltaPlay") { _, _ ->
                         setupDialog = null
                         setupWaitingForReturn = true
                         setupRequestedSystemSetting = true
@@ -1341,11 +1341,11 @@ open class MinimalHomeActivity : Activity() {
             2 -> {
                 if (!hdmiBridgeAvailable()) { setupNext(); return }
                 setupDialog = AlertDialog.Builder(this)
-                    .setTitle("SatNova · Permission Accessibilité")
+                    .setTitle("AltaPlay · Permission Accessibilité")
                     .setMessage(
-                        "3/3 · Autorisez « SatNova · Télécommande Zen 4 sur HDMI » " +
+                        "3/3 · Autorisez « AltaPlay · Télécommande Zen 4 sur HDMI » " +
                         "dans Accessibilité Android.\\n\\n" +
-                        "SatNova pourra alors gérer les touches programmées uniquement " +
+                        "AltaPlay pourra alors gérer les touches programmées uniquement " +
                         "sur l'entrée HDMI vérifiée. BACK et les touches système " +
                         "restent à la TV."
                     )
@@ -1389,7 +1389,7 @@ open class MinimalHomeActivity : Activity() {
                     (!hdmiBridgeAvailable() || hdmiBridgeEnabled()))
             .apply()
         Toast.makeText(this,
-            if (client.connected) "Zen 4 connecté · contrôle HDMI automatique après ouverture depuis SatNova"
+            if (client.connected) "Zen 4 connecté · contrôle HDMI automatique après ouverture depuis AltaPlay"
             else "Recherche Zen 4 toujours active · Assistant disponible dans Paramètres",
             Toast.LENGTH_LONG).show()
         window.decorView.postDelayed({ restoreLauncherFocus(force = true) }, 150L)
@@ -1412,14 +1412,14 @@ open class MinimalHomeActivity : Activity() {
         if (hdmiBridgeEnabled()) {
             AlertDialog.Builder(this)
                 .setTitle("Télécommande autorisée")
-                .setMessage("L'accès Accessibilité est activé. Le contrôle sur HDMI doit encore être lancé dans SatNova → Paramètres → Télécommande Lifemaxx → Zen 4. L'efficacité des touches MENU, OK et flèches dépend du firmware LifeMax.")
+                .setMessage("L'accès Accessibilité est activé. Le contrôle sur HDMI doit encore être lancé dans AltaPlay → Paramètres → Télécommande Lifemaxx → Zen 4. L'efficacité des touches MENU, OK et flèches dépend du firmware LifeMax.")
                 .setPositiveButton("Options de télécommande") { _, _ -> hdmiRemoteMenu() }
                 .setNegativeButton("Fermer", null)
                 .show()
         } else {
             AlertDialog.Builder(this)
                 .setTitle("Activer la télécommande sur HDMI")
-                .setMessage("La fonctionnalité est facultative. Dans les paramètres Android TV, recherchez « SatNova · Télécommande Zen 4 sur HDMI » dans Accessibilité, puis autorisez-la vous-même. Cela permet de transmettre certaines touches uniquement lorsque l'écran HDMI autorisé est actif. HOME, SOURCE, volume et alimentation restent contrôlés par LifeMax. Vous pouvez désactiver le service à tout moment.")
+                .setMessage("La fonctionnalité est facultative. Dans les paramètres Android TV, recherchez « AltaPlay · Télécommande Zen 4 sur HDMI » dans Accessibilité, puis autorisez-la vous-même. Cela permet de transmettre certaines touches uniquement lorsque l'écran HDMI autorisé est actif. HOME, SOURCE, volume et alimentation restent contrôlés par LifeMax. Vous pouvez désactiver le service à tout moment.")
                 .setPositiveButton("Ouvrir Accessibilité") { _, _ -> openAccessibilitySettings() }
                 .setNegativeButton("Plus tard", null)
                 .show()
@@ -1483,7 +1483,7 @@ open class MinimalHomeActivity : Activity() {
                     0 -> {
                         if (!hdmiBridgeEnabled()) {
                             AlertDialog.Builder(this).setTitle("Autorisation nécessaire")
-                                .setMessage("Autorisez volontairement le service SatNova · Télécommande Zen 4 sur HDMI dans les paramètres Accessibilité. Puis revenez ici.")
+                                .setMessage("Autorisez volontairement le service AltaPlay · Télécommande Zen 4 sur HDMI dans les paramètres Accessibilité. Puis revenez ici.")
                                 .setPositiveButton("Accessibilité") { _, _ ->
                                     openAccessibilitySettings()
                                 }.setNegativeButton("Annuler", null).show()
@@ -1559,7 +1559,7 @@ open class MinimalHomeActivity : Activity() {
             lang.t("hdmi"), lang.t("homeSelect"), lang.t("homeRestore"),
             lang.t("accessibility"), lang.t("hdmiRemote"),
             lang.t("systemSettings"), lang.t("diagnostics"), lang.t("homeOverride"),
-            "Démarrer sur SatNova après reboot",
+            "Démarrer sur AltaPlay après reboot",
             "Assistant de configuration automatique"
         )
         AlertDialog.Builder(this).setTitle(lang.t("settings"))
