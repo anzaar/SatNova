@@ -998,12 +998,57 @@ open class MinimalHomeActivity : Activity() {
         openHomeChoiceSettings()
     }
 
+    /**
+     * Projectivy-style fallback: opt-in, reversible, no hidden ADB operations.
+     * This feature never removes or disables the manufacturer's Home app.
+     */
+    private fun configureHomeOverride() {
+        if (previewMode) return
+        if (!hdmiBridgeAvailable()) {
+            AlertDialog.Builder(this).setTitle(lang.t("homeOverride"))
+                .setMessage("Cette édition ne contient pas le service Accessibilité requis.")
+                .setPositiveButton(lang.t("close"), null).show()
+            return
+        }
+        val bridge = hdmiBridgePrefs()
+        val active = bridge.getBoolean("home_override_enabled", false)
+        val status = if (active) "ACTIVÉ" else "DÉSACTIVÉ"
+        val service = if (hdmiBridgeEnabled()) "AUTORISÉ" else "NON AUTORISÉ"
+        val note = bridge.getString("last_home_override_result", "aucun test").orEmpty()
+        AlertDialog.Builder(this)
+            .setTitle(lang.t("homeOverride"))
+            .setMessage(
+                "Contournement HOME : $status\\n" +
+                "Accessibilité SatNova : $service\\n" +
+                "Dernier résultat : $note\\n\\n" +
+                "Certains Google TV gardent leur accueil malgré ROLE_HOME. " +
+                "Avec votre accord, SatNova détecte uniquement le retour à l'accueil " +
+                "Google TV / Android TV et rouvre SatNova. Cela ne désactive jamais " +
+                "l'accueil d'origine. La fonction peut être refusée par le firmware " +
+                "et exige une activation manuelle d'Accessibilité. " +
+                "Vous pourrez la désactiver ici ou via Retour à l'accueil original."
+            )
+            .setPositiveButton(if (active) "Désactiver" else "Activer") { _, _ ->
+                bridge.edit().putBoolean("home_override_enabled", !active).apply()
+                if (!active && !hdmiBridgeEnabled()) openAccessibilitySettings()
+                else Toast.makeText(this, if (active)
+                    "Contournement HOME désactivé" else "Contournement HOME activé",
+                    Toast.LENGTH_LONG).show()
+            }
+            .setNeutralButton("Accessibilité") { _, _ -> openAccessibilitySettings() }
+            .setNegativeButton(lang.t("close"), null)
+            .show()
+    }
+
     private fun restoreOriginalHome() {
         if (previewMode) return
         AlertDialog.Builder(this)
             .setTitle("Revenir à l'accueil d'origine")
             .setMessage("L'accueil d'origine n'a pas été supprimé. SatNova ouvrira les réglages Android TV : sélectionnez le lanceur LifeMax / d'origine et confirmez. Sur certains téléviseurs, le fabricant bloque ce choix ; SatNova ne peut pas le contourner.")
             .setPositiveButton("Choisir l'accueil d'origine") { _, _ ->
+                // A permanent stock launcher restore must not be undone by
+                // SatNova's optional accessibility-based HOME fallback.
+                hdmiBridgePrefs().edit().putBoolean("home_override_enabled", false).apply()
                 openHomeChoiceSettings()
             }
             .setNegativeButton("Annuler", null)
@@ -1096,7 +1141,10 @@ open class MinimalHomeActivity : Activity() {
             lang.t("connection") to { changeIp() },
             lang.t("homeSelect") to { requestSatNovaHome() }
         )
-        if (bridgeAvailable) actions.add(lang.t("accessibility") to { explainAccessibility() })
+        if (bridgeAvailable) {
+            actions.add(lang.t("accessibility") to { explainAccessibility() })
+            actions.add(lang.t("homeOverride") to { configureHomeOverride() })
+        }
         AlertDialog.Builder(this)
             .setTitle("SatNova TV Home · " + lang.name())
             .setMessage("Sélectionnez une étape. Aucune commande ADB n'est nécessaire. Le choix HOME et Accessibilité demandent une confirmation dans Android TV. Le démarrage sur HDMI dépend du firmware et de ses paramètres d'alimentation.")
@@ -1261,7 +1309,7 @@ open class MinimalHomeActivity : Activity() {
             lang.t("habous"), lang.t("logos"), lang.t("groups"),
             lang.t("hdmi"), lang.t("homeSelect"), lang.t("homeRestore"),
             lang.t("accessibility"), lang.t("hdmiRemote"),
-            lang.t("systemSettings"), lang.t("diagnostics")
+            lang.t("systemSettings"), lang.t("diagnostics"), lang.t("homeOverride")
         )
         AlertDialog.Builder(this).setTitle(lang.t("settings"))
             .setItems(options) { _, index ->
@@ -1300,6 +1348,7 @@ open class MinimalHomeActivity : Activity() {
                     19 -> hdmiRemoteMenu()
                     20 -> androidSystemMenu()
                     21 -> showHomeDiagnostic()
+                    22 -> configureHomeOverride()
                 }
             }.show()
     }
