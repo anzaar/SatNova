@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape>
+            <gradient android:startColor="#071C1A" android:centerColor="#0C2927"
+                android:endColor="#071715" android:angle="270"/>
+        </shape>
+    </item>
+    <item android:gravity="center" android:drawable="@drawable/satnova_home_icon"
+        android:width="156dp" android:height="156dp"/>
+</layer-list>
