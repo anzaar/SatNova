@@ -282,10 +282,20 @@ open class MinimalHomeActivity : Activity() {
         super.onDestroy()
     }
 
+    private fun sportsMode(): Boolean =
+        prefs.getString("ui_theme", "islamic") == "sport"
+
     private fun rounded(color: Int, focused: Boolean = false) = GradientDrawable().apply {
-        setColor(color)
+        val sporty = sportsMode()
+        val tone = if (sporty) when (color) {
+            surface -> Color.argb(237, 43, 18, 27) // dark Moroccan red
+            selected -> Color.argb(245, 96, 23, 39) // selected Atlas Lions tile
+            else -> color
+        } else color
+        setColor(tone)
         cornerRadius = dp(13).toFloat()
-        if (focused) setStroke(dp(2), border)
+        if (focused) setStroke(dp(2),
+            if (sporty) Color.rgb(232, 184, 97) else border)
     }
 
     private fun text(value: String, size: Float, strong: Boolean = false, color: Int = fg) =
@@ -432,7 +442,9 @@ open class MinimalHomeActivity : Activity() {
     }
 
     private fun section(title: String) {
-        content.addView(text(title, 22f, true), LinearLayout.LayoutParams(-1, -2).apply {
+        content.addView(text(title, 22f, true,
+            if (sportsMode()) Color.rgb(246, 217, 164) else fg),
+            LinearLayout.LayoutParams(-1, -2).apply {
             topMargin = dp(11); bottomMargin = dp(7)
         })
     }
@@ -466,7 +478,8 @@ open class MinimalHomeActivity : Activity() {
         header.addView(iconButton(R.drawable.satnova_home_icon, "Accueil") { render() },
             LinearLayout.LayoutParams(dp(46), dp(46)))
         header.addView(text("SatNova TV Home", 23f, true,
-            Color.rgb(215, 236, 187)).apply { gravity = Gravity.CENTER_VERTICAL },
+            if (sportsMode()) Color.rgb(247, 215, 163) else Color.rgb(215, 236, 187))
+            .apply { gravity = Gravity.CENTER_VERTICAL },
             LinearLayout.LayoutParams(-2, dp(46)).apply { leftMargin = dp(16) })
         header.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
         if (!previewMode) {
