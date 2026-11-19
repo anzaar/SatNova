@@ -15,6 +15,7 @@ import android.graphics.RectF
 import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.graphics.LinearGradient
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.drawable.Drawable
 import android.view.View
 import java.io.File
@@ -44,6 +45,16 @@ internal class SatNovaWallpaper(
     private val customFile = File(context.filesDir, "satnova_custom_background.jpg")
     private var customBitmap: Bitmap? = null
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+    private val sportsPaint by lazy(LazyThreadSafetyMode.NONE) {
+        Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG).apply {
+            colorFilter = ColorMatrixColorFilter(floatArrayOf(
+                1.20f, 0f, 0f, 0f, 4f,
+                0f, 1.20f, 0f, 0f, 4f,
+                0f, 0f, 1.20f, 0f, 4f,
+                0f, 0f, 0f, 1f, 0f
+            ))
+        }
+    }
 
     fun reload() {
         customBitmap = null
@@ -64,7 +75,8 @@ internal class SatNovaWallpaper(
         }
         bitmap?.let {
             val b = bounds
-            canvas.drawBitmap(it, null, Rect(b.left, b.top, b.right, b.bottom), paint)
+            canvas.drawBitmap(it, null, Rect(b.left, b.top, b.right, b.bottom),
+                if (mode == "sport") sportsPaint else paint)
         }
         if (mode == "sport") {
             // Like the Islamic composition, keep the left side calm and dark
