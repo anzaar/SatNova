@@ -65,7 +65,7 @@ class Zen4PersistentService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         return Notification.Builder(this, channelId)
             .setSmallIcon(R.drawable.satnova_home_icon)
-            .setContentTitle("SatNova TV Home")
+            .setContentTitle("AltaPlay Launcher · Zen")
             .setContentText(status)
             .setContentIntent(pending)
             .setOngoing(true)

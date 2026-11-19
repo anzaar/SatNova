@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"/>
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-    <application tools:replace="android:label" android:label="SatNova TV Home"
+    <application tools:replace="android:label" android:label="AltaPlay Launcher (Prototype)"
         android:banner="@drawable/satnova_tv_banner">
         <!-- Optional HDMI bridge edition: explicit Accessibility service and TV HOME. -->
         <activity android:name=".MobilePreviewActivity" tools:node="remove"/>
@@ -22,7 +22,7 @@
             android:stopWithTask="false"
             android:foregroundServiceType="connectedDevice"/>
         <service android:name=".Zen4HdmiRemoteService"
-            android:label="SatNova · Télécommande Zen 4 sur HDMI"
+            android:label="AltaPlay · Télécommande Zen 4 sur HDMI"
             android:exported="true"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
@@ -32,7 +32,7 @@
                 android:resource="@xml/zen4_hdmi_remote_service"/>
         </service>
         <activity android:name=".MinimalHomeActivity"
-            android:label="SatNova TV Home"
+            android:label="AltaPlay Launcher (Prototype)"
             android:banner="@drawable/satnova_tv_banner"
             android:exported="true" android:screenOrientation="landscape">
             <!-- Allow relaunch from LifeMax apps before selecting default HOME. -->

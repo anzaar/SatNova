@@ -16,7 +16,7 @@
             <category android:name="android.intent.category.LAUNCHER"/>
         </intent>
     </queries>
-    <application android:label="SatNova Home Alpha" android:theme="@style/SatNovaLaunchTheme"
+    <application android:label="AltaPlay Launcher · Zen Prototype" android:theme="@style/SatNovaLaunchTheme"
         android:icon="@drawable/satnova_home_icon" android:allowBackup="false" android:usesCleartextTraffic="false">
         <activity android:name=".MobilePreviewActivity" android:label="SatNova Home · Test"
             android:exported="true" android:screenOrientation="landscape">

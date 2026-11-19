@@ -7,11 +7,11 @@ android {
     namespace = "com.satnova.alpha"
     compileSdk = 35
     defaultConfig {
-        applicationId = "com.satnova.tvhome"
+        applicationId = "com.altaplay.launcher"
         minSdk = 26
         targetSdk = 35
-        versionCode = 21
-        versionName = "0.5.15-auto-setup-hdmi-permanent"
+        versionCode = 1
+        versionName = "0.1.0-zen-prototype"
     }
     // Official release signing uses a private JKS kept only in GitHub Actions secrets.
     // Local/debug builds remain available without it; never commit a private key.
@@ -51,7 +51,7 @@ android {
             dimension = "device"
             // Optional HDMI-key bridge edition. Requires explicit Accessibility consent;
             // TV firmware and Play Protect may refuse this feature.
-            applicationIdSuffix = ".tvbridge"
+            // Dedicated application ID; do not replace Secreto or SatNova TV.
             versionNameSuffix = "-tvbridge"
         }
         create("mobile") {
