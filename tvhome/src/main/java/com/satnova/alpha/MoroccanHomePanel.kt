@@ -117,10 +117,12 @@ internal class MoroccanHomePanel(
 
     fun build(): View {
         loadPrayerCache()
+        val sporty = prefs.getString("ui_theme", "islamic") == "sport"
+        val ui = SatNovaLanguage(prefs)
         val panelShape = android.graphics.drawable.GradientDrawable().apply {
             cornerRadius = dp(17).toFloat()
-            setColor(Color.argb(224, 3, 46, 34))
-            setStroke(dp(1), Color.rgb(177, 188, 98))
+            setColor(if (sporty) Color.argb(229, 36, 24, 30) else Color.argb(224, 3, 46, 34))
+            setStroke(dp(1), if (sporty) Color.rgb(228, 166, 76) else Color.rgb(177, 188, 98))
         }
         val panel = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -152,13 +154,25 @@ internal class MoroccanHomePanel(
             })
         }
 
-        // The lantern stays decorative; no content/permission/network cost.
-        panel.addView(IslamicLanternView(activity), LinearLayout.LayoutParams(0, dp(112), 0.73f))
+        // The treasured Islamic theme stays unchanged. Sports has its own emblem.
+        val emblem: View = if (sporty) TextView(activity).apply {
+            text = "⚽\nRABAT"
+            gravity = Gravity.CENTER
+            textSize = if (preview) 21f else 25f
+            setTextColor(Color.rgb(243, 211, 128))
+            setTypeface(null, Typeface.BOLD)
+            background = android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = dp(18).toFloat()
+                setColor(Color.argb(220, 61, 22, 31))
+                setStroke(dp(2), Color.rgb(199, 159, 94))
+            }
+        } else IslamicLanternView(activity)
+        panel.addView(emblem, LinearLayout.LayoutParams(0, dp(112), 0.73f))
         divider()
 
         val weatherCol = column(.96f)
         weatherLabel = center(text(weather, if (preview) 15f else 19f, Color.WHITE, true))
-        weatherCol.addView(center(text("☁ الطقس الآن", 15f, Color.rgb(199, 219, 198), true)))
+        weatherCol.addView(center(text("☁ " + ui.t("weatherNow"), 15f, Color.rgb(199, 219, 198), true)))
         weatherCol.addView(weatherLabel)
         divider()
 
@@ -168,7 +182,7 @@ internal class MoroccanHomePanel(
         divider()
 
         val prayerCol = column(1.48f)
-        nextPrayer = center(text("الصلاة المقبلة", 16f, Color.rgb(201, 229, 169), true))
+        nextPrayer = center(text(ui.t("nextPrayer"), 16f, Color.rgb(201, 229, 169), true))
         countdown = center(text("--:--:--", if (preview) 21f else 27f,
             Color.rgb(229, 246, 203), true))
         prayerClock = center(text("الوقت: —", 13f))
@@ -179,7 +193,7 @@ internal class MoroccanHomePanel(
 
         val hijriCol = column(1.40f)
         hijri = center(text("بانتظار التقويم المغربي", if (preview) 14f else 18f, Color.WHITE, true))
-        hijriCol.addView(center(text("التقويم الهجري المغربي", 12f,
+        hijriCol.addView(center(text(ui.t("hijriCalendar"), 12f,
             Color.rgb(208, 224, 192))))
         hijriCol.addView(hijri)
         divider()
@@ -217,8 +231,13 @@ internal class MoroccanHomePanel(
         if (!::clock.isInitialized) return
         val now = ZonedDateTime.now(zone())
         clock.text = now.format(DateTimeFormatter.ofPattern("HH:mm", Locale.US))
-        day.text = now.format(DateTimeFormatter.ofPattern("EEEE", arabic))
-        date.text = now.format(DateTimeFormatter.ofPattern("d MMMM yyyy", arabic)) + " م"
+        val displayLocale = when (SatNovaLanguage(prefs).code()) {
+            "en" -> Locale.ENGLISH
+            "fr" -> Locale.FRENCH
+            else -> arabic
+        }
+        day.text = now.format(DateTimeFormatter.ofPattern("EEEE", displayLocale))
+        date.text = now.format(DateTimeFormatter.ofPattern("d MMMM yyyy", displayLocale))
         cityLabel.text = "📍 " + city().name
         weatherLabel.text = weather
         val today = manualDay(now.toLocalDate()) ?: prayers[now.toLocalDate()]
@@ -259,12 +278,12 @@ internal class MoroccanHomePanel(
         }
         val next = nextAt
         if (next == null) {
-            nextPrayer.text = "الصلاة المقبلة"
+            nextPrayer.text = SatNovaLanguage(prefs).t("nextPrayer")
             countdown.text = if (loadingPrayer) "جاري جلب المواقيت…" else "المواقيت غير متاحة"
             prayerClock.text = "راجع الحصة الرسمية لمدينتك"
         } else {
             val seconds = java.time.Duration.between(now, next).seconds.coerceAtLeast(0L)
-            nextPrayer.text = "الصلاة المقبلة: " + name
+            nextPrayer.text = SatNovaLanguage(prefs).t("nextPrayer") + ": " + name
             countdown.text = String.format(Locale.US, "%02d:%02d:%02d",
                 seconds / 3600, seconds / 60 % 60, seconds % 60)
             prayerClock.text = "على الساعة " + next.format(DateTimeFormatter.ofPattern("HH:mm", Locale.US))
@@ -306,7 +325,7 @@ internal class MoroccanHomePanel(
                             today.year + "/" + today.monthValue +
                             "?city=" + java.net.URLEncoder.encode(target.name, "UTF-8") +
                             "&country=" + java.net.URLEncoder.encode(target.country, "UTF-8") +
-                            "&method=" + if (target.country.equals("Morocco", true)) "21" else "3"
+                            "&method=" + (if (target.country.equals("Morocco", true)) "21" else "3")
                         val fallback = fetch(url)
                         val parsed = parseAladhanMonth(fallback)
                         if (parsed.isNotEmpty()) {
@@ -536,7 +555,7 @@ internal class MoroccanHomePanel(
                     try {
                         val url = "https://geocoding-api.open-meteo.com/v1/search?name=" +
                             java.net.URLEncoder.encode(term, "UTF-8") +
-                            "&count=20&language=ar&format=json"
+                            "&count=20&language=" + SatNovaLanguage(prefs).code() + "&format=json"
                         val locations = JSONObject(fetch(url)).optJSONArray("results") ?: org.json.JSONArray()
                         ui.post {
                             if (stopped) return@post
@@ -556,7 +575,7 @@ internal class MoroccanHomePanel(
                                     val lon = item.getDouble("longitude")
                                     val name = item.getString("name")
                                     val country = if (item.optString("country_code") == "MA")
-                                        "Morocco" else item.optString("country")
+                                        "Morocco" else item.optString("country_code", "FR")
                                     prefs.edit()
                                         .putString("user_city_name", name)
                                         .putString("user_city_country", country)
