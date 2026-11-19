@@ -10,8 +10,8 @@ android {
         applicationId = "com.satnova.tvhome"
         minSdk = 26
         targetSdk = 35
-        versionCode = 19
-        versionName = "0.5.13-color-remote-test"
+        versionCode = 20
+        versionName = "0.5.14-settings-i18n-sports-quran-adhan"
     }
     flavorDimensions += "device"
     productFlavors {
