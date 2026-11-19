@@ -26,6 +26,9 @@ jobs:
       - name: Enable KVM
         run: |
           if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; else echo "::warning::No KVM"; fi
+      - name: Syntax check smoke-test script before booting emulator
+        shell: bash
+        run: bash -n scripts/satnova-v014-androidtv-smoke.sh
       - name: Android SDK build-tools 35 and platform tools
         shell: bash
         run: |
