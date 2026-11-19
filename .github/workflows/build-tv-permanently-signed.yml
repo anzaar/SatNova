@@ -69,8 +69,10 @@ jobs:
           gradle --no-daemon --stacktrace :tvhome:assembleTvbridgeRelease
       - name: Confirm signed APK and fingerprint
         shell: bash
+        # Public certificate fingerprint is pinned here; no fifth secret needed.
+        # The private signing key still comes only from encrypted Actions secrets.
         env:
-          SATNOVA_EXPECTED_CERT_SHA256: ${{ secrets.SATNOVA_EXPECTED_CERT_SHA256 }}
+          SATNOVA_EXPECTED_CERT_SHA256: 53b4392af8e4940c21ac0cb080bbc2bb145d68bd027e96ec3d16557e7799f581
         run: |
           set -euo pipefail
           APK=tvhome/build/outputs/apk/tvbridge/release/tvhome-tvbridge-release.apk
@@ -79,10 +81,6 @@ jobs:
           ACTUAL="$(sed -nE 's/.*Signer #1 certificate SHA-256 digest: ([a-f0-9]{64}).*/\1/p' /tmp/signer.txt | head -n 1)"
           test -n "$ACTUAL"
           echo "Certificate SHA-256: $ACTUAL"
-          if [[ -z "$SATNOVA_EXPECTED_CERT_SHA256" ]]; then
-            echo "::error::Missing expected certificate secret; refusing to publish"
-            exit 1
-          fi
           if [[ "$ACTUAL" != "$SATNOVA_EXPECTED_CERT_SHA256" ]]; then
             echo "::error::Certificate mismatch: refusing to release a different signature."
             exit 1
@@ -114,4 +112,4 @@ jobs:
           fi
           gh release create "$TAG" "$OUT" --target "$GITHUB_SHA" --prerelease \
             --title "SatNova TV Home v0.5.15 - Permanent Signature Update" \
-            --notes "SIGNED RELEASE TEST. Verified SHA-256 certificate matches the SATNOVA_EXPECTED_CERT_SHA256 repository secret. Package com.satnova.tvhome.tvbridge, versionCode 21. Intended to update an installed TVBridge APK ONLY if its signing certificate is the same permanent certificate. Never uninstall existing launcher until app data and factory HOME recovery are safe. Features: automatic receiver-first setup, HDMI remote checks and opt-in boot-to-SatNova."
+            --notes "SIGNED RELEASE TEST. Verified SHA-256 certificate matches the known public SatNova signing certificate (pinned in workflow). Package com.satnova.tvhome.tvbridge, versionCode 21. Intended to update an installed TVBridge APK ONLY if its signing certificate is the same permanent certificate. Never uninstall existing launcher until app data and factory HOME recovery are safe. Features: automatic receiver-first setup, HDMI remote checks and opt-in boot-to-SatNova."
