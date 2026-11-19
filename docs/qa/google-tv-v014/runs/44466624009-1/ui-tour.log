@@ -1,0 +1,42 @@
+PHOTO 01_first_start Initial first-run screen, before granting any permissions
+PHOTO 02_islamic_home Original Islamic theme and live TV app grid
+SPORTS TEST: prepare temporary debug-only preference
+PHOTO 05_atlas_lions_sport Real Google TV SatNova sports mode and stadium wallpaper
+SPORTS TEST: saved real sports frame; preference verified and pixels differ
+PHOTO 06_sports_lower Real Google TV sports theme after scrolling rows
+SKIP can't find Paramètres
+SKIP can't find Settings
+SKIP can't find الإعدادات
+SKIP can't find Paramètres
+CLICK Settings
+PHOTO 03_settings Full TV launcher settings menu
+SKIP can't find Paramètres
+SKIP can't find Settings
+SKIP can't find الإعدادات
+CLICK Paramètres
+CLICK Thèmes et fond
+PHOTO 04_theme_picker Available Islamic, Atlas Lions sport, and custom wallpapers
+CLICK Stade Moulay Abdellah
+PHOTO 05_atlas_lions_sport Actual 1080p Atlas Lions sports wallpaper and Moroccan colors
+PHOTO 06_sports_lower Sport mode after scrolling TV, radios and Quran
+CLICK Paramètres
+CLICK Ville météo et prières
+PHOTO 07_city_picker Prayer-time and worldwide weather city list
+CLICK Paramètres
+CLICK Saint Coran
+PHOTO 08_quran_114 Real Quran 114-surah selection dialog
+SKIP can't find Paramètres
+SKIP can't find Settings
+SKIP can't find الإعدادات
+CLICK Paramètres
+CLICK Audio de l'adhan
+PHOTO 09_adhan Adhan reciters and enable/disable options
+CLICK Paramètres
+SKIP can't find Télécommande ZEN 4 via HDMI
+SKIP can't find ZEN 4 remote via HDMI
+SKIP can't find تيليكوموند ZEN 4 عبر HDMI
+CLICK Paramètres
+SKIP can't find Contournement HOME (facultatif)
+SKIP can't find Optional Home override
+SKIP can't find تجاوز الواجهة الأصلية اختيارياً
+CLICK Paramètres
