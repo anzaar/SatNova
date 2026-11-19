@@ -1,6 +1,7 @@
 package com.satnova.alpha
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -15,21 +16,84 @@ import android.graphics.RadialGradient
 import android.graphics.Shader
 import android.graphics.drawable.Drawable
 import android.view.View
+import java.io.File
+import java.net.URL
+import java.util.concurrent.Executors
 
 /**
- * The original decorative mosque wallpaper bundled offline with the launcher.
- * Loaded once, then scaled to the TV canvas; no network or animated wallpaper work.
+ * Islamic theme retains the original bundled artwork unchanged.
+ * Optional real 2025 Moulay Abdellah Stadium photo © Reda Benkhadra,
+ * CC BY-SA 4.0; credit appears in the background picker.
+ * Sports photo downloaded once on demand into private app storage.
  */
-internal class SatNovaWallpaper(context: Context) : Drawable() {
-    private val bitmap: Bitmap? = try {
+internal class SatNovaWallpaper(
+    private val context: Context,
+    private val prefs: SharedPreferences
+) : Drawable() {
+    private val islamic: Bitmap? = try {
         context.assets.open("satnova_wallpaper.webp").use { BitmapFactory.decodeStream(it) }
     } catch (_: Exception) { null }
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
+    private val worker = Executors.newSingleThreadExecutor()
+    private val sports = File(context.filesDir, "satnova_moulay_abdellah_2025.jpg")
+    private val custom = File(context.filesDir, "satnova_custom_background.jpg")
+    private var sportsBitmap: Bitmap? = null
+    private var customBitmap: Bitmap? = null
+    private var downloading = false
+    private val stadium = "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Moulay_Abdellah_Stadium.jpg/960px-Moulay_Abdellah_Stadium.jpg"
+
     override fun draw(canvas: Canvas) {
         canvas.drawColor(Color.rgb(4, 33, 26))
+        val mode = prefs.getString("ui_theme", "islamic")
+        val bitmap = when (mode) {
+            "sport" -> {
+                if (sportsBitmap == null && sports.isFile)
+                    sportsBitmap = BitmapFactory.decodeFile(sports.absolutePath)
+                if (sportsBitmap == null && !downloading) loadSports()
+                sportsBitmap ?: islamic
+            }
+            "custom" -> {
+                if (customBitmap == null && custom.isFile)
+                    customBitmap = BitmapFactory.decodeFile(custom.absolutePath)
+                customBitmap ?: islamic
+            }
+            else -> islamic
+        }
         bitmap?.let {
             val b = bounds
             canvas.drawBitmap(it, null, Rect(b.left, b.top, b.right, b.bottom), paint)
+        }
+        if (mode == "sport" || mode == "custom") {
+            val overlay = Paint().apply { color = Color.argb(122, 0, 18, 22) }
+            canvas.drawRect(bounds, overlay)
+        }
+    }
+    private fun loadSports() {
+        downloading = true
+        worker.execute {
+            try {
+                val bytes = URL(stadium).openConnection().apply {
+                    connectTimeout = 12000
+                    readTimeout = 20000
+                }.getInputStream().use { input ->
+                    val limited = java.io.ByteArrayOutputStream()
+                    val buffer = ByteArray(16384)
+                    while (true) {
+                        val n = input.read(buffer)
+                        if (n < 0) break
+                        require(limited.size() + n < 5_000_000)
+                        limited.write(buffer, 0, n)
+                    }
+                    limited.toByteArray()
+                }
+                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    ?: error("Invalid photograph")
+                sports.writeBytes(bytes)
+                sportsBitmap = bitmap
+                invalidateSelf()
+            } catch (_: Exception) {
+                // Remain on the existing Islamic theme if offline.
+            } finally { downloading = false }
         }
     }
     override fun setAlpha(alpha: Int) { paint.alpha = alpha }
