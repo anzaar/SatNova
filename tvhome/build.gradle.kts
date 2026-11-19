@@ -13,6 +13,32 @@ android {
         versionCode = 20
         versionName = "0.5.14-settings-i18n-sports-quran-adhan"
     }
+    // Official release signing uses a private JKS kept only in GitHub Actions secrets.
+    // Local/debug builds remain available without it; never commit a private key.
+    val satnovaStoreFile = System.getenv("SATNOVA_KEYSTORE_PATH")
+    val satnovaStorePassword = System.getenv("SATNOVA_STORE_PASSWORD")
+    val satnovaKeyAlias = System.getenv("SATNOVA_KEY_ALIAS")
+    val satnovaKeyPassword = System.getenv("SATNOVA_KEY_PASSWORD")
+    val hasPermanentSigning = !satnovaStoreFile.isNullOrBlank() &&
+        !satnovaStorePassword.isNullOrBlank() &&
+        !satnovaKeyAlias.isNullOrBlank() &&
+        !satnovaKeyPassword.isNullOrBlank()
+    if (hasPermanentSigning) {
+        signingConfigs {
+            create("satnovaPermanent") {
+                storeFile = file(satnovaStoreFile!!)
+                storePassword = satnovaStorePassword
+                keyAlias = satnovaKeyAlias
+                keyPassword = satnovaKeyPassword
+            }
+        }
+        buildTypes {
+            getByName("release") {
+                signingConfig = signingConfigs.getByName("satnovaPermanent")
+                isMinifyEnabled = false
+            }
+        }
+    }
     flavorDimensions += "device"
     productFlavors {
         create("tv") {
