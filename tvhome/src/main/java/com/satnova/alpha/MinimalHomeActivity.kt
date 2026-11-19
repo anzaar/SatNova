@@ -1147,7 +1147,6 @@ open class MinimalHomeActivity : Activity() {
         }
         AlertDialog.Builder(this)
             .setTitle("SatNova TV Home · " + lang.name())
-            .setMessage("Sélectionnez une étape. Aucune commande ADB n'est nécessaire. Le choix HOME et Accessibilité demandent une confirmation dans Android TV. Le démarrage sur HDMI dépend du firmware et de ses paramètres d'alimentation.")
             .setItems(actions.mapIndexed { index, step ->
                 (index + 1).toString() + " · " + step.first
             }.toTypedArray()) { _, index ->
@@ -1155,6 +1154,11 @@ open class MinimalHomeActivity : Activity() {
             }
             .setPositiveButton(lang.t("close")) { _, _ ->
                 window.decorView.postDelayed({ restoreLauncherFocus(force = true) }, 100L)
+            }
+            .setNeutralButton("Aide") { _, _ ->
+                AlertDialog.Builder(this).setTitle("Première configuration SatNova")
+                    .setMessage("Sélectionnez une étape dans le guide. Aucune commande ADB n'est nécessaire pour utiliser les menus. Le choix HOME et Accessibilité demandent une confirmation Android TV ; démarrer sur HDMI dépend du firmware.")
+                    .setPositiveButton(lang.t("close"), null).show()
             }
             .show()
     }
@@ -1378,7 +1382,6 @@ open class MinimalHomeActivity : Activity() {
 
     private fun chooseBackground() {
         AlertDialog.Builder(this).setTitle(lang.t("themes"))
-            .setMessage("Sport : stade Moulay Abdellah, Rabat. Photo © Reda Benkhadra / CC BY-SA 4.0 (Wikimedia Commons), recadrée et assombrie pour SatNova.")
             .setItems(arrayOf(lang.t("islamic"), lang.t("sport"), lang.t("custom"))) { _, choice ->
                 if (choice == 2) {
                     try {
@@ -1395,6 +1398,10 @@ open class MinimalHomeActivity : Activity() {
                     islamicPanel.refreshBackground()
                     render()
                 }
+            }.setNeutralButton("Crédit photo") { _, _ ->
+                AlertDialog.Builder(this).setTitle("Thème sportif")
+                    .setMessage("Sport : stade Moulay Abdellah, Rabat. Photo © Reda Benkhadra / CC BY-SA 4.0 (Wikimedia Commons), recadrée et assombrie pour SatNova.")
+                    .setPositiveButton(lang.t("close"), null).show()
             }.setNegativeButton(lang.t("close"), null).show()
     }
 
