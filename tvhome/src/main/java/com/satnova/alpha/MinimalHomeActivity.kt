@@ -53,12 +53,14 @@ open class MinimalHomeActivity : Activity() {
     private val logos by lazy { ChannelLogoStore(this) { scheduleRender() } }
     private val families by lazy { ChannelFamilies(prefs) }
     private val islamicPanel by lazy { MoroccanHomePanel(this, prefs, previewMode) }
+    private val lang by lazy { SatNovaLanguage(prefs) }
+    private val quran by lazy { QuranLibrary(this) }
+    private val backgroundPickerRequest = 7854
     private val fileProbeWorker = Executors.newSingleThreadExecutor()
     private var channels: List<ZenChannel> = emptyList()
     private var radios: List<ZenChannel> = emptyList()
     private var online = false
     private var receiverMessage = "Récepteur non connecté"
-    private var activePage = 0
     private var diagnosticToSave: String? = null
     private val diagnosticSaveRequest = 7124
     private val logoPickerRequest = 7350
@@ -190,7 +192,6 @@ open class MinimalHomeActivity : Activity() {
     }
 
     private data class AppItem(val label: String, val component: ComponentName, val info: ResolveInfo)
-    private data class LocalPage(val title: String, val ids: MutableList<String>)
     private fun dp(n: Int) = (n * resources.displayMetrics.density + .5f).toInt()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -277,6 +278,7 @@ open class MinimalHomeActivity : Activity() {
         redrawHandler.removeCallbacks(redrawTask)
         logos.close()
         islamicPanel.stop()
+        quran.close()
         super.onDestroy()
     }
 
@@ -478,9 +480,20 @@ open class MinimalHomeActivity : Activity() {
                 isFocusable = false
             }, LinearLayout.LayoutParams(-2, dp(52)).apply { rightMargin = dp(24) })
         }
-        header.addView(iconButton(android.R.drawable.ic_menu_search, "Recherche") { search() },
+        if (!previewMode) {
+            header.addView(quickButton("📶", lang.t("wifi")) { openWifiSettings() },
+                LinearLayout.LayoutParams(dp(52), dp(52)).apply { rightMargin = dp(4) })
+            header.addView(quickButton("🌐", lang.name()) { chooseLanguage() },
+                LinearLayout.LayoutParams(dp(52), dp(52)).apply { rightMargin = dp(4) })
+            header.addView(quickButton("📍", lang.t("location")) {
+                islamicPanel.chooseCity { render() }
+            }, LinearLayout.LayoutParams(dp(52), dp(52)).apply { rightMargin = dp(4) })
+            header.addView(quickButton("🕒", lang.t("time")) { openTimeSettings() },
+                LinearLayout.LayoutParams(dp(52), dp(52)).apply { rightMargin = dp(4) })
+        }
+        header.addView(iconButton(android.R.drawable.ic_menu_search, lang.t("search")) { search() },
             LinearLayout.LayoutParams(dp(52), dp(52)).apply { rightMargin = dp(12) })
-        header.addView(iconButton(android.R.drawable.ic_menu_preferences, "Paramètres") {
+        header.addView(iconButton(android.R.drawable.ic_menu_preferences, lang.t("settings")) {
             settings()
         }.apply {
             // Long OK / long click opens the real Android TV Settings even
@@ -507,7 +520,6 @@ open class MinimalHomeActivity : Activity() {
         showTv()
         showRadios()
         if (prefs.getBoolean("show_history", false)) showHistory()
-        showFavorites()
         scroll.post {
             if (isFinishing || isDestroyed || activeScroll !== scroll) return@post
             scroll.scrollTo(0, oldY)
@@ -557,7 +569,7 @@ open class MinimalHomeActivity : Activity() {
     }
 
     private fun showApps() {
-        section("Applications favorites")
+        section(lang.t("apps"))
         val (scroll, row) = horizontalRow()
         val all = installedApps()
         selectedApps(all).forEach { app ->
@@ -570,7 +582,7 @@ open class MinimalHomeActivity : Activity() {
     }
 
     private fun showTv() {
-        section("TV")
+        section(lang.t("tv"))
         // Export and receiver-file shortcuts were retired from the TV home.
         content.addView(text(receiverMessage, 14f, color = if (online)
             Color.rgb(167, 225, 180) else muted),
@@ -594,7 +606,7 @@ open class MinimalHomeActivity : Activity() {
     }
 
     private fun showRadios() {
-        section("Radios")
+        section(lang.t("radio"))
         if (radios.isEmpty()) {
             val (scroll, row) = horizontalRow()
             addCard(row, "Aucune radio", "En attente du catalogue",
@@ -644,63 +656,6 @@ open class MinimalHomeActivity : Activity() {
             prefs.edit().putString("watch_history", JSONArray(ids).toString()).apply()
             if (prefs.getBoolean("show_history", false)) render()
         }
-    }
-
-    private fun pages(): MutableList<LocalPage> {
-        val raw = prefs.getString("pages", null)
-        if (raw.isNullOrBlank()) return mutableListOf(LocalPage("Mes favoris", mutableListOf()))
-        return try {
-            val array = JSONArray(raw)
-            (0 until array.length()).mapNotNull { i ->
-                val p = array.optJSONObject(i) ?: return@mapNotNull null
-                val title = p.optString("name", "").take(32)
-                if (title.isBlank()) return@mapNotNull null
-                val idsArray = p.optJSONArray("ids") ?: JSONArray()
-                LocalPage(title, (0 until idsArray.length()).mapNotNull { x ->
-                    idsArray.optString(x).takeIf(String::isNotBlank)
-                }.distinct().toMutableList())
-            }.toMutableList().ifEmpty { mutableListOf(LocalPage("Mes favoris", mutableListOf())) }
-        } catch (_: Exception) { mutableListOf(LocalPage("Mes favoris", mutableListOf())) }
-    }
-
-    private fun savePages(list: List<LocalPage>) {
-        val arr = JSONArray()
-        list.forEach { p ->
-            arr.put(JSONObject().put("name", p.title).put("ids", JSONArray(p.ids)))
-        }
-        prefs.edit().putString("pages", arr.toString()).apply()
-    }
-
-    private fun showFavorites() {
-        section("Favoris")
-        val list = pages()
-        activePage = activePage.coerceIn(0, list.lastIndex)
-        val (tabs, row) = horizontalRow()
-        list.forEachIndexed { index, page ->
-            val chip = text(page.title, 14f, true).apply {
-                gravity = Gravity.CENTER
-                setPadding(dp(20), dp(12), dp(20), dp(12))
-                background = rounded(if (index == activePage) selected else surface)
-            }
-            focusable(chip, { activePage = index; render() }, { editPage(index) })
-            row.addView(chip, LinearLayout.LayoutParams(-2, dp(46)).apply { rightMargin = dp(10) })
-        }
-        content.addView(withArrows(rememberRow("favorite-tabs", tabs)))
-        val (scroll, favorites) = horizontalRow()
-        val channelMap = (channels + radios).associateBy { it.id }
-        val ids = list[activePage].ids
-        if (ids.isEmpty()) {
-            addCard(favorites, "Aucune chaîne", "Appui long sur une chaîne TV",
-                getDrawable(android.R.drawable.ic_menu_info_details), { settings() })
-        } else {
-            ids.mapNotNull(channelMap::get).forEach { channel ->
-                addCard(favorites, channel.name, ChannelDescription.summary(channel),
-                    getDrawable(android.R.drawable.ic_media_play),
-                    { openChannel(channel) }, { removeFavorite(channel.id) }, channel)
-            }
-        }
-        content.addView(withArrows(rememberRow("favorites:$activePage", scroll)),
-            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14) })
     }
 
     /** A family tile opens a chooser, never tunes an arbitrary variant on first click. */
@@ -792,19 +747,18 @@ open class MinimalHomeActivity : Activity() {
     }
 
     private fun channelActions(channel: ZenChannel) {
-        val labels = arrayOf("Regarder / écouter", "Ajouter aux Favoris",
+        val labels = arrayOf("Regarder / écouter",
             "Ajouter à un groupe", "Afficher séparément", "Regroupement automatique",
             "Choisir un logo local (TV / USB)", "Supprimer mon logo local")
         AlertDialog.Builder(this).setTitle(channel.name)
             .setItems(labels) { _, index ->
                 when (index) {
                     0 -> openChannel(channel)
-                    1 -> addChannelToPage(channel)
-                    2 -> chooseGroup(channel)
-                    3 -> { families.removeFromGroup(channel.id); render() }
-                    4 -> { families.assign(channel.id, null); render() }
-                    5 -> chooseLogoFile(channel)
-                    6 -> {
+                    1 -> chooseGroup(channel)
+                    2 -> { families.removeFromGroup(channel.id); render() }
+                    3 -> { families.assign(channel.id, null); render() }
+                    4 -> chooseLogoFile(channel)
+                    5 -> {
                         logos.removeCustomLogo(channel)
                         logos.retryFailed()
                         render()
@@ -920,63 +874,6 @@ open class MinimalHomeActivity : Activity() {
             channelError("Passage HDMI indisponible",
                 "La commande de chaîne a été confirmée par Zen 4, mais le téléviseur n'a pas pu basculer automatiquement vers " + suggested + ". Appuyez sur SOURCE / INPUT de la télécommande et choisissez " + suggested + ".")
         }
-    }
-
-    private fun addChannelToPage(channel: ZenChannel) {
-        val list = pages()
-        AlertDialog.Builder(this).setTitle("Ajouter aux favoris")
-            .setItems(list.map(LocalPage::title).toTypedArray()) { _, index ->
-                val ids = list[index].ids
-                if (!ids.contains(channel.id)) ids.add(channel.id)
-                savePages(list)
-                activePage = index
-                render()
-            }.setNegativeButton("Annuler", null).show()
-    }
-
-    private fun removeFavorite(id: String) {
-        AlertDialog.Builder(this).setTitle("Retirer des favoris ?")
-            .setPositiveButton("Retirer") { _, _ ->
-                val list = pages()
-                list[activePage].ids.remove(id)
-                savePages(list)
-                render()
-            }.setNegativeButton("Annuler", null).show()
-    }
-
-    private fun editPage(index: Int) {
-        val options = arrayOf("Renommer", "Supprimer", "Ajouter une page")
-        AlertDialog.Builder(this).setTitle("Favoris").setItems(options) { _, which ->
-            when (which) {
-                0 -> askPageName(index)
-                1 -> {
-                    val list = pages()
-                    if (list.size > 1) {
-                        list.removeAt(index); savePages(list); activePage = 0; render()
-                    } else Toast.makeText(this, "Conservez au moins une page", Toast.LENGTH_SHORT).show()
-                }
-                2 -> askPageName(null)
-            }
-        }.show()
-    }
-
-    private fun askPageName(index: Int?) {
-        val input = EditText(this).apply {
-            isSingleLine = true
-            hint = "Nom de la page"
-            if (index != null) setText(pages()[index].title)
-        }
-        AlertDialog.Builder(this).setTitle(if (index == null) "Nouvelle page" else "Renommer la page")
-            .setView(input)
-            .setPositiveButton("Enregistrer") { _, _ ->
-                val title = input.text.toString().trim().take(32)
-                if (title.isNotBlank()) {
-                    val list = pages()
-                    if (index == null) { list.add(LocalPage(title, mutableListOf())); activePage = list.lastIndex }
-                    else list[index] = list[index].copy(title = title)
-                    savePages(list); render()
-                }
-            }.setNegativeButton("Annuler", null).show()
     }
 
     private fun chooseApps() {
