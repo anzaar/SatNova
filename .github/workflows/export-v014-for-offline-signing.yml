@@ -1,0 +1,55 @@
+name: Export v0.5.14 unsigned APK and official apksigner
+on:
+  push:
+    branches: [feature/tvbridge-v0.5.14-onboarding-i18n-quran]
+    paths: [.github/workflows/export-v014-for-offline-signing.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 367aa0b0169edae554f6be9093bb41cf12767ef3
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare official Google Android SDK build-tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          SDK_MANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDK_MANAGER"
+          yes | "$SDK_MANAGER" --licenses >/dev/null || true
+          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build UN-SIGNED release APK (no signing secrets are involved)
+        shell: bash
+        run: |
+          set -euo pipefail
+          env -u SATNOVA_KEYSTORE_PATH -u SATNOVA_STORE_PASSWORD -u SATNOVA_KEY_ALIAS \
+            -u SATNOVA_KEY_PASSWORD gradle --no-daemon --stacktrace :tvhome:assembleTvbridgeRelease
+          mkdir -p offline-signing
+          APK="$(find tvhome/build/outputs/apk/tvbridge/release -maxdepth 1 -name '*.apk' -print -quit)"
+          test -s "$APK"
+          cp "$APK" offline-signing/SatNova-v0.5.14-UNSIGNED.apk
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" offline-signing/apksigner.jar
+          test -s offline-signing/apksigner.jar
+          cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" offline-signing/zipalign
+          sha256sum offline-signing/*
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | head -n 5
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SatNova-v0.5.14-unsigned-with-official-apksigner
+          path: offline-signing/
+          retention-days: 3
