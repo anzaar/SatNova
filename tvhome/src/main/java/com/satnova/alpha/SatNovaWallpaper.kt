@@ -42,6 +42,7 @@ internal class SatNovaWallpaper(
     private var downloading = false
     private val stadium = "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/09/Moulay_Abdellah_Stadium.jpg/960px-Moulay_Abdellah_Stadium.jpg"
 
+    fun reload() { customBitmap = null; sportsBitmap = null; invalidateSelf() }
     override fun draw(canvas: Canvas) {
         canvas.drawColor(Color.rgb(4, 33, 26))
         val mode = prefs.getString("ui_theme", "islamic")
