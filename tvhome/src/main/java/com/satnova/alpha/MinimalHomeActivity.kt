@@ -268,7 +268,8 @@ open class MinimalHomeActivity : Activity() {
         super.onResume()
         if (!previewMode) {
             getSharedPreferences("zen4_hdmi_bridge", Context.MODE_PRIVATE)
-                .edit().putBoolean("armed", false).apply()
+                .edit().putBoolean("armed", false)
+                .putBoolean("hdmi_seen", false).apply()
         }
     }
 
@@ -1234,7 +1235,7 @@ open class MinimalHomeActivity : Activity() {
             append("Service Accessibilité : ")
             append(if (enabled) "activé" else "désactivé")
             append("\nActivation au changement de chaîne : ")
-            append(if (prefs.getBoolean("auto_arm", false)) "oui" else "non")
+            append(if (prefs.getBoolean("auto_arm", false)) "oui (retour HDMI compris)" else "non")
             append("\nMode Zen 4 sur HDMI : ")
             append(if (prefs.getBoolean("armed", false)) "armé" else "arrêté")
             append("\nDernière touche TV : ")
@@ -1252,7 +1253,7 @@ open class MinimalHomeActivity : Activity() {
             "Activer le contrôle Zen 4 sur HDMI",
             "Autoriser le service dans Accessibilité",
             "Autoriser l'application HDMI détectée",
-            "Activer / désactiver le contrôle automatique après zapping",
+            "Contrôle auto sur HDMI, même après HOME / Shahid (2 h)",
             "Arrêter le contrôle HDMI"
         )
         AlertDialog.Builder(this).setTitle("Télécommande Lifemaxx → Zen 4")
@@ -1301,14 +1302,27 @@ open class MinimalHomeActivity : Activity() {
                     }
                     3 -> {
                         val enable = !prefs.getBoolean("auto_arm", false)
-                        prefs.edit().putBoolean("auto_arm", enable).apply()
+                        val change = prefs.edit().putBoolean("auto_arm", enable)
+                        if (enable) {
+                            // Start a consent-bounded session now. Returning to
+                            // a known HDMI viewer does not extend the 2h limit.
+                            change.putLong("armed_since", System.currentTimeMillis())
+                                .putBoolean("armed", false)
+                                .putBoolean("hdmi_seen", false)
+                        } else {
+                            change.putBoolean("armed", false)
+                                .putBoolean("hdmi_seen", false)
+                        }
+                        change.apply()
                         Toast.makeText(this, if (enable)
-                            "Contrôle HDMI automatique activé après sélection d'une chaîne"
+                            "Contrôle HDMI auto activé : retour depuis HOME/Shahid, 2 h maximum"
                             else "Contrôle HDMI automatique désactivé", Toast.LENGTH_LONG).show()
                     }
                     4 -> {
                         prefs.edit().putBoolean("armed", false)
-                            .putBoolean("hdmi_seen", false).apply()
+                            .putBoolean("hdmi_seen", false)
+                            .putBoolean("auto_arm", false)
+                            .putLong("armed_since", 0L).apply()
                         Toast.makeText(this, "Contrôle HDMI arrêté", Toast.LENGTH_SHORT).show()
                     }
                 }

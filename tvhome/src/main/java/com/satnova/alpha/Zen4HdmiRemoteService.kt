@@ -127,14 +127,45 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         return pkg == prefs.getString("confirmed_hdmi_package", "")
     }
 
+    private fun sessionWithinLimit(): Boolean {
+        val since = prefs.getLong("armed_since", 0L)
+        return since > 0L && System.currentTimeMillis() - since in 0L..7_200_000L
+    }
+
     private fun armValid(): Boolean {
         if (!prefs.getBoolean("armed", false)) return false
-        val since = prefs.getLong("armed_since", 0L)
-        if (since <= 0L || System.currentTimeMillis() - since !in 0..7_200_000L) {
-            prefs.edit().putBoolean("armed", false).apply()
+        if (!sessionWithinLimit()) {
+            prefs.edit().putBoolean("armed", false).putBoolean("auto_arm", false)
+                .putBoolean("hdmi_seen", false).apply()
+            swallowed.clear()
             return false
         }
         return true
+    }
+
+    /**
+     * User-opted-in HDMI auto-arm may resume an existing session after HOME,
+     * Shahid or SOURCE. Only a known/confirmed HDMI viewer may trigger it;
+     * it must NEVER reset the user's two-hour consent expiry.
+     * Non-HDMI apps never receive redirected keys.
+     */
+    private fun maybeRearmOnHdmiReturn(viewerPackage: String) {
+        if (!approvedViewer(viewerPackage) || !prefs.getBoolean("auto_arm", false)) return
+        if (!sessionWithinLimit()) {
+            prefs.edit().putBoolean("armed", false).putBoolean("auto_arm", false)
+                .putBoolean("hdmi_seen", false).apply()
+            android.util.Log.i("SatNovaHdmiBridge", "Auto-arm expired; user must re-enable")
+            return
+        }
+        if (!prefs.getBoolean("armed", false)) {
+            swallowed.clear()
+            prefs.edit().putBoolean("armed", true)
+                .putBoolean("hdmi_seen", true)
+                .putString("last_forward_result", "Contrôle HDMI réactivé automatiquement")
+                .apply()
+            android.util.Log.i("SatNovaHdmiBridge",
+                "Re-armed after HDMI viewer returned: " + viewerPackage)
+        }
     }
 
     override fun onServiceConnected() {
@@ -157,8 +188,11 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         // This preference is independent from the time-limited HDMI key bridge.
         // The original HOME/POWER/VOLUME keys remain owned by Android TV.
         maybeOverrideStockHome(pkg, event.eventType)
-        if (!armValid()) return
+        // Track every window transition, including time spent in HOME/Shahid.
+        // A vetted HDMI viewer can resume a still-valid, opted-in session.
         currentPackage = pkg
+        maybeRearmOnHdmiReturn(pkg)
+        if (!armValid()) return
         if (pkg == packageName) {
             // Do not disarm the initial button press in the launcher. Disarm
             // only after an HDMI viewer was already observed and HOME returned.
@@ -237,6 +271,16 @@ class Zen4HdmiRemoteService : AccessibilityService() {
                 return homeDownConsumed
             }
             return homeDownConsumed
+        }
+        // Some Vestel/MediaTek builds do not emit a fresh window event on
+        // return to HDMI via SOURCE. Confirm the active window before restoring
+        // key forwarding; never auto-arm from a stale cached package.
+        val activePackage = try {
+            rootInActiveWindow?.packageName?.toString().orEmpty()
+        } catch (_: Exception) { "" }
+        if (activePackage.isNotBlank()) {
+            currentPackage = activePackage
+            maybeRearmOnHdmiReturn(activePackage)
         }
         if (!armValid()) return false
         // SOURCE, volume and power always belong to the television.
