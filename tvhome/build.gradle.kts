@@ -10,8 +10,8 @@ android {
         applicationId = "com.satnova.tvhome"
         minSdk = 26
         targetSdk = 35
-        versionCode = 20
-        versionName = "0.5.14-settings-i18n-sports-quran-adhan"
+        versionCode = 21
+        versionName = "0.5.15-auto-setup-hdmi-permanent"
     }
     // Official release signing uses a private JKS kept only in GitHub Actions secrets.
     // Local/debug builds remain available without it; never commit a private key.

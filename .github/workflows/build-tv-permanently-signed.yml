@@ -2,7 +2,7 @@ name: SatNova TV - Permanent Signature (MANUAL)
 on:
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   permanently-signed:
     runs-on: ubuntu-latest
@@ -73,15 +73,39 @@ jobs:
           ACTUAL="$(sed -nE 's/.*Signer #1 certificate SHA-256 digest: ([a-f0-9]{64}).*/\1/p' /tmp/signer.txt | head -n 1)"
           test -n "$ACTUAL"
           echo "Certificate SHA-256: $ACTUAL"
-          if [[ -n "$SATNOVA_EXPECTED_CERT_SHA256" && "$ACTUAL" != "$SATNOVA_EXPECTED_CERT_SHA256" ]]; then
+          if [[ -z "$SATNOVA_EXPECTED_CERT_SHA256" ]]; then
+            echo "::error::Missing expected certificate secret; refusing to publish"
+            exit 1
+          fi
+          if [[ "$ACTUAL" != "$SATNOVA_EXPECTED_CERT_SHA256" ]]; then
             echo "::error::Certificate mismatch: refusing to release a different signature."
             exit 1
           fi
           sha256sum "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | head -n 5
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" |
+            grep -Fq "package: name='com.satnova.tvhome.tvbridge' versionCode='21'"
       - name: Upload securely signed APK for review
         uses: actions/upload-artifact@v4
         with:
-          name: SatNova-TV-Home-HDMI-Bridge-0.5.14-PERMANENT-SIGNATURE
+          name: SatNova-TV-Home-HDMI-Bridge-0.5.15-PERMANENT-SIGNATURE
           path: tvhome/build/outputs/apk/tvbridge/release/tvhome-tvbridge-release.apk
           retention-days: 30
+
+      - name: Publish permanently signed update APK
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          TAG="v0.5.15-tvbridge-permanent-update-20261119-test"
+          OUT="SatNova-TV-Home-HDMI-Bridge-0.5.15-PERMANENT-UPDATE.apk"
+          cp tvhome/build/outputs/apk/tvbridge/release/tvhome-tvbridge-release.apk "$OUT"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release already exists; never silently overwrite signed APK"
+            exit 1
+          fi
+          gh release create "$TAG" "$OUT" --target "$GITHUB_SHA" --prerelease \
+            --title "SatNova TV Home v0.5.15 - Permanent Signature Update" \
+            --notes "SIGNED RELEASE TEST. Verified SHA-256 certificate matches the SATNOVA_EXPECTED_CERT_SHA256 repository secret. Package com.satnova.tvhome.tvbridge, versionCode 21. Intended to update an installed TVBridge APK ONLY if its signing certificate is the same permanent certificate. Never uninstall existing launcher until app data and factory HOME recovery are safe. Features: automatic receiver-first setup, HDMI remote checks and opt-in boot-to-SatNova."
