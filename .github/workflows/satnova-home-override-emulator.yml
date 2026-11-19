@@ -93,6 +93,17 @@ jobs:
               copied+=1
           index=src/'index.json'
           if index.exists(): shutil.copy(index,Path('docs/qa/google-tv-v014/screens-index.json'))
+          tour=Path('home-override-evidence/ui-tour.log')
+          if tour.exists(): shutil.copy(tour,Path('docs/qa/google-tv-v014/ui-tour.log'))
+          testlog=Path('home-override-evidence/test.log')
+          if testlog.exists():
+              lines=testlog.read_text(errors='replace').splitlines()
+              relevant=[line for line in lines if
+                  ('RESULT:' in line or 'HOME holder' in line or
+                   'Home from' in line or 'Android API' in line or
+                   'Google TV' in line)]
+              Path('docs/qa/google-tv-v014/test-result.txt').write_text(
+                  '\\n'.join(relevant) + '\\n')
           source=Path('home-override-evidence/SatNova_v1_Real_Screenshot_Contact_Sheet.jpg')
           if source.exists():
               shutil.copy(source,Path('docs/qa/google-tv-v014/contact-sheet.jpg'))
