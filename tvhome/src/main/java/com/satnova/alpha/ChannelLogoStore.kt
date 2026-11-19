@@ -100,6 +100,8 @@ internal class ChannelLogoStore(context: Context, private val onIndexReady: () -
     private val pending = mutableMapOf<String, MutableList<WeakReference<ImageView>>>()
     private val failed = mutableSetOf<String>()
     private val lock = Any()
+    private val warmLock = Any()
+    private var lastPrefetchAt = 0L
 
     init {
         // The bundled picon indexes can be large: never parse them on the UI thread.
@@ -246,6 +248,12 @@ internal class ChannelLogoStore(context: Context, private val onIndexReady: () -
                 badr?.url(channel)) + ChannelLogoSource.urls(channel)).asSequence()
         }.distinct().take(80).toList()
         if (urls.isEmpty()) return
+        synchronized(warmLock) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            // Catalogue arrives in batches: don't schedule repeated mass downloads.
+            if (now - lastPrefetchAt < 120_000L) return
+            lastPrefetchAt = now
+        }
         try {
             executor.execute {
                 for (url in urls) {
