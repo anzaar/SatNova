@@ -1,0 +1,87 @@
+name: SatNova TV - Permanent Signature (MANUAL)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  permanently-signed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare permanent signing key from repository secrets
+        shell: bash
+        env:
+          SATNOVA_KEYSTORE_B64: ${{ secrets.SATNOVA_KEYSTORE_B64 }}
+          SATNOVA_STORE_PASSWORD: ${{ secrets.SATNOVA_STORE_PASSWORD }}
+          SATNOVA_KEY_ALIAS: ${{ secrets.SATNOVA_KEY_ALIAS }}
+          SATNOVA_KEY_PASSWORD: ${{ secrets.SATNOVA_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for name in SATNOVA_KEYSTORE_B64 SATNOVA_STORE_PASSWORD SATNOVA_KEY_ALIAS SATNOVA_KEY_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing required signing secret: $name"
+              exit 1
+            fi
+          done
+          KEYSTORE="$RUNNER_TEMP/satnova-permanent.jks"
+          printf '%s' "$SATNOVA_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+          chmod 600 "$KEYSTORE"
+          echo "SATNOVA_KEYSTORE_PATH=$KEYSTORE" >> "$GITHUB_ENV"
+          echo "SATNOVA_STORE_PASSWORD=$SATNOVA_STORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "SATNOVA_KEY_ALIAS=$SATNOVA_KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "SATNOVA_KEY_PASSWORD=$SATNOVA_KEY_PASSWORD" >> "$GITHUB_ENV"
+      - name: Prepare Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          SDK_MANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDK_MANAGER"
+          yes | "$SDK_MANAGER" --licenses >/dev/null || true
+          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Compile permanent-signature TV launcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s tvhome/src/main/assets/satnova_sport_theme.webp || {
+            echo "::error::Sports photo must be vendored before creating the signed build"
+            exit 1
+          }
+          gradle --no-daemon --stacktrace :tvhome:assembleTvbridgeRelease
+      - name: Confirm signed APK and fingerprint
+        shell: bash
+        env:
+          SATNOVA_EXPECTED_CERT_SHA256: ${{ secrets.SATNOVA_EXPECTED_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          APK=tvhome/build/outputs/apk/tvbridge/release/tvhome-tvbridge-release.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" | tee /tmp/signer.txt
+          ACTUAL="$(sed -nE 's/.*Signer #1 certificate SHA-256 digest: ([a-f0-9]{64}).*/\1/p' /tmp/signer.txt | head -n 1)"
+          test -n "$ACTUAL"
+          echo "Certificate SHA-256: $ACTUAL"
+          if [[ -n "$SATNOVA_EXPECTED_CERT_SHA256" && "$ACTUAL" != "$SATNOVA_EXPECTED_CERT_SHA256" ]]; then
+            echo "::error::Certificate mismatch: refusing to release a different signature."
+            exit 1
+          fi
+          sha256sum "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | head -n 5
+      - name: Upload securely signed APK for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: SatNova-TV-Home-HDMI-Bridge-0.5.14-PERMANENT-SIGNATURE
+          path: tvhome/build/outputs/apk/tvbridge/release/tvhome-tvbridge-release.apk
+          retention-days: 30
