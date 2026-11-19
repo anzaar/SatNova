@@ -37,7 +37,9 @@ jobs:
           "$MANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
       - name: Lint test harness before emulator
         shell: bash
-        run: bash -n scripts/satnova-home-override-emulator.sh
+        run: |
+          bash -n scripts/satnova-home-override-emulator.sh
+          python3 -m py_compile scripts/satnova-ui-tour.py scripts/satnova-screenshot-contact-sheet.py
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
@@ -56,6 +58,12 @@ jobs:
           emulator-boot-timeout: 900
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -partition-size 1536 -gpu swiftshader_indirect
           script: bash scripts/satnova-home-override-emulator.sh
+      - name: Compose screenshot review sheet from actual emulator captures
+        if: always()
+        shell: bash
+        run: |
+          python3 -m pip install --disable-pip-version-check Pillow
+          python3 scripts/satnova-screenshot-contact-sheet.py
       - name: Preserve screenshots, focus state and logs
         if: always()
         uses: actions/upload-artifact@v4
