@@ -43,8 +43,8 @@ jobs:
           target: google-tv
           arch: x86
           profile: tv_1080p
-          cores: 4
-          ram-size: 3072M
+          cores: 2
+          ram-size: 2048M
           disk-size: 1024M
           emulator-boot-timeout: 900
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -partition-size 1536 -gpu swiftshader_indirect
