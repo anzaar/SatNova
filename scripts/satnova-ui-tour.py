@@ -78,8 +78,8 @@ def menu():
     # 52dp button at the far right; the top bar starts at 24dp.
     size, _ = a("wm", "size")
     density, _ = a("wm", "density")
-    m = re.search(r"(?:Override|Physical) size:\s*(\\d+)x(\\d+)", size)
-    d = re.search(r"(?:Override|Physical) density:\s*(\\d+)", density)
+    m = re.search(r"(?:Override|Physical) size:\s*(\d+)x(\d+)", size)
+    d = re.search(r"(?:Override|Physical) density:\s*(\d+)", density)
     if not m:
         print("SKIP settings tap; unknown display size:", size[:120], flush=True)
         return False
