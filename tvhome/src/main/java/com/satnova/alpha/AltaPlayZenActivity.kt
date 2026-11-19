@@ -5,7 +5,10 @@ import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.net.Uri
+import android.content.ContentValues
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
@@ -69,6 +72,45 @@ class AltaPlayZenActivity : Activity() {
                 }
             }.setNegativeButton("Annuler", null).show()
     }
+    /** Export the exact, already bundled Islamic artwork to shared Downloads.
+     * Secreto's own Wallpaper Studio performs the user-controlled import.
+     * Never touch Secreto package data or replace any stock wallpaper.
+     */
+    private fun exportIslamicWallpaper() {
+        if (Build.VERSION.SDK_INT < 29) {
+            Toast.makeText(this, "Importez le fond depuis le fichier SatNova original", Toast.LENGTH_LONG).show()
+            return
+        }
+        val name = "AltaPlay-Islamic.webp"
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/webp")
+            put(MediaStore.MediaColumns.RELATIVE_PATH,
+                Environment.DIRECTORY_DOWNLOADS + "/AltaPlay/")
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        var uri: android.net.Uri? = null
+        try {
+            uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: throw IllegalStateException("Downloads indisponible")
+            contentResolver.openOutputStream(uri)?.use { out ->
+                assets.open("satnova_wallpaper.webp").use { input ->
+                    input.copyTo(out)
+                }
+            } ?: throw IllegalStateException("Fichier non accessible")
+            val complete = ContentValues().apply {
+                put(MediaStore.MediaColumns.IS_PENDING, 0)
+            }
+            contentResolver.update(uri, complete, null, null)
+            Toast.makeText(this,
+                "Fond enregistré : Download/AltaPlay/" + name + " · Importez-le dans Secreto Wallpaper Studio",
+                Toast.LENGTH_LONG).show()
+        } catch (error: Exception) {
+            uri?.let { try { contentResolver.delete(it, null, null) } catch (_: Exception) {} }
+            Toast.makeText(this, "Export impossible : " + error.javaClass.simpleName,
+                Toast.LENGTH_LONG).show()
+        }
+    }
     private fun secretoPackage() {
         val edit = EditText(this).apply {
             hint = "Laisser vide pour détection automatique"
@@ -102,9 +144,8 @@ class AltaPlayZenActivity : Activity() {
         buttons.addView(button("Identifier Secreto") { secretoPackage() })
         root.addView(buttons)
         root.addView(label("Sur Secreto : GUIDE pour sélectionner, flèches pour parcourir, OK pour choisir, BACK pour fermer. HOME reste natif.", 14f))
-        root.addView(button("Fond islamique pour Secreto Wallpaper Studio") {
-            openSystem(Intent(Intent.ACTION_VIEW,
-                Uri.parse("https://raw.githubusercontent.com/anzaar/SatNova/feature/altaplay-secreto-preserved-zen-addon-20261119/tvhome/src/main/assets/satnova_wallpaper.webp")))
+        root.addView(button("Exporter le fond islamique vers Downloads / AltaPlay") {
+            exportIslamicWallpaper()
         })
         val scroll = ScrollView(this)
         list = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
