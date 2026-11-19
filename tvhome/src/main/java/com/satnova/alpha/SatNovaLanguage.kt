@@ -31,6 +31,7 @@ internal class SatNovaLanguage(private val prefs: SharedPreferences) {
             "watched" to arrayOf("الأكثر مشاهدة", "Les plus regardées", "Most watched"),
             "homeSelect" to arrayOf("اختيار SatNova كواجهة رئيسية", "Choisir SatNova comme accueil", "Set SatNova as Home"),
             "homeRestore" to arrayOf("العودة للواجهة الأصلية", "Retour à l'accueil original", "Restore original Home"),
+            "homeOverride" to arrayOf("تجاوز الواجهة الأصلية اختيارياً", "Contournement HOME (facultatif)", "Optional Home override"),
             "hdmiRemote" to arrayOf("تيليكوموند ZEN 4 عبر HDMI", "Télécommande ZEN 4 via HDMI", "ZEN 4 remote via HDMI"),
             "systemSettings" to arrayOf("إعدادات النظام", "Paramètres système", "System settings"),
             "hdmi" to arrayOf("اختبار HDMI", "Tester HDMI", "Test HDMI"),
