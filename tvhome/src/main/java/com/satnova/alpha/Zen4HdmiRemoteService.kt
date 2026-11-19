@@ -154,6 +154,8 @@ class Zen4HdmiRemoteService : AccessibilityService() {
      * manually later never triggers this code.
      */
     private fun maybeRestoreBootHome(pkg: String) {
+        if (packageName == "com.altaplay.launcher") return // Secreto owns HOME
+
         val deadline = prefs.getLong("boot_home_pending_until_elapsed", 0L)
         if (deadline <= 0L) return
         if (!prefs.getBoolean("boot_home_enabled", false) ||
@@ -216,6 +218,8 @@ class Zen4HdmiRemoteService : AccessibilityService() {
      * arbitrary apps: it reacts only when a known stock HOME UI becomes visible.
      */
     private fun maybeOverrideStockHome(packageShown: String, eventType: Int) {
+        if (packageName == "com.altaplay.launcher") return // Never hijack Secreto
+
         if (eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
             eventType != AccessibilityEvent.TYPE_WINDOWS_CHANGED) return
         if (!prefs.getBoolean("home_override_enabled", false)) return
@@ -411,6 +415,7 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         // If Android does not deliver this key, window-change fallback handles it.
         // When disabled or blocked, HOME passes through untouched to the TV.
         if (event.keyCode == KeyEvent.KEYCODE_HOME &&
+            packageName != "com.altaplay.launcher" &&
             prefs.getBoolean("home_override_enabled", false)) {
             if (event.action == KeyEvent.ACTION_UP) {
                 val consumed = homeDownConsumed

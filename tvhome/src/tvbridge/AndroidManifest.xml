@@ -6,17 +6,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"/>
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <application tools:replace="android:label" android:label="AltaPlay Launcher (Prototype)"
         android:banner="@drawable/satnova_tv_banner">
-        <!-- Optional HDMI bridge edition: explicit Accessibility service and TV HOME. -->
+        <!-- Optional Zen overlay/HDMI bridge; Secreto retains the HOME role. -->
         <activity android:name=".MobilePreviewActivity" tools:node="remove"/>
-        <!-- User-opt-in one-shot startup request. Android/OEM may reject background launch. -->
-        <receiver android:name=".SatNovaBootReceiver" android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
-            </intent-filter>
-        </receiver>
         <service android:name=".Zen4PersistentService"
             android:exported="false"
             android:stopWithTask="false"
@@ -35,7 +28,7 @@
             android:label="AltaPlay Launcher (Prototype)"
             android:banner="@drawable/satnova_tv_banner"
             android:exported="true" android:screenOrientation="landscape">
-            <!-- Allow relaunch from LifeMax apps before selecting default HOME. -->
+            <!-- Standalone Zen channel management app tile; never claims HOME. -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

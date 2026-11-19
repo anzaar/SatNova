@@ -1,7 +1,7 @@
 name: SatNova Optional HOME Override - Compile and Manifest Regression
 on:
   push:
-    branches: [feature/tvbridge-home-override-optin-20261119, feature/secreto-zen-offline-fast-reconnect-20261119, feature/altaplay-launcher-secreto-zen-20261119]
+    branches: [feature/tvbridge-home-override-optin-20261119, feature/secreto-zen-offline-fast-reconnect-20261119, feature/altaplay-launcher-secreto-zen-20261119, feature/altaplay-secreto-preserved-zen-addon-20261119]
   workflow_dispatch:
 permissions:
   contents: read
@@ -42,7 +42,10 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump xmltree "$APK" AndroidManifest.xml > tvhome-merged-manifest.txt
           grep -Fq "Zen4HdmiRemoteService" tvhome-merged-manifest.txt
           grep -Fq "android.accessibilityservice.AccessibilityService" tvhome-merged-manifest.txt
-          grep -Fq "android.intent.category.HOME" tvhome-merged-manifest.txt
+          if grep -Fq "android.intent.category.HOME" tvhome-merged-manifest.txt; then
+            echo "::error::Zen addon must not declare Android HOME or replace Secreto"
+            exit 1
+          fi
           sha256sum "$APK"
       - name: Build verification summary
         shell: bash
