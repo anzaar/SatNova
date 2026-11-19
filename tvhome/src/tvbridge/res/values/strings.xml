@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="hdmi_remote_service_description">Contrôle facultatif du récepteur Zen 4 sur HDMI via la télécommande Lifemaxx. N’envoie les touches réseau que pendant le mode HDMI autorisé dans SatNova Home. Ne capture jamais HOME, SOURCE, volume ou alimentation. Peut être désactivé à tout moment dans Accessibilité.</string>
+    <string name="hdmi_remote_service_description">Contrôle facultatif du récepteur Zen 4 sur HDMI via la télécommande Lifemaxx. N’envoie les touches réseau que pendant le mode HDMI autorisé après le choix d’une chaîne Zen 4 depuis AltaPlay, sans remplacer Secreto TV Launcher. Ne capture jamais HOME, SOURCE, volume ou alimentation. Peut être désactivé à tout moment dans Accessibilité.</string>
 </resources>

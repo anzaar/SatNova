@@ -4,7 +4,7 @@ on:
     branches: [feature/tvbridge-home-override-optin-20261119, feature/secreto-zen-offline-fast-reconnect-20261119, feature/altaplay-launcher-secreto-zen-20261119, feature/altaplay-secreto-preserved-zen-addon-20261119]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   tvbridge-build:
     runs-on: ubuntu-latest
@@ -55,3 +55,19 @@ jobs:
           echo "Debug candidate compiled, manifest checked and apksigner verified."
           echo "Artifact upload intentionally disabled while GitHub storage quota is full."
           echo "Production nova.apk remains unchanged."
+      - name: Publish TEST add-on APK (Secreto is not modified)
+        if: github.ref == 'refs/heads/feature/altaplay-secreto-preserved-zen-addon-20261119'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          APK="tvhome/build/outputs/apk/tvbridge/debug/tvhome-tvbridge-debug.apk"
+          test -s "$APK"
+          OUT="AltaPlay-Launcher-Secreto-Zen-Addon-0.1.0-TEST.apk"
+          cp "$APK" "$OUT"
+          TAG="v0.1.0-altaplay-secreto-zen-addon-${GITHUB_SHA:0:12}-test"
+          gh release create "$TAG" "$OUT" --target "$GITHUB_SHA" --prerelease \
+            --title "AltaPlay Launcher Zen Add-on — Experimental Secreto Overlay" \
+            --notes "EXPERIMENTAL DEBUG-SIGNED APK; install alongside official Secreto. Does not replace HOME, edit Secreto, or disable Google launcher. Zen 4 channel/cache overlay is only visible on verified Secreto HOME, with optional GUIDE channel selection and existing HDMI accessibility key gating. First-run channel/logo cache requires a successful Zen connection. The Islamic wallpaper is available separately from the SatNova repo for manual import in Secreto Wallpaper Studio. NOT tested on Lifemaxx hardware; do not disable your original HOME. Debug signing may change between CI runs, requiring uninstall for future test APKs."
