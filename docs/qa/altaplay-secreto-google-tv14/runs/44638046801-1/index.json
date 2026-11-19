@@ -1,0 +1,222 @@
+[
+  {
+    "check": "ro.build.version.sdk",
+    "value": "34"
+  },
+  {
+    "check": "ro.product.name",
+    "value": "sdk_google_atv_amati_x86"
+  },
+  {
+    "check": "ro.build.type",
+    "value": "user"
+  },
+  {
+    "check": "screen",
+    "value": "Physical size: 1920x1080"
+  },
+  {
+    "screenshot": "00_google_tv_baseline",
+    "desc": "Stock Google TV before installing AltaPlay",
+    "ok": true,
+    "bytes": 10608,
+    "foreground": [
+      "topResumedActivity=ActivityRecord{a37155d u0 com.google.android.apps.tv.launcherx/.home.HomeActivity t5}"
+    ]
+  },
+  {
+    "check": "install",
+    "value": "Serving...\nPerforming Incremental Install\nSuccess\nInstall command complete in 3946 ms\nAll files should be loaded. Notifying the device.",
+    "pass": true
+  },
+  {
+    "check": "package_path",
+    "value": "package:/data/app/~~vuh94DjTFzl3rI955roosg==/com.altaplay.launcher-YDS65STxt4opx9cn83Qppg==/base.apk",
+    "pass": true
+  },
+  {
+    "check": "start_secreto_main",
+    "value": "Starting: Intent { cmp=com.altaplay.launcher/com.gathin.tvhome.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.altaplay.launcher/com.gathin.tvhome.MainActivity\nTotalTime: 2426\nWaitTime: 2578\nComplete",
+    "pass": true
+  },
+  {
+    "screenshot": "01_first_altaplay_secreto_home",
+    "desc": "Original Secreto main activity under the AltaPlay package, initial start",
+    "ok": true,
+    "bytes": 410182,
+    "foreground": [
+      "topResumedActivity=ActivityRecord{8da3a04 u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t6}"
+    ]
+  },
+  {
+    "check": "home_foreground_initial",
+    "value": [
+      "topResumedActivity=ActivityRecord{8da3a04 u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t6}"
+    ],
+    "pass": true
+  },
+  {
+    "screenshot": "02_secreto_remote_navigation",
+    "desc": "Original Secreto interface after real TV D-pad inputs",
+    "ok": true,
+    "bytes": 287744,
+    "foreground": [
+      "topResumedActivity=ActivityRecord{8da3a04 u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t6}"
+    ]
+  },
+  {
+    "check": "secreto_settings_tap",
+    "value": "settings  rc=0"
+  },
+  {
+    "screenshot": "03_secreto_settings",
+    "desc": "Secreto settings actually opened via the running TV interface",
+    "ok": true,
+    "bytes": 282941,
+    "foreground": [
+      "topResumedActivity=ActivityRecord{8da3a04 u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t6}"
+    ]
+  },
+  {
+    "check": "zen_accessibility_configured",
+    "value": "com.altaplay.launcher/com.satnova.alpha.Zen4HdmiRemoteService",
+    "pass": true
+  },
+  {
+    "check": "start_main_after_accessibility",
+    "value": "Starting: Intent { cmp=com.altaplay.launcher/com.gathin.tvhome.MainActivity }\nWarning: Activity not started, intent has been delivered to currently running top-most instance.\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.altaplay.launcher/com.gathin.tvhome.MainActivity\nTotalTime: 0\nWaitTime: 35\nComplete",
+    "pass": true
+  },
+  {
+    "screenshot": "04_original_home_with_zen_accessibility",
+    "desc": "Original Secreto UI with the extra Zen Accessibility service enabled",
+    "ok": true,
+    "bytes": 277681,
+    "foreground": [
+      "topResumedActivity=ActivityRecord{8da3a04 u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t6}"
+    ]
+  },
+  {
+    "screenshot": "05_zen_guide_test",
+    "desc": "Zen GUIDE test on Secreto HOME, showing true on-device overlay outcome",
+    "ok": true,
+    "bytes": 277681,
+    "foreground": [
+      "topResumedActivity=ActivityRecord{8da3a04 u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t6}"
+    ]
+  },
+  {
+    "screenshot": "06_zen_focus_navigation",
+    "desc": "Real D-pad RIGHT event after GUIDE; no receiver simulated",
+    "ok": true,
+    "bytes": 273178,
+    "foreground": [
+      "topResumedActivity=ActivityRecord{8da3a04 u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t6}"
+    ]
+  },
+  {
+    "screenshot": "07_guide_cancel",
+    "desc": "After BACK, Zen selection must stop and Secreto control resumes",
+    "ok": true,
+    "bytes": 273178,
+    "foreground": [
+      "topResumedActivity=ActivityRecord{8da3a04 u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t6}"
+    ]
+  },
+  {
+    "check": "start_zen_settings",
+    "value": "Starting: Intent { cmp=com.altaplay.launcher/com.satnova.alpha.AltaPlayZenActivity }\nStatus: ok\nLaunchState: WARM\nActivity: com.altaplay.launcher/com.satnova.alpha.AltaPlayZenActivity\nTotalTime: 123\nWaitTime: 135\nComplete",
+    "pass": true
+  },
+  {
+    "screenshot": "08_zen_settings_and_offline_state",
+    "desc": "AltaPlay Zen connection/settings page, offline receiver status",
+    "ok": true,
+    "bytes": 88943,
+    "foreground": [
+      "topResumedActivity=ActivityRecord{6d6a4a9 u0 com.altaplay.launcher/com.satnova.alpha.AltaPlayZenActivity t6}"
+    ]
+  },
+  {
+    "check": "islamic_export_tap",
+    "value": "exporter le fond islamique vers downloads / altaplay  rc=0"
+  },
+  {
+    "screenshot": "09_islamic_wallpaper_export_result",
+    "desc": "Islamic wallpaper export button result (if present)",
+    "ok": true,
+    "bytes": 117190,
+    "foreground": [
+      "topResumedActivity=ActivityRecord{6d6a4a9 u0 com.altaplay.launcher/com.satnova.alpha.AltaPlayZenActivity t6}"
+    ]
+  },
+  {
+    "check": "islamic_wallpaper_export",
+    "value": "total 8\n-rwxrwx--- 1 u0_a113 media_rw 4012 2026-11-19 23:34 AltaPlay-Islamic.webp",
+    "pass": true
+  },
+  {
+    "check": "set_home_activity",
+    "value": "Success\n"
+  },
+  {
+    "screenshot": "10_home_key_return",
+    "desc": "HOME pressed from Zen settings; actual default HOME resolution",
+    "ok": true,
+    "bytes": 72129,
+    "foreground": [
+      "topResumedActivity=ActivityRecord{a37155d u0 com.google.android.apps.tv.launcherx/.home.HomeActivity t5}"
+    ]
+  },
+  {
+    "check": "home_foreground_after_home_key",
+    "value": [
+      "topResumedActivity=ActivityRecord{a37155d u0 com.google.android.apps.tv.launcherx/.home.HomeActivity t5}"
+    ],
+    "pass": false
+  },
+  {
+    "check": "home_role",
+    "value": "com.altaplay.launcher"
+  },
+  {
+    "check": "start_before_reboot",
+    "value": "Starting: Intent { cmp=com.altaplay.launcher/com.gathin.tvhome.MainActivity }\nWarning: Activity not started, its current task has been brought to the front\nStatus: ok\nLaunchState: HOT\nActivity: com.altaplay.launcher/com.gathin.tvhome.MainActivity\nTotalTime: 155\nWaitTime: 239\nComplete",
+    "pass": true
+  },
+  {
+    "screenshot": "11_home_stability",
+    "desc": "Secreto home after repeated navigation",
+    "ok": true,
+    "bytes": 296864,
+    "foreground": [
+      "topResumedActivity=ActivityRecord{8da3a04 u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t6}"
+    ]
+  },
+  {
+    "check": "reboot_complete",
+    "value": true,
+    "pass": true
+  },
+  {
+    "screenshot": "12_home_after_reboot",
+    "desc": "HOME first press after reboot, no extra system bloat disabled",
+    "ok": true,
+    "bytes": 72129,
+    "foreground": [
+      "topResumedActivity=ActivityRecord{68640ae u0 com.google.android.apps.tv.launcherx/.home.HomeActivity t4}"
+    ]
+  },
+  {
+    "check": "home_foreground_after_reboot",
+    "value": [
+      "topResumedActivity=ActivityRecord{68640ae u0 com.google.android.apps.tv.launcherx/.home.HomeActivity t4}"
+    ],
+    "pass": false
+  },
+  {
+    "check": "app_crash_log",
+    "value": "No AltaPlay crash in crash buffer",
+    "pass": true
+  }
+]
