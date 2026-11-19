@@ -60,6 +60,929 @@ for cycle in 1 2 3; do
         adb shell dumpsys activity activities > "test-results/activities-crash-cycle-$cycle.txt" || true
         adb shell dumpsys meminfo "$PACKAGE" > "test-results/meminfo-cycle-$cycle.txt" || true
         record "launch_cycle_$cycle"
+        adb logcat -d -b crash > "test-results/crash-$cycle.txt"
+        record "launch_cycle_$cycle"$'\tFAIL\t'"AndroidRuntime crash"
+        exit 33
+    fi
+    record "launch_cycle_$cycle"$'\tPASS\t'"process alive; screenshot saved"
+    # Dpad/navigation: dispatch real Android remote KeyEvents, detect crashes.
+    for code in 22 20 21 19 23 4; do
+        adb shell input keyevent "$code" || true
+        sleep 0.4
+    done
+    if adb logcat -d -b crash | grep -Fq "Process: $PACKAGE"; then
+        adb logcat -d -b crash > "test-results/crash-nav-$cycle.txt"
+        record "dpad_cycle_$cycle"$'\tFAIL\t'"crash"
+        exit 34
+    fi
+    record "dpad_cycle_$cycle"$'\tPASS\t'"DPAD right/down/left/up/OK/BACK do not crash"
+done
+echo ""
+echo "=== HOME ROLE AND HOME BUTTON TEST ==="
+adb shell cmd role get-role-holders android.app.role.HOME > test-results/home-before.txt 2>&1 || true
+echo "Original HOME: $(cat test-results/home-before.txt)"
+# Granting this role through ADB is ONLY a proxy for Android recognition.
+# Does not assert the normal TV Settings choice is available to end users.
+if adb shell cmd role add-role-holder android.app.role.HOME "$PACKAGE" > test-results/home-role-command.txt 2>&1; then
+    record "home_role_recognition"$'\tPASS\t'"Android accepted launcher role through automated test"
+else
+    record "home_role_recognition"$'\tWARN\t'"role command unavailable or declined"
+fi
+# Capture the actual HOME holder after the role command: a zero exit code is
+# NOT proof that Android changed the role away from the Google TV launcher.
+adb shell cmd role get-role-holders android.app.role.HOME > test-results/home-after-role.txt 2>&1 || true
+adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME > test-results/home-resolve.txt 2>&1 || true
+printf 'Holders after role request: '; cat test-results/home-after-role.txt
+printf 'HOME resolution: '; cat test-results/home-resolve.txt
+if grep -Fxq "$PACKAGE" test-results/home-after-role.txt; then
+  record "home_role_holder"
+adb shell dumpsys activity activities > test-results/activities-home.txt || true
+if grep -Eq "topResumedActivity=.*$PACKAGE" test-results/activities-home.txt; then
+    record "home_after_keyevent"$'\tPASS\t'"SatNova appears in activity state (inspect screenshot)"
+else
+    record "home_after_keyevent"$'\tWARN\t'"SatNova not found in activity state; inspect screenshot and system HOME behavior"
+fi
+echo ""
+echo "=== GOOGLE TV FIRST-BOOT WIZARD DIAGNOSTIC AND SYSTEM HOME OVERRIDE ==="
+adb shell settings get global device_provisioned > test-results/provisioned.txt || true
+adb shell settings get secure user_setup_complete > test-results/user-setup-complete.txt || true
+# A TV that is still in onboarding can display the Google TV setup instead of
+# the selected launcher. Capture the state without modifying the installed APK.
+adb shell dumpsys activity activities > test-results/activities-before-cancel.txt || true
+# Try to dismiss the Google TV "Set up Google TV" dialog via genuine remote keys.
+adb shell input keyevent 20 || true
+adb shell input keyevent 23 || true
+sleep 3
+adb exec-out screencap -p > test-results/after-setup-cancel.png || true
+# Test whether the *emulator's* package manager can recognize SatNova as HOME.
+# This is a diagnostic ADB override; it cannot prove normal no-ADB TV setup.
+adb shell cmd package set-home-activity --user 0 "$PACKAGE/$ACTIVITY"   > test-results/home-set-command.txt 2>&1 || true
+adb shell cmd role get-role-holders android.app.role.HOME > test-results/home-after-set.txt 2>&1 || true
+adb shell input keyevent 3 || true
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-set.txt || true
+adb exec-out screencap -p > test-results/home-after-set.png || true
+if grep -E "topResumedActivity=.*$PACKAGE" test-results/activities-after-set.txt; then
+    record "home_forced_diagnostic"
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Eq "topResumedActivity=.*$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tPASS\t'"SatNova is present among HOME holders"
+else
+  record "home_role_holder"
+adb shell dumpsys activity activities > test-results/activities-home.txt || true
+if grep -Fq "$PACKAGE" test-results/activities-home.txt; then
+    record "home_after_keyevent"$'\tPASS\t'"SatNova appears in activity state (inspect screenshot)"
+else
+    record "home_after_keyevent"$'\tWARN\t'"SatNova not found in activity state; inspect screenshot and system HOME behavior"
+fi
+echo ""
+echo "=== VIRTUAL TV REBOOT TEST ==="
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Fq "$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tWARN\t'"Google TV remains HOME holder; ADB command was accepted but role not granted"
+fi
+adb shell input keyevent 3
+sleep 5
+adb exec-out screencap -p > test-results/home-button.png || true
+adb shell dumpsys activity activities > test-results/activities-home.txt || true
+if grep -Fq "$PACKAGE" test-results/activities-home.txt; then
+    record "home_after_keyevent"$'\tPASS\t'"SatNova appears in activity state (inspect screenshot)"
+else
+    record "home_after_keyevent"$'\tWARN\t'"SatNova not found in activity state; inspect screenshot and system HOME behavior"
+fi
+echo ""
+echo "=== VIRTUAL TV REBOOT TEST ==="
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Fq "$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tPASS\t'"SatNova foreground after explicit package-manager HOME selection (ADB-only diagnostic)"
+else
+    record "home_forced_diagnostic"
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Fq "$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tPASS\t'"SatNova is present among HOME holders"
+else
+  record "home_role_holder"
+adb shell dumpsys activity activities > test-results/activities-home.txt || true
+if grep -Fq "$PACKAGE" test-results/activities-home.txt; then
+    record "home_after_keyevent"$'\tPASS\t'"SatNova appears in activity state (inspect screenshot)"
+else
+    record "home_after_keyevent"$'\tWARN\t'"SatNova not found in activity state; inspect screenshot and system HOME behavior"
+fi
+echo ""
+echo "=== VIRTUAL TV REBOOT TEST ==="
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Fq "$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tWARN\t'"Google TV remains HOME holder; ADB command was accepted but role not granted"
+fi
+adb shell input keyevent 3
+sleep 5
+adb exec-out screencap -p > test-results/home-button.png || true
+adb shell dumpsys activity activities > test-results/activities-home.txt || true
+if grep -Fq "$PACKAGE" test-results/activities-home.txt; then
+    record "home_after_keyevent"$'\tPASS\t'"SatNova appears in activity state (inspect screenshot)"
+else
+    record "home_after_keyevent"$'\tWARN\t'"SatNova not found in activity state; inspect screenshot and system HOME behavior"
+fi
+echo ""
+echo "=== VIRTUAL TV REBOOT TEST ==="
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Fq "$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tWARN\t'"Google TV onboarding or firmware HOME logic still intercepts HOME"
+fi
+echo ""
+echo "=== VIRTUAL TV REBOOT TEST ==="
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Fq "$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tPASS\t'"SatNova is present among HOME holders"
+else
+  record "home_role_holder"
+adb shell dumpsys activity activities > test-results/activities-home.txt || true
+if grep -Fq "$PACKAGE" test-results/activities-home.txt; then
+    record "home_after_keyevent"$'\tPASS\t'"SatNova appears in activity state (inspect screenshot)"
+else
+    record "home_after_keyevent"$'\tWARN\t'"SatNova not found in activity state; inspect screenshot and system HOME behavior"
+fi
+echo ""
+echo "=== VIRTUAL TV REBOOT TEST ==="
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Fq "$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tWARN\t'"Google TV remains HOME holder; ADB command was accepted but role not granted"
+fi
+adb shell input keyevent 3
+sleep 5
+adb exec-out screencap -p > test-results/home-button.png || true
+adb shell dumpsys activity activities > test-results/activities-home.txt || true
+if grep -Fq "$PACKAGE" test-results/activities-home.txt; then
+    record "home_after_keyevent"$'\tPASS\t'"SatNova appears in activity state (inspect screenshot)"
+else
+    record "home_after_keyevent"$'\tWARN\t'"SatNova not found in activity state; inspect screenshot and system HOME behavior"
+fi
+echo ""
+echo "=== VIRTUAL TV REBOOT TEST ==="
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Fq "$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tFAIL\t'"process not running; crash logs preserved"
+        exit 32
+    fi
+    if adb logcat -d -b crash | grep -Fq "Process: $PACKAGE"; then
+        adb logcat -d -b crash > "test-results/crash-$cycle.txt"
+        record "launch_cycle_$cycle"$'\tFAIL\t'"AndroidRuntime crash"
+        exit 33
+    fi
+    record "launch_cycle_$cycle"$'\tPASS\t'"process alive; screenshot saved"
+    # Dpad/navigation: dispatch real Android remote KeyEvents, detect crashes.
+    for code in 22 20 21 19 23 4; do
+        adb shell input keyevent "$code" || true
+        sleep 0.4
+    done
+    if adb logcat -d -b crash | grep -Fq "Process: $PACKAGE"; then
+        adb logcat -d -b crash > "test-results/crash-nav-$cycle.txt"
+        record "dpad_cycle_$cycle"$'\tFAIL\t'"crash"
+        exit 34
+    fi
+    record "dpad_cycle_$cycle"$'\tPASS\t'"DPAD right/down/left/up/OK/BACK do not crash"
+done
+echo ""
+echo "=== HOME ROLE AND HOME BUTTON TEST ==="
+adb shell cmd role get-role-holders android.app.role.HOME > test-results/home-before.txt 2>&1 || true
+echo "Original HOME: $(cat test-results/home-before.txt)"
+# Granting this role through ADB is ONLY a proxy for Android recognition.
+# Does not assert the normal TV Settings choice is available to end users.
+if adb shell cmd role add-role-holder android.app.role.HOME "$PACKAGE" > test-results/home-role-command.txt 2>&1; then
+    record "home_role_recognition"$'\tPASS\t'"Android accepted launcher role through automated test"
+else
+    record "home_role_recognition"$'\tWARN\t'"role command unavailable or declined"
+fi
+# Capture the actual HOME holder after the role command: a zero exit code is
+# NOT proof that Android changed the role away from the Google TV launcher.
+adb shell cmd role get-role-holders android.app.role.HOME > test-results/home-after-role.txt 2>&1 || true
+adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME > test-results/home-resolve.txt 2>&1 || true
+printf 'Holders after role request: '; cat test-results/home-after-role.txt
+printf 'HOME resolution: '; cat test-results/home-resolve.txt
+if grep -Fxq "$PACKAGE" test-results/home-after-role.txt; then
+  record "home_role_holder"
+adb shell dumpsys activity activities > test-results/activities-home.txt || true
+if grep -Eq "topResumedActivity=.*$PACKAGE" test-results/activities-home.txt; then
+    record "home_after_keyevent"$'\tPASS\t'"SatNova appears in activity state (inspect screenshot)"
+else
+    record "home_after_keyevent"$'\tWARN\t'"SatNova not found in activity state; inspect screenshot and system HOME behavior"
+fi
+echo ""
+echo "=== GOOGLE TV FIRST-BOOT WIZARD DIAGNOSTIC AND SYSTEM HOME OVERRIDE ==="
+adb shell settings get global device_provisioned > test-results/provisioned.txt || true
+adb shell settings get secure user_setup_complete > test-results/user-setup-complete.txt || true
+# A TV that is still in onboarding can display the Google TV setup instead of
+# the selected launcher. Capture the state without modifying the installed APK.
+adb shell dumpsys activity activities > test-results/activities-before-cancel.txt || true
+# Try to dismiss the Google TV "Set up Google TV" dialog via genuine remote keys.
+adb shell input keyevent 20 || true
+adb shell input keyevent 23 || true
+sleep 3
+adb exec-out screencap -p > test-results/after-setup-cancel.png || true
+# Test whether the *emulator's* package manager can recognize SatNova as HOME.
+# This is a diagnostic ADB override; it cannot prove normal no-ADB TV setup.
+adb shell cmd package set-home-activity --user 0 "$PACKAGE/$ACTIVITY"   > test-results/home-set-command.txt 2>&1 || true
+adb shell cmd role get-role-holders android.app.role.HOME > test-results/home-after-set.txt 2>&1 || true
+adb shell input keyevent 3 || true
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-set.txt || true
+adb exec-out screencap -p > test-results/home-after-set.png || true
+if grep -E "topResumedActivity=.*$PACKAGE" test-results/activities-after-set.txt; then
+    record "home_forced_diagnostic"
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Eq "topResumedActivity=.*$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tPASS\t'"SatNova is present among HOME holders"
+else
+  record "home_role_holder"
+adb shell dumpsys activity activities > test-results/activities-home.txt || true
+if grep -Fq "$PACKAGE" test-results/activities-home.txt; then
+    record "home_after_keyevent"$'\tPASS\t'"SatNova appears in activity state (inspect screenshot)"
+else
+    record "home_after_keyevent"$'\tWARN\t'"SatNova not found in activity state; inspect screenshot and system HOME behavior"
+fi
+echo ""
+echo "=== VIRTUAL TV REBOOT TEST ==="
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Fq "$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tWARN\t'"Google TV remains HOME holder; ADB command was accepted but role not granted"
+fi
+adb shell input keyevent 3
+sleep 5
+adb exec-out screencap -p > test-results/home-button.png || true
+adb shell dumpsys activity activities > test-results/activities-home.txt || true
+if grep -Fq "$PACKAGE" test-results/activities-home.txt; then
+    record "home_after_keyevent"$'\tPASS\t'"SatNova appears in activity state (inspect screenshot)"
+else
+    record "home_after_keyevent"$'\tWARN\t'"SatNova not found in activity state; inspect screenshot and system HOME behavior"
+fi
+echo ""
+echo "=== VIRTUAL TV REBOOT TEST ==="
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Fq "$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tPASS\t'"SatNova foreground after explicit package-manager HOME selection (ADB-only diagnostic)"
+else
+    record "home_forced_diagnostic"
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Fq "$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tPASS\t'"SatNova is present among HOME holders"
+else
+  record "home_role_holder"
+adb shell dumpsys activity activities > test-results/activities-home.txt || true
+if grep -Fq "$PACKAGE" test-results/activities-home.txt; then
+    record "home_after_keyevent"$'\tPASS\t'"SatNova appears in activity state (inspect screenshot)"
+else
+    record "home_after_keyevent"$'\tWARN\t'"SatNova not found in activity state; inspect screenshot and system HOME behavior"
+fi
+echo ""
+echo "=== VIRTUAL TV REBOOT TEST ==="
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Fq "$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tWARN\t'"Google TV remains HOME holder; ADB command was accepted but role not granted"
+fi
+adb shell input keyevent 3
+sleep 5
+adb exec-out screencap -p > test-results/home-button.png || true
+adb shell dumpsys activity activities > test-results/activities-home.txt || true
+if grep -Fq "$PACKAGE" test-results/activities-home.txt; then
+    record "home_after_keyevent"$'\tPASS\t'"SatNova appears in activity state (inspect screenshot)"
+else
+    record "home_after_keyevent"$'\tWARN\t'"SatNova not found in activity state; inspect screenshot and system HOME behavior"
+fi
+echo ""
+echo "=== VIRTUAL TV REBOOT TEST ==="
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Fq "$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tWARN\t'"Google TV onboarding or firmware HOME logic still intercepts HOME"
+fi
+echo ""
+echo "=== VIRTUAL TV REBOOT TEST ==="
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Fq "$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tPASS\t'"SatNova is present among HOME holders"
+else
+  record "home_role_holder"
+adb shell dumpsys activity activities > test-results/activities-home.txt || true
+if grep -Fq "$PACKAGE" test-results/activities-home.txt; then
+    record "home_after_keyevent"$'\tPASS\t'"SatNova appears in activity state (inspect screenshot)"
+else
+    record "home_after_keyevent"$'\tWARN\t'"SatNova not found in activity state; inspect screenshot and system HOME behavior"
+fi
+echo ""
+echo "=== VIRTUAL TV REBOOT TEST ==="
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Fq "$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tWARN\t'"Google TV remains HOME holder; ADB command was accepted but role not granted"
+fi
+adb shell input keyevent 3
+sleep 5
+adb exec-out screencap -p > test-results/home-button.png || true
+adb shell dumpsys activity activities > test-results/activities-home.txt || true
+if grep -Fq "$PACKAGE" test-results/activities-home.txt; then
+    record "home_after_keyevent"$'\tPASS\t'"SatNova appears in activity state (inspect screenshot)"
+else
+    record "home_after_keyevent"$'\tWARN\t'"SatNova not found in activity state; inspect screenshot and system HOME behavior"
+fi
+echo ""
+echo "=== VIRTUAL TV REBOOT TEST ==="
+adb reboot || true
+adb wait-for-device
+BOOTED=0
+for _ in $(seq 1 90); do
+    if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; then
+        BOOTED=1
+        break
+    fi
+    sleep 2
+done
+if [ "$BOOTED" -ne 1 ]; then
+    record "reboot"$'\tFAIL\t'"system did not complete boot"
+    exit 35
+fi
+sleep 8
+adb shell input keyevent 3
+sleep 5
+adb shell dumpsys activity activities > test-results/activities-after-reboot.txt || true
+adb exec-out screencap -p > test-results/reboot-home.png || true
+if grep -Fq "$PACKAGE" test-results/activities-after-reboot.txt; then
+    record "home_after_reboot"$'\tPASS\t'"SatNova appears in activity state after reboot"
+else
+    record "home_after_reboot"$'\tWARN\t'"SatNova not foreground after reboot (inspect UI)"
+fi
+adb logcat -d -b crash > test-results/crashes-all.txt || true
+if grep -Fq "Process: $PACKAGE" test-results/crashes-all.txt; then
+    record "no_fatal_crashes"$'\tFAIL\t'"AndroidRuntime crash appears"
+    exit 36
+fi
+record "no_fatal_crashes"$'\tPASS\t'"no SatNova process crash observed"
+echo ""
+echo "=== VIRTUAL TEST SUMMARY ==="
+cat test-results/results.tsv
+echo "LIMITATIONS: no real Lifemaxx HDMI input, no real ZEN PRO 4, no OEM TV remote; HOME role is ADB-proxy only"
+echo "COMPLETE"
+\tFAIL\t'"process not running; crash logs preserved"
+        exit 32
+    fi
     if adb logcat -d -b crash | grep -Fq "Process: $PACKAGE"; then
         adb logcat -d -b crash > "test-results/crash-$cycle.txt"
         record "launch_cycle_$cycle"$'\tFAIL\t'"AndroidRuntime crash"
