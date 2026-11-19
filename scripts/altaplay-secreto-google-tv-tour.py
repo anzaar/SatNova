@@ -175,6 +175,16 @@ def test():
     start_component(MAIN, "main_after_accessibility", pause=4)
     screenshot("04_original_home_with_zen_accessibility",
                "Original Secreto UI with the extra Zen Accessibility service enabled")
+    # A newly granted Accessibility service might not receive a state-change
+    # event for an Activity already in focus. Force a real normal page change,
+    # then capture whether the Zen bar appears back over the original HOME.
+    start_component(ZEN, "zen_overlay_prime", pause=2)
+    key(4)
+    time.sleep(3)
+    screenshot("04b_secreto_after_page_return",
+               "Actual Secreto HOME after a real Activity transition with Zen service bound")
+    record("secreto_zen_overlay_foreground", top(), lambda x: PKG in str(x)
+           and "MainActivity" in str(x))
     key(172)  # GUIDE: opt-in channel navigation; no actual receiver is connected.
     screenshot("05_zen_guide_test",
                "Zen GUIDE test on Secreto HOME, showing true on-device overlay outcome")
@@ -231,6 +241,39 @@ def test():
         record("home_foreground_after_reboot", top(), lambda x: PKG in str(x))
     else:
         record("reboot_test", "SKIP: Google TV AVD did not finish reboot")
+    crash = shell("logcat", "-d", "-b", "crash").stdout.decode(errors="replace")
+    # Follow-up: on *disposable* Google TV emulator only, exclude the
+    # unfinished Google TV setup stock launcher from the HOME competition.
+    # This must NEVER be performed on the user's actual Lifemaxx TV.
+    result = shell("pm", "disable-user", "--user", "0",
+                   "com.google.android.apps.tv.launcherx", timeout=30)
+    record("TEMP_google_launcher_disabled_emulator_only",
+           (result.stdout + result.stderr).decode(errors="replace").strip())
+    shell("cmd", "package", "set-home-activity", PKG + "/" + MAIN)
+    time.sleep(3)
+    key(3)
+    time.sleep(4)
+    screenshot("13_home_without_google_setup_emulator_only",
+               "HOME after temporarily disabling unfinished Google TV setup on disposable AVD")
+    record("home_foreground_stock_off", top(), lambda x: PKG in str(x))
+    log("Reboot with Google setup temporarily disabled on this disposable AVD")
+    adb("reboot")
+    adb("wait-for-device", timeout=150)
+    for _ in range(80):
+        if shell("getprop", "sys.boot_completed").stdout.decode(errors="replace").strip() == "1":
+            break
+        time.sleep(2)
+    time.sleep(6)
+    key(3)
+    screenshot("14_home_after_reboot_stock_off_emulator_only",
+               "First HOME after reboot with Google TV setup disabled on disposable AVD")
+    record("home_foreground_stock_off_after_reboot", top(), lambda x: PKG in str(x))
+    # Restore Google stock package before the AVD disappears. A real user's
+    # Google TV launcher is not touched by this QA at any point.
+    restore = shell("pm", "enable", "--user", "0",
+                    "com.google.android.apps.tv.launcherx", timeout=30)
+    record("stock_google_launcher_restored",
+           (restore.stdout + restore.stderr).decode(errors="replace").strip())
     crash = shell("logcat", "-d", "-b", "crash").stdout.decode(errors="replace")
     record("app_crash_log", "AltaPlay crash" if "Process: "+PKG in crash else "No AltaPlay crash in crash buffer",
            lambda x: x == "No AltaPlay crash in crash buffer")
