@@ -1,6 +1,12 @@
-name: SatNova TV - Permanent Signature (MANUAL)
+name: SatNova TV - Permanent Signature (VERIFIED)
 on:
   workflow_dispatch:
+  # One-off builder trigger for the owner-requested signed update.
+  # Restricted to changes to this workflow on the verified feature branch.
+  push:
+    branches: [feature/tvbridge-home-override-optin-20261119]
+    paths:
+      - .github/workflows/build-tv-permanently-signed.yml
 permissions:
   contents: write
 jobs:
