@@ -58,8 +58,8 @@ internal class AtlasLionsEmblemView(context: Context) : View(context) {
         for (i in 0 until 28) {
             val angle = 2.0 * Math.PI * i / 28.0 - Math.PI / 2.0
             val radius = if (i % 2 == 0) 42.0 else 31.0
-            val x = cx + radius * cos(angle).toFloat()
-            val y = cy + radius * sin(angle).toFloat()
+            val x = cx + (radius * cos(angle)).toFloat()
+            val y = cy + (radius * sin(angle)).toFloat()
             if (i == 0) mane.moveTo(x, y) else mane.lineTo(x, y)
         }
         mane.close()
