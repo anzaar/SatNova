@@ -26,6 +26,9 @@ def patch(decoded: Path, repository: Path) -> None:
         r'\g<1>' + TARGET_PACKAGE + '"', raw, count=1, flags=re.S
     )
     assert changes == 1
+    # Provider authorities and manifest-declared actions may embed the old
+    # application ID. They must be distinct to install beside official Secreto.
+    raw = raw.replace(SOURCE_PACKAGE, TARGET_PACKAGE)
     if 'com.gathin.tvhome.MainActivity' not in raw:
         raise RuntimeError("Missing original Secreto MainActivity; abort")
     # Add ONLY the permissions needed for Zen. Existing Secreto permissions remain.
