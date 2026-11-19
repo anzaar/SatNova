@@ -14,6 +14,11 @@ echo "Android product: $(adb shell getprop ro.product.name)"
 adb install -r "$APK"
 adb shell pm path "$PKG"
 adb shell dumpsys package "$PKG" > home-override-evidence/package.txt
+echo "Capture real UI screenshots BEFORE opt-in HOME testing."
+# A visual tour failure must not prevent the separate HOME regression.
+python3 scripts/satnova-ui-tour.py > home-override-evidence/ui-tour.log 2>&1 || true
+# The tour may leave the main activity on a system screen; reset its focus.
+adb shell am force-stop "$PKG" || true
 # Keep stock HOME intact. This test must NOT disable or uninstall any launcher.
 echo "HOME holder at baseline:"
 adb shell cmd role get-role-holders android.app.role.HOME | tee home-override-evidence/role-before.txt
@@ -29,6 +34,7 @@ adb shell settings put secure enabled_accessibility_services "$PKG/$SERVICE"
 adb shell settings put secure accessibility_enabled 1
 sleep 8
 adb shell dumpsys accessibility > home-override-evidence/accessibility.txt || true
+adb shell settings get secure user_setup_complete > home-override-evidence/user-setup-complete.txt || true
 grep -F "$SERVICE" home-override-evidence/accessibility.txt || true
 adb logcat -c || true
 echo "Open SatNova explicitly, then press HOME (which previously opened stock launcher)"
@@ -38,12 +44,14 @@ adb shell input keyevent 3
 sleep 8
 adb shell dumpsys activity activities > home-override-evidence/activities-home.txt
 adb exec-out screencap -p > home-override-evidence/home-after-override.png || true
+adb logcat -d -s SatNovaHomeOverride:I ActivityTaskManager:W > home-override-evidence/home-override-events.txt || true
 grep -m1 'topResumedActivity=' home-override-evidence/activities-home.txt | tee home-override-evidence/home-focused.txt || true
 if grep -Eq "topResumedActivity=.*$PKG" home-override-evidence/activities-home.txt; then
     echo "RESULT: PASS; SatNova took focus after physical-equivalent HOME event"
 else
     echo "RESULT: FAIL; Google TV still focused or Accessibility blocked"
     adb logcat -d -t 2500 > home-override-evidence/logcat-home-fail.txt || true
+    echo "Look at home-override-events.txt for stock package and Android launch rejection details"
     exit 41
 fi
 echo "Reboot disposable Google TV emulator and test HOME after auto-reconnect"
