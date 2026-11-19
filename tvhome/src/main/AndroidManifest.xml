@@ -29,15 +29,11 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
-        <activity android:name=".MinimalHomeActivity" android:exported="true"
+        <activity android:name=".MinimalHomeActivity" android:exported="false"
             android:screenOrientation="landscape">
             <!-- Android caps positive intent priority to zero for non-privileged
                  launchers. HOME must be selected by Android; a user-enabled
                  Accessibility fallback can handle stock Google TV HOME. -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
-            </intent-filter>
         </activity>
     </application>
 </manifest>

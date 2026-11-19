@@ -60,7 +60,7 @@ class Zen4PersistentService : Service() {
     }
 
     private fun notification(): Notification {
-        val intent = Intent(this, MinimalHomeActivity::class.java)
+        val intent = Intent(this, AltaPlayZenActivity::class.java)
         val pending = PendingIntent.getActivity(this, 0, intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         return Notification.Builder(this, channelId)
