@@ -1277,7 +1277,7 @@ open class MinimalHomeActivity : Activity() {
                                 .apply()
                             AlertDialog.Builder(this)
                                 .setTitle("Mode HDMI activé")
-                                .setMessage("Les flèches, OK, BACK, MENU, CH+/CH−, EPG et les chiffres seront convertis en commandes Zen 4 uniquement si l'application HDMI est reconnue. HOME, SOURCE, le volume et l'alimentation restent à la TV. Vous pouvez interrompre le mode en revenant à HOME. Expiration automatique après deux heures.")
+                                .setMessage("Les flèches, OK, MENU, la touche JAUNE (EXIT Zen 4), CH+/CH−, EPG et les chiffres seront convertis en commandes Zen 4 uniquement si l'application HDMI est reconnue. BACK, HOME, SOURCE, le volume et l'alimentation restent à la TV. Vous pouvez interrompre le mode en revenant à HOME. Expiration automatique après deux heures.")
                                 .setPositiveButton("Essayer HDMI") { _, _ -> openHdmi1IfPossible() }
                                 .setNeutralButton("Je passe par SOURCE", null)
                                 .show()

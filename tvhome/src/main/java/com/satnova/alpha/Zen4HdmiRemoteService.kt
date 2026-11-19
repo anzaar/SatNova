@@ -244,7 +244,6 @@ class Zen4HdmiRemoteService : AccessibilityService() {
         KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER,
         KeyEvent.KEYCODE_NUMPAD_ENTER -> 5
         KeyEvent.KEYCODE_MENU -> 6
-        KeyEvent.KEYCODE_BACK -> 7
         KeyEvent.KEYCODE_CHANNEL_UP -> 69
         KeyEvent.KEYCODE_CHANNEL_DOWN -> 70
         KeyEvent.KEYCODE_GUIDE -> 32
@@ -286,8 +285,11 @@ class Zen4HdmiRemoteService : AccessibilityService() {
             maybeRearmOnHdmiReturn(activePackage)
         }
         if (!armValid()) return false
-        // SOURCE, volume and power always belong to the television.
+        // BACK must remain the TV's own navigation key. EXIT for Zen 4 is
+        // exclusively mapped to the yellow remote button on approved HDMI.
+        // SOURCE, volume and power also always belong to the television.
         if (event.keyCode in listOf(
+                KeyEvent.KEYCODE_BACK,
                 KeyEvent.KEYCODE_HOME, KeyEvent.KEYCODE_TV_INPUT,
                 KeyEvent.KEYCODE_VOLUME_UP, KeyEvent.KEYCODE_VOLUME_DOWN,
                 KeyEvent.KEYCODE_VOLUME_MUTE, KeyEvent.KEYCODE_MUTE,
