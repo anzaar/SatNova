@@ -1,0 +1,1083 @@
+rted: 171979766; UID 10098; state: ENABLED
+11-19 23:46:16.248  2049  2049 D CompatibilityChangeReporter: Compat change id reported: 242716250; UID 10098; state: DISABLED
+11-19 23:46:16.250   497  1648 D CompatibilityChangeReporter: Compat change id reported: 170503758; UID 10098; state: ENABLED
+11-19 23:46:16.251  2049  2049 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+11-19 23:46:16.251  2049  2049 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.sidecar.jar
+11-19 23:46:16.254   497  1648 D ConnectivityService: requestNetwork for uid/pid:10122/1979 activeRequest: null callbackRequest: 46 [NetworkRequest [ REQUEST id=47, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10122 RequestorUid: 10122 RequestorPkg: com.google.android.rkpdapp UnderlyingNetworks: Null] ]] callback flags: 0 order: 2147483647
+11-19 23:46:16.257   497   634 D ConnectivityService: NetReassign [47 : null → 100] [c 0] [a 0] [i 1]
+11-19 23:46:16.257   497   633 D EthernetNetworkFactory: eth0: onNetworkNeeded for request: NetworkRequest [ REQUEST id=47, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10122 RequestorUid: 10122 RequestorPkg: com.google.android.rkpdapp UnderlyingNetworks: Null] ]
+11-19 23:46:16.257   497   633 D EthernetNetworkFactory: IpClient already started
+11-19 23:46:16.257   497   626 D UntrustedWifiNetworkFactory: got request NetworkRequest [ REQUEST id=47, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10122 RequestorUid: 10122 RequestorPkg: com.google.android.rkpdapp UnderlyingNetworks: Null] ]
+11-19 23:46:16.257   497   626 D OemPaidWifiNetworkFactory: got request NetworkRequest [ REQUEST id=47, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10122 RequestorUid: 10122 RequestorPkg: com.google.android.rkpdapp UnderlyingNetworks: Null] ]
+11-19 23:46:16.257   497   626 D MultiInternetWifiNetworkFactory: got request NetworkRequest [ REQUEST id=47, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10122 RequestorUid: 10122 RequestorPkg: com.google.android.rkpdapp UnderlyingNetworks: Null] ]
+11-19 23:46:16.258   497   574 D CompatibilityChangeReporter: Compat change id reported: 265195908; UID 10098; state: ENABLED
+11-19 23:46:16.259   497   534 D CompatibilityChangeReporter: Compat change id reported: 135634846; UID 10087; state: DISABLED
+11-19 23:46:16.259   497   535 D CompatibilityChangeReporter: Compat change id reported: 143937733; UID 10087; state: ENABLED
+11-19 23:46:16.259   973   973 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.common.telemetry.service.START dat=chimera-action:/... cmp=com.google.android.gms/.chimera.PersistentApiService }
+11-19 23:46:16.259   973   973 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.common.telemetry.service.START dat=chimera-action:/... cmp=com.google.android.gms/.chimera.PersistentApiService }
+11-19 23:46:16.262  1979  2046 D CompatibilityChangeReporter: Compat change id reported: 263076149; UID 10122; state: ENABLED
+11-19 23:46:16.265   317   317 D Zygote  : Forked child process 2073
+11-19 23:46:16.265   497   535 I ActivityManager: Start proc 2073:com.google.android.katniss:search/u0a87 for broadcast {com.google.android.katniss/com.google.android.apps.tvsearch.fcm.FcmRegistrationReceiver_Receiver}
+11-19 23:46:16.272  2073  2073 I .katniss:search: Using CollectorTypeCC GC.
+11-19 23:46:16.272  2073  2073 W .katniss:search: Unexpected CPU variant for x86: x86.
+11-19 23:46:16.272  2073  2073 W .katniss:search: Known variants: atom, sandybridge, silvermont, goldmont, goldmont-plus, tremont, kabylake, default
+11-19 23:46:16.279  1298  1634 I SupervisionStateUtils: State no supervision required [CONTEXT service_id=42 ]
+11-19 23:46:16.280  1298  1634 I SupervisionStateUtils: State recover:NO_SUPERVISION_REQUIRED [CONTEXT service_id=42 ]
+11-19 23:46:16.281  1949  1949 V SafetyCenterBackgroundR: Received a android.intent.action.BOOT_COMPLETED broadcast, but safety center is currently disabled. Cancelling any existing job.
+11-19 23:46:16.282  2024  2024 D nativeloader: InitLlndkLibrariesProduct: libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libRS.so:libandroid_net.so:libbinder_ndk.so:libc.so:libcgrouprc.so:libclang_rt.asan-i686-android.so:libcom.android.tethering.connectivity_native.so:libdl.so:libft2.so:liblog.so:libm.so:libmediandk.so:libnativewindow.so:libneuralnetworks.so:libselinux.so:libsync.so:libvndksupport.so:libvulkan.so
+11-19 23:46:16.282  2024  2024 D nativeloader: Configuring product-clns-6 for unbundled product apk /product/app/GoogleCalendarSyncAdapter/GoogleCalendarSyncAdapter.apk. target_sdk_version=33, uses_libraries=, library_path=/product/app/GoogleCalendarSyncAdapter/lib/x86:/product/lib:/system/product/lib, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.syncadapters.calendar:/product/lib:/system/product/lib
+11-19 23:46:16.283  2024  2024 D nativeloader: InitVndkspLibrariesProduct: android.hardware.common-V2-ndk.so:android.hardware.common.fmq-V1-ndk.so:android.hardware.graphics.allocator-V2-ndk.so:android.hardware.graphics.common-V4-ndk.so:android.hardware.graphics.common@1.0.so:android.hardware.graphics.common@1.1.so:android.hardware.graphics.common@1.2.so:android.hardware.graphics.composer3-V1-ndk.so:android.hardware.graphics.mapper@2.0.so:android.hardware.graphics.mapper@2.1.so:android.hardware.graphics.mapper@3.0.so:android.hardware.graphics.mapper@4.0.so:android.hardware.renderscript@1.0.so:android.hidl.memory.token@1.0.so:android.hidl.memory@1.0-impl.so:android.hidl.memory@1.0.so:android.hidl.safe_union@1.0.so:libRSCpuRef.so:libRSDriver.so:libRS_internal.so:libbase.so:libbcinfo.so:libblas.so:libc++.so:libcompiler_rt.so:libcutils.so:libdmabufheap.so:libgralloctypes.so:libhardware.so:libhidlbase.so:libhidlmemory.so:libion.so:libjsoncpp.so:liblzma.so:libprocessgroup.so:libunwindstack.so:libutils.so:libutilscallstack.so:libz.so
+11-19 23:46:16.294   973  1378 D TrafficStats: tagSocket(147) with statsTag=0x30000407, statsUid=-1
+11-19 23:46:16.296  1979  2072 I DrmHalHidl: No hidl drm factories found
+11-19 23:46:16.296   133   133 I hwservicemanager: getTransport: Cannot find entry android.hardware.drm@1.0::IDrmFactory/default in either framework or device VINTF manifest.
+11-19 23:46:16.296  1979  2072 E DrmHalHidl: Failed to find passthrough drm factories
+11-19 23:46:16.308  1949  1949 D SafetyLabelChangesJobService: Received broadcast with intent action 'android.intent.action.BOOT_COMPLETED'
+11-19 23:46:16.308  1949  1949 I SafetyLabelChangesJobService: onReceive: Safety label change notifications are not enabled.
+11-19 23:46:16.319  1298  1560 I Auth    : [AuthManaged, AuthManagedModuleInitIntentOperation] enabling com.google.android.gms.auth.managed.ui.EmmActivity
+11-19 23:46:16.319  1298  1560 I Auth    : [AuthManaged, AuthManagedModuleInitIntentOperation] enabling com.google.android.gms.auth.managed.ui.PhoneskyDpcInstallActivity
+11-19 23:46:16.324  1298  1560 W Auth    : [AuthManaged, SettingsSecurityDeviceOwnerChimeraActivity] device owner: n/a
+11-19 23:46:16.325  1298  1560 I Auth    : [AuthManaged, AuthManagedModuleInitIntentOperation] disabling com.google.android.gms.auth.managed.ui.SettingsSecurityDeviceOwnerActivity
+11-19 23:46:16.329  2049  2049 D nativeloader: InitLlndkLibrariesProduct: libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libRS.so:libandroid_net.so:libbinder_ndk.so:libc.so:libcgrouprc.so:libclang_rt.asan-i686-android.so:libcom.android.tethering.connectivity_native.so:libdl.so:libft2.so:liblog.so:libm.so:libmediandk.so:libnativewindow.so:libneuralnetworks.so:libselinux.so:libsync.so:libvndksupport.so:libvulkan.so
+11-19 23:46:16.329  2049  2049 D nativeloader: Configuring product-clns-6 for unbundled product apk /product/app/YouTubeLeanback/YouTubeLeanback.apk. target_sdk_version=31, uses_libraries=, library_path=/product/app/YouTubeLeanback/lib/x86:/product/app/YouTubeLeanback/YouTubeLeanback.apk!/lib/x86:/product/lib:/system/product/lib, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.youtube.tv:/product/lib:/system/product/lib
+11-19 23:46:16.329  2049  2049 D nativeloader: InitVndkspLibrariesProduct: android.hardware.common-V2-ndk.so:android.hardware.common.fmq-V1-ndk.so:android.hardware.graphics.allocator-V2-ndk.so:android.hardware.graphics.common-V4-ndk.so:android.hardware.graphics.common@1.0.so:android.hardware.graphics.common@1.1.so:android.hardware.graphics.common@1.2.so:android.hardware.graphics.composer3-V1-ndk.so:android.hardware.graphics.mapper@2.0.so:android.hardware.graphics.mapper@2.1.so:android.hardware.graphics.mapper@3.0.so:android.hardware.graphics.mapper@4.0.so:android.hardware.renderscript@1.0.so:android.hidl.memory.token@1.0.so:android.hidl.memory@1.0-impl.so:android.hidl.memory@1.0.so:android.hidl.safe_union@1.0.so:libRSCpuRef.so:libRSDriver.so:libRS_internal.so:libbase.so:libbcinfo.so:libblas.so:libc++.so:libcompiler_rt.so:libcutils.so:libdmabufheap.so:libgralloctypes.so:libhardware.so:libhidlbase.so:libhidlmemory.so:libion.so:libjsoncpp.so:liblzma.so:libprocessgroup.so:libunwindstack.so:libutils.so:libutilscallstack.so:libz.so
+11-19 23:46:16.338  1298  1560 I Auth    : [AuthManaged, PasswordComplexityHelperImpl] Updating password complexity components state.
+11-19 23:46:16.338  1298  1560 I Auth    : [AuthManaged, PasswordComplexityHelperImpl] Disabling com.google.android.gms.auth.managed.admin.DeviceAdminReceiver
+11-19 23:46:16.338  1298  1560 I Auth    : [AuthManaged, PasswordComplexityHelperImpl] Disabling com.google.android.gms.auth.managed.ui.SetNewPasswordActivity
+11-19 23:46:16.338  1298  1560 I Auth    : [AuthManaged, AuthManagedModuleInitIntentOperation] enabling com.google.android.gms.auth.managed.ui.EmmActivity
+11-19 23:46:16.338  1298  1560 I Auth    : [AuthManaged, AuthManagedModuleInitIntentOperation] enabling com.google.android.gms.auth.managed.ui.PhoneskyDpcInstallActivity
+11-19 23:46:16.338  1298  1560 W Auth    : [AuthManaged, SettingsSecurityDeviceOwnerChimeraActivity] device owner: n/a
+11-19 23:46:16.338  1298  1560 I Auth    : [AuthManaged, AuthManagedModuleInitIntentOperation] disabling com.google.android.gms.auth.managed.ui.SettingsSecurityDeviceOwnerActivity
+11-19 23:46:16.338  1298  1560 I Auth    : [AuthManaged, PasswordComplexityHelperImpl] Updating password complexity components state.
+11-19 23:46:16.338  1298  1560 I Auth    : [AuthManaged, PasswordComplexityHelperImpl] Disabling com.google.android.gms.auth.managed.admin.DeviceAdminReceiver
+11-19 23:46:16.338  1298  1560 I Auth    : [AuthManaged, PasswordComplexityHelperImpl] Disabling com.google.android.gms.auth.managed.ui.SetNewPasswordActivity
+11-19 23:46:16.342  1298  1560 E CastAuth: [CastAuthModuleInitIntent] Feature is not available, reason = CastAuth feature is disabled.. [CONTEXT service_id=360 ]
+11-19 23:46:16.353  2073  2073 E .katniss:search: Not starting debugger since process cannot load the jdwp agent.
+11-19 23:46:16.353  1949  1949 I PermissionEventCleanupJobService: Job already scheduled.
+11-19 23:46:16.353  1949  1949 D PermissionStorageTimeChangeReceiver: systemTimeSnapshot set to 1795131976353
+11-19 23:46:16.354  1949  1949 D PermissionStorageTimeChangeReceiver: realtimeSnapshot set to 25131
+11-19 23:46:16.357   497   520 D CompatibilityChangeReporter: Compat change id reported: 168419799; UID 10087; state: DISABLED
+11-19 23:46:16.357   497   520 D CompatibilityChangeReporter: Compat change id reported: 273564678; UID 10087; state: DISABLED
+11-19 23:46:16.360   497   534 D CompatibilityChangeReporter: Compat change id reported: 135634846; UID 10065; state: DISABLED
+11-19 23:46:16.360  2081  2081 I AidlLazyServiceRegistrar: Registering service android.hardware.drm.IDrmFactory/clearkey
+11-19 23:46:16.362   497   534 D CompatibilityChangeReporter: Compat change id reported: 177438394; UID 10065; state: DISABLED
+11-19 23:46:16.362   497   534 D CompatibilityChangeReporter: Compat change id reported: 135772972; UID 10065; state: DISABLED
+11-19 23:46:16.362   497   534 D CompatibilityChangeReporter: Compat change id reported: 135754954; UID 10065; state: ENABLED
+11-19 23:46:16.363   497   535 D CompatibilityChangeReporter: Compat change id reported: 143937733; UID 10065; state: ENABLED
+11-19 23:46:16.372  1796  1825 D CompatibilityChangeReporter: Compat change id reported: 183155436; UID 10085; state: ENABLED
+11-19 23:46:16.371   317   317 D Zygote  : Forked child process 2092
+11-19 23:46:16.376   497   535 I ActivityManager: Start proc 2092:com.android.externalstorage/u0a65 for broadcast {com.android.externalstorage/com.android.externalstorage.MountReceiver}
+11-19 23:46:16.380  2092  2092 I externalstorage: Using CollectorTypeCC GC.
+11-19 23:46:16.381  2092  2092 W externalstorage: Unexpected CPU variant for x86: x86.
+11-19 23:46:16.381  2092  2092 W externalstorage: Known variants: atom, sandybridge, silvermont, goldmont, goldmont-plus, tremont, kabylake, default
+11-19 23:46:16.382  2092  2092 E externalstorage: Not starting debugger since process cannot load the jdwp agent.
+11-19 23:46:16.383  2073  2073 D CompatibilityChangeReporter: Compat change id reported: 171979766; UID 10087; state: ENABLED
+11-19 23:46:16.383  2073  2073 D CompatibilityChangeReporter: Compat change id reported: 242716250; UID 10087; state: ENABLED
+11-19 23:46:16.384  1979  2072 I DrmUtils: found IDrmFactory. Instance name:[android.hardware.drm.IDrmFactory/clearkey]
+11-19 23:46:16.391   497   520 D CompatibilityChangeReporter: Compat change id reported: 170503758; UID 10087; state: ENABLED
+11-19 23:46:16.394   497   520 D CompatibilityChangeReporter: Compat change id reported: 168419799; UID 10065; state: DISABLED
+11-19 23:46:16.394   497   520 D CompatibilityChangeReporter: Compat change id reported: 273564678; UID 10065; state: DISABLED
+11-19 23:46:16.394  2073  2073 D nativeloader: Configuring clns-6 for other apk /system/framework/org.apache.http.legacy.jar. target_sdk_version=34, uses_libraries=ALL, library_path=/product/priv-app/Katniss/lib/x86:/product/priv-app/Katniss/Katniss.apk!/lib/x86, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.katniss
+11-19 23:46:16.395  2073  2073 W ziparchive: Unable to open '/system_ext/framework/com.android.libraries.tv.tvsystem.dm': No such file or directory
+11-19 23:46:16.395  2073  2073 W ziparchive: Unable to open '/system_ext/framework/com.android.libraries.tv.tvsystem.dm': No such file or directory
+11-19 23:46:16.396  2073  2073 D nativeloader: Configuring clns-7 for other apk /system_ext/framework/com.android.libraries.tv.tvsystem.jar. target_sdk_version=34, uses_libraries=ALL, library_path=/product/priv-app/Katniss/lib/x86:/product/priv-app/Katniss/Katniss.apk!/lib/x86, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.katniss
+11-19 23:46:16.396   497   574 D CompatibilityChangeReporter: Compat change id reported: 265195908; UID 10065; state: ENABLED
+11-19 23:46:16.402  1298  1560 I WakefulBroadcastRcvr: Processing wakeful broadcast: com.google.android.gms.checkin.CHECKIN_START_ACTION
+11-19 23:46:16.404  1298  1560 I SyncIntentOperation: (REDACTED) Handling the intent: %s.
+11-19 23:46:16.413  1298  1656 I Checkin : [CheckinIntentOperation] onHandleIntent, Intent { act=com.google.android.gms.checkin.CHECKIN_START_ACTION cat=[targeted_intent_op_prefix:.checkin.CheckinIntentOperation] cmp=com.google.android.gms/.chimera.GmsIntentOperationService (has extras) }
+11-19 23:46:16.416  1298  1656 I Checkin : [EventLogChimeraService] Opted in for usage reporting: false
+11-19 23:46:16.420  2073  2073 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+11-19 23:46:16.420  2073  2073 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.sidecar.jar
+11-19 23:46:16.432  2107  2107 I AidlLazyServiceRegistrar: Registering service android.hardware.drm.IDrmFactory/widevine
+11-19 23:46:16.436  1979  2072 I DrmUtils: found IDrmFactory. Instance name:[android.hardware.drm.IDrmFactory/widevine]
+11-19 23:46:16.436  2107  2107 I WVCdm-DrmFactory: [app][com.google.android.rkpdapp] calling virtual ::ndk::ScopedAStatus wvdrm::hardware::drm::widevine::WVDrmFactory::createDrmPlugin(const Uuid &, const string &, std::shared_ptr< ::aidl::android::hardware::drm::IDrmPlugin> *)
+11-19 23:46:16.436  2107  2107 D WVCdm   : Instantiating CDM metrics queue
+11-19 23:46:16.436  2107  2107 D WVCdm   : Instantiating CDM.
+11-19 23:46:16.436  2107  2107 D WVCdm   : [cdm_engine.cpp(581):QueryStatus] security_level = Default, query_token = WidevineCdmVersion
+11-19 23:46:16.438  2107  2107 I WVCdm   : [file_utils.cpp(38):Exists] stat failed: ENOENT
+11-19 23:46:16.438  2107  2107 I WVCdm   : [oemcrypto_adapter_dynamic.cpp(783):Initialize] Level 3 Build Info (v18): {"soc_vendor":"L3_28614","soc_model":"X86 32 bit","ta_ver":"18.1.0+May  1 2023_06:32:47_","uses_opk":false,"tee_os":"none","tee_os_ver":"0.0.0","form_factor":"L3","implementer":"Widevine","fused":false}
+11-19 23:46:16.439  2107  2114 I WVCdm   : [(0):] Level3 Library 28614 May  1 2023 06:32:47
+11-19 23:46:16.439  2092  2092 D CompatibilityChangeReporter: Compat change id reported: 171979766; UID 10065; state: ENABLED
+11-19 23:46:16.439  2092  2092 D CompatibilityChangeReporter: Compat change id reported: 242716250; UID 10065; state: ENABLED
+11-19 23:46:16.444  2107  2107 I WVCdm   : [oemcrypto_adapter_dynamic.cpp(797):Initialize] L3 Initialized. Trying L1.
+11-19 23:46:16.445  2107  2107 W WVCdm   : [oemcrypto_adapter_dynamic.cpp(810):Initialize] Could not load oemcrypto from path liboemcrypto.so.  dlopen failed: library "liboemcrypto.so" not found
+11-19 23:46:16.445  2107  2107 W WVCdm   : [oemcrypto_adapter_dynamic.cpp(814):Initialize] Could not load oemcrypto. Falling back to L3.
+11-19 23:46:16.445  2107  2107 E WVCdm   : [oemcrypto_adapter_dynamic.cpp(1271):ValidateOrInstallL1KeyboxOrCert] L1 not initialized. Falling back to L3
+11-19 23:46:16.445  2107  2107 I WVCdm   : [file_utils.cpp(38):Exists] stat failed: ENOENT
+11-19 23:46:16.445  2107  2107 W WVCdm   : [oemcrypto_adapter_dynamic.cpp(1470):OEMCrypto_InitializeAndCheckKeybox] Keybox error: 25. Falling back to L3.
+11-19 23:46:16.445  2107  2107 I WVCdm   : [oemcrypto_adapter_dynamic.cpp(846):Level1Terminate] L1 Terminate not needed
+11-19 23:46:16.445  2107  2107 D WVCdm   : [crypto_session.cpp(472):CacheVersion] OEMCrypto version (default security level): 18.1
+11-19 23:46:16.445  2107  2107 D WVCdm   : [crypto_session.cpp(481):CacheVersion] OEMCrypto version (L3 security level): 18.1
+11-19 23:46:16.445  2107  2107 D WVCdm   : [cdm_engine.cpp(581):QueryStatus] security_level = Default, query_token = ProvisioningModel
+11-19 23:46:16.445  1979  2072 I RkpdWidevine: Not a WV provisioning 4.0 device. No provisioning required.
+11-19 23:46:16.445   497   572 D CompatibilityChangeReporter: Compat change id reported: 170503758; UID 10065; state: ENABLED
+11-19 23:46:16.445  1796  1825 I Finsky  : [38] Received content filters request from sharedUserId=com.google.uid.shared:10088
+11-19 23:46:16.446  1796  1825 D CompatibilityChangeReporter: Compat change id reported: 160794467; UID 10085; state: ENABLED
+11-19 23:46:16.446  1973  1973 D CompatibilityChangeReporter: Compat change id reported: 160794467; UID 10088; state: ENABLED
+11-19 23:46:16.446  1979  2046 I WM-WorkerWrapper: Worker result SUCCESS for Work [ id=a9a5ba13-eb1f-4a27-95a5-522351466c18, tags={ com.android.rkpdapp.provisioner.WidevineProvisioner, WidevineProvisioner } ]
+11-19 23:46:16.447  1973  1973 W ProviderHelper: Unknown dynamite feature providerinstaller.dynamite
+11-19 23:46:16.447  1973  1973 I DynamiteModule: Considering local module com.google.android.gms.providerinstaller.dynamite:1 and remote module com.google.android.gms.providerinstaller.dynamite:0
+11-19 23:46:16.447  1973  1973 I DynamiteModule: Selected local version of com.google.android.gms.providerinstaller.dynamite
+11-19 23:46:16.448   442   653 D statsd_drm: statsd_mediadrm skipping empty entry
+11-19 23:46:16.448   497   633 D EthernetNetworkFactory: eth0: onNetworkUnneeded for request: NetworkRequest [ REQUEST id=47, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10122 RequestorUid: 10122 RequestorPkg: com.google.android.rkpdapp UnderlyingNetworks: Null] ]
+11-19 23:46:16.448  2107  2107 I WVCdm   : [(0):] L3 Terminate.
+11-19 23:46:16.449  1973  1973 V NativeCrypto: Registering com/google/android/gms/org/conscrypt/NativeCrypto's 302 native methods...
+11-19 23:46:16.455   497   572 W JobScheduler: Job didn't exist in JobStore: a25bad6 #u0a122/6 com.google.android.rkpdapp/androidx.work.impl.background.systemjob.SystemJobService
+11-19 23:46:16.458  1298  1656 I Checkin : [CheckinOperation] Checkin Operation finished with result: RESCHEDULED finish time: 25236.
+11-19 23:46:16.459  1298  1728 I Ads     : Successfully received play store parental controls the result.
+11-19 23:46:16.467  2073  2073 D nativeloader: InitLlndkLibrariesProduct: libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libRS.so:libandroid_net.so:libbinder_ndk.so:libc.so:libcgrouprc.so:libclang_rt.asan-i686-android.so:libcom.android.tethering.connectivity_native.so:libdl.so:libft2.so:liblog.so:libm.so:libmediandk.so:libnativewindow.so:libneuralnetworks.so:libselinux.so:libsync.so:libvndksupport.so:libvulkan.so
+11-19 23:46:16.467  2073  2073 D nativeloader: Configuring product-clns-8 for unbundled product apk /product/priv-app/Katniss/Katniss.apk. target_sdk_version=34, uses_libraries=, library_path=/product/priv-app/Katniss/lib/x86:/product/priv-app/Katniss/Katniss.apk!/lib/x86:/product/lib:/system/product/lib, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.katniss:/product/lib:/system/product/lib
+11-19 23:46:16.468  1298  1656 I Checkin : [ScheduledCheckinGmsTaskService] scheduleCheckinTask
+11-19 23:46:16.470  1796  1900 I Finsky  : [58] [PLUS] Triggering sync due to NOW urgency payload
+11-19 23:46:16.475  1796  1856 I Finsky  : [50] [PLUS] Adding payload case=8
+11-19 23:46:16.476  1298  1656 I Checkin : [ExecutionManager] Checkin scheduled at 36236 with schedule delay: 11000
+11-19 23:46:16.479  2024  2024 V GraphicsEnvironment: Currently set values for:
+11-19 23:46:16.479  2024  2024 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
+11-19 23:46:16.479  2024  2024 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
+11-19 23:46:16.482  2024  2024 V GraphicsEnvironment: ANGLE GameManagerService for com.google.android.syncadapters.calendar: false
+11-19 23:46:16.482  2024  2024 V GraphicsEnvironment: com.google.android.syncadapters.calendar is not listed in per-application setting
+11-19 23:46:16.482  2024  2024 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+11-19 23:46:16.485  2024  2024 D WM-WrkMgrInitializer: Initializing WorkManager with default configuration.
+11-19 23:46:16.485  2024  2024 W apters.calendar: Accessing hidden field Ljava/util/Collections$SynchronizedCollection;->mutex:Ljava/lang/Object; (max-target-o, reflection, denied)
+11-19 23:46:16.485  2024  2024 W apters.calendar: Accessing hidden method Ljava/util/Collections$SynchronizedSet;-><init>(Ljava/util/Set;Ljava/lang/Object;)V (max-target-o, reflection, denied)
+11-19 23:46:16.485  2024  2024 W apters.calendar: Accessing hidden method Ljava/util/Collections$SynchronizedCollection;-><init>(Ljava/util/Collection;Ljava/lang/Object;)V (max-target-o, reflection, denied)
+11-19 23:46:16.486  1796  1856 I Finsky  : [50] [PLUS] Adding payload case=10
+11-19 23:46:16.486  1796  1856 I Finsky  : [50] [PLUS] Adding payload case=11
+11-19 23:46:16.487  1796  1856 I Finsky  : [50] [PLUS] Adding payload case=12
+11-19 23:46:16.487  1796  1856 I Finsky  : [50] [PLUS] Adding payload case=13
+11-19 23:46:16.487  1796  1856 I Finsky  : [50] [PLUS] Adding payload case=14
+11-19 23:46:16.487  1796  1856 I Finsky  : [50] [PLUS] Adding payload case=15
+11-19 23:46:16.487  1796  1856 I Finsky  : [50] [PLUS] Adding payload case=16
+11-19 23:46:16.487  1796  1856 I Finsky  : [50] [PLUS] Adding payload case=17
+11-19 23:46:16.487  1796  1856 I Finsky  : [50] [PLUS] Adding payload case=18
+11-19 23:46:16.487  1796  1856 I Finsky  : [50] [PLUS] Adding payload case=19
+11-19 23:46:16.487  1796  1856 I Finsky  : [50] [PLUS] Adding payload case=20
+11-19 23:46:16.487  1796  1856 I Finsky  : [50] [PLUS] Adding payload case=21
+11-19 23:46:16.488  1796  1856 I Finsky  : [50] [PLUS] Adding payload case=24
+11-19 23:46:16.488  1796  1856 I Finsky  : [50] [PLUS] Adding payload case=34
+11-19 23:46:16.489  2049  2049 V GraphicsEnvironment: Currently set values for:
+11-19 23:46:16.489  2049  2049 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
+11-19 23:46:16.489  2049  2049 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
+11-19 23:46:16.493  2024  2024 D WM-PackageManagerHelper: androidx.work.impl.background.systemjob.SystemJobService enabled
+11-19 23:46:16.493  2024  2024 D WM-Schedulers: Created SystemJobScheduler and enabled SystemJobService
+11-19 23:46:16.493  2049  2049 V GraphicsEnvironment: ANGLE GameManagerService for com.google.android.youtube.tv: false
+11-19 23:46:16.493  2049  2049 V GraphicsEnvironment: com.google.android.youtube.tv is not listed in per-application setting
+11-19 23:46:16.493  2049  2049 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+11-19 23:46:16.500  1298  1560 D TrafficStats: tagSocket(134) with statsTag=0x30001803, statsUid=-1
+11-19 23:46:16.501  2049  2049 D CompatibilityChangeReporter: Compat change id reported: 3400644; UID 10098; state: DISABLED
+11-19 23:46:16.501   316   349 E BpfHandler: Unsupported protocol: 1
+11-19 23:46:16.501  1298  1560 I TrafficStats: tagSocketFd(134, 805312515, -1) failed with errno-93
+11-19 23:46:16.505  1796  1888 I Finsky  : [55] [PLUS] Syncing for users with urgency above: NOW
+11-19 23:46:16.507  1973  1973 I ProviderInstaller: Installed default security provider GmsCore_OpenSSL
+11-19 23:46:16.510  2092  2092 D nativeloader: Configuring clns-shared-6 for other apk /system/priv-app/ExternalStorageProvider/ExternalStorageProvider.apk. target_sdk_version=34, uses_libraries=, library_path=/system/priv-app/ExternalStorageProvider/lib/x86:/system/lib:/system_ext/lib, permitted_path=/data:/mnt/expand:/data/user/0/com.android.externalstorage:/system/priv-app/ExternalStorageProvider:/system/lib:/system_ext/lib
+11-19 23:46:16.512  1796  1888 I Finsky  : [55] [PLUS] Syncing 1 train(s)
+11-19 23:46:16.515  2073  2073 D nativeloader: InitVndkspLibrariesProduct: android.hardware.common-V2-ndk.so:android.hardware.common.fmq-V1-ndk.so:android.hardware.graphics.allocator-V2-ndk.so:android.hardware.graphics.common-V4-ndk.so:android.hardware.graphics.common@1.0.so:android.hardware.graphics.common@1.1.so:android.hardware.graphics.common@1.2.so:android.hardware.graphics.composer3-V1-ndk.so:android.hardware.graphics.mapper@2.0.so:android.hardware.graphics.mapper@2.1.so:android.hardware.graphics.mapper@3.0.so:android.hardware.graphics.mapper@4.0.so:android.hardware.renderscript@1.0.so:android.hidl.memory.token@1.0.so:android.hidl.memory@1.0-impl.so:android.hidl.memory@1.0.so:android.hidl.safe_union@1.0.so:libRSCpuRef.so:libRSDriver.so:libRS_internal.so:libbase.so:libbcinfo.so:libblas.so:libc++.so:libcompiler_rt.so:libcutils.so:libdmabufheap.so:libgralloctypes.so:libhardware.so:libhidlbase.so:libhidlmemory.so:libion.so:libjsoncpp.so:liblzma.so:libprocessgroup.so:libunwindstack.so:libutils.so:libutilscallstack.so:libz.so
+11-19 23:46:16.516  2024  2024 D CompatibilityChangeReporter: Compat change id reported: 3400644; UID 10093; state: DISABLED
+11-19 23:46:16.518   497  1682 I ActivityManager: Flag disabled. Ignoring finishAttachApplication from uid: 10093. pid: 2024
+11-19 23:46:16.519  2024  2024 I GnpSdk  : Intent received for action [android.intent.action.BOOT_COMPLETED] package [com.google.android.syncadapters.calendar].
+11-19 23:46:16.519  2024  2024 I GnpSdk  : Phenotype initialized.
+11-19 23:46:16.526  1973  2144 I Watchcat: Started
+11-19 23:46:16.528  1796  1888 D CompatibilityChangeReporter: Compat change id reported: 247079863; UID 10085; state: ENABLED
+11-19 23:46:16.533  1298  1791 W FileUtils: Failed to set unwritable: /data/user_de/0/com.google.android.gms/app_chimera/m/00000008/KidsGmsCorePrebuiltTv.apk
+11-19 23:46:16.534  1298  1791 W ProviderHelper: Unknown dynamite feature providerinstaller.dynamite
+11-19 23:46:16.534  1298  1791 I DynamiteModule: Considering local module com.google.android.gms.providerinstaller.dynamite:1 and remote module com.google.android.gms.providerinstaller.dynamite:0
+11-19 23:46:16.534  1298  1791 I DynamiteModule: Selected local version of com.google.android.gms.providerinstaller.dynamite
+11-19 23:46:16.535  1796  1845 I Finsky  : [42] VerifyApps: Setup app restrictions monitor
+11-19 23:46:16.536   973  1378 I AlarmManager: setExactAndAllowWhileIdle [name: GCM_HB_ALARM type: 2 triggerAtMillis: 585313]
+11-19 23:46:16.536   497   519 D CompatibilityChangeReporter: Compat change id reported: 171306433; UID 10088; state: ENABLED
+11-19 23:46:16.536   497   519 D CompatibilityChangeReporter: Compat change id reported: 218533173; UID 10088; state: ENABLED
+11-19 23:46:16.544  1796  1900 I Finsky  : [58] Set UnhibernateActivity enabled state to 1
+11-19 23:46:16.547  1796  1888 I Finsky  : [55] [PLUS] Sending payloads for account: [2fKVkThB4QBVOwc88U06EJ4S6Yyqenathz2XlaLEUMg]
+11-19 23:46:16.551  2073  2073 V GraphicsEnvironment: Currently set values for:
+11-19 23:46:16.551  2073  2073 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
+11-19 23:46:16.551  2073  2073 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
+11-19 23:46:16.551  1796  1845 I Finsky  : [42] VerifyApps: Device wide unknown source restriction updated
+11-19 23:46:16.552  1298  1791 W ProviderHelper: Unknown dynamite feature providerinstaller.dynamite
+11-19 23:46:16.552  1298  1791 I DynamiteModule: Considering local module com.google.android.gms.providerinstaller.dynamite:1 and remote module com.google.android.gms.providerinstaller.dynamite:0
+11-19 23:46:16.552  1298  1791 I DynamiteModule: Selected local version of com.google.android.gms.providerinstaller.dynamite
+11-19 23:46:16.553  2024  2024 I GnpSdk  : Validation OK for action [android.intent.action.BOOT_COMPLETED].
+11-19 23:46:16.553  2024  2024 D PhenotypeContext: Application doesn't implement PhenotypeApplication interface, falling back to globally set context. See go/phenotype-flag#process-stable-init for more info.
+11-19 23:46:16.553  1973  1973 W azvk    : Primes not initialized, returning default (no-op) Primes instance which will ignore all calls. Please call Primes.initialize(...) before using any Primes API.
+11-19 23:46:16.553  1973  1973 W azvk    : bhss: FULL
+11-19 23:46:16.553  1973  1973 W azvk    : 	at a.B(:com.google.android.gms@233515114@23.35.15 (180706-565551795):9)
+11-19 23:46:16.553  1973  1973 W azvk    : 	at azvk.a(:com.google.android.gms@233515114@23.35.15 (180706-565551795):32)
+11-19 23:46:16.553  1973  1973 W azvk    : 	at com.google.android.gms.common.app.GmsApplication.onCreate(:com.google.android.gms@233515114@23.35.15 (180706-565551795):493)
+11-19 23:46:16.553  1973  1973 W azvk    : 	at android.app.Instrumentation.callApplicationOnCreate(Instrumentation.java:1316)
+11-19 23:46:16.553  1973  1973 W azvk    : 	at android.app.ActivityThread.handleBindApplication(ActivityThread.java:6998)
+11-19 23:46:16.553  1973  1973 W azvk    : 	at android.app.ActivityThread.-$$Nest$mhandleBindApplication(Unknown Source:0)
+11-19 23:46:16.553  1973  1973 W azvk    : 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2236)
+11-19 23:46:16.553  1973  1973 W azvk    : 	at android.os.Handler.dispatchMessage(Handler.java:106)
+11-19 23:46:16.553  1973  1973 W azvk    : 	at android.os.Looper.loopOnce(Looper.java:205)
+11-19 23:46:16.553  1973  1973 W azvk    : 	at android.os.Looper.loop(Looper.java:294)
+11-19 23:46:16.553  1973  1973 W azvk    : 	at android.app.ActivityThread.main(ActivityThread.java:8177)
+11-19 23:46:16.553  1973  1973 W azvk    : 	at java.lang.reflect.Method.invoke(Native Method)
+11-19 23:46:16.553  1973  1973 W azvk    : 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:552)
+11-19 23:46:16.553  1973  1973 W azvk    : 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:971)
+11-19 23:46:16.554  1973  2144 I GMS_MM_Logger: (REDACTED) Start time: %s
+11-19 23:46:16.554  1973  2144 I GMS_MM_Logger: Started.
+11-19 23:46:16.555  2024  2125 D CompatibilityChangeReporter: Compat change id reported: 160794467; UID 10093; state: ENABLED
+11-19 23:46:16.555   497   802 D CompatibilityChangeReporter: Compat change id reported: 161145287; UID 10093; state: DISABLED
+11-19 23:46:16.557  1298  1791 W ProviderHelper: Unknown dynamite feature providerinstaller.dynamite
+11-19 23:46:16.557  1298  1791 I DynamiteModule: Considering local module com.google.android.gms.providerinstaller.dynamite:1 and remote module com.google.android.gms.providerinstaller.dynamite:0
+11-19 23:46:16.557  1298  1791 I DynamiteModule: Selected local version of com.google.android.gms.providerinstaller.dynamite
+11-19 23:46:16.557  2073  2073 V GraphicsEnvironment: ANGLE GameManagerService for com.google.android.katniss: false
+11-19 23:46:16.557  2073  2073 V GraphicsEnvironment: com.google.android.katniss is not listed in per-application setting
+11-19 23:46:16.557  2073  2073 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+11-19 23:46:16.559   497   572 I ActivityManager: Flag disabled. Ignoring finishAttachApplication from uid: 10088. pid: 1973
+11-19 23:46:16.560  1298  1791 W ProviderHelper: Unknown dynamite feature providerinstaller.dynamite
+11-19 23:46:16.560   973  1024 I AlarmManager: setExactAndAllowWhileIdle [name: GCM_HB_ALARM type: 2 triggerAtMillis: 585338]
+11-19 23:46:16.560  1298  1791 I DynamiteModule: Considering local module com.google.android.gms.providerinstaller.dynamite:1 and remote module com.google.android.gms.providerinstaller.dynamite:0
+11-19 23:46:16.560  1298  1791 I DynamiteModule: Selected local version of com.google.android.gms.providerinstaller.dynamite
+11-19 23:46:16.563  1796  1900 I Finsky  : [58] SysCUA: Set {com.android.vending/com.google.android.finsky.systemcomponentupdateui.common.SystemComponentUpdateActivity} enabled state to 0
+11-19 23:46:16.564  2024  2024 D CompatibilityChangeReporter: Compat change id reported: 183155436; UID 10093; state: ENABLED
+11-19 23:46:16.570  2073  2073 I MultiDex: Installing application
+11-19 23:46:16.570  2073  2073 I MultiDex: VM with version 2.1.0 has multidex support
+11-19 23:46:16.570  2073  2073 I MultiDex: VM has multidex support, MultiDex support library is disabled.
+11-19 23:46:16.571  1796  1845 I Finsky  : [42] VerifyApps: Updating ADI Warn Mode activity enabled state
+11-19 23:46:16.571  1796  1873 I Finsky  : [53] VerifyApps: Resolving target for ADI Warn Mode activity
+11-19 23:46:16.572  1796  1847 I Finsky  : [44] Enqueuing libraries load for 0
+11-19 23:46:16.575  1796  1900 I Finsky  : [58] Starting libraries load for 0
+11-19 23:46:16.576  2073  2073 D CompatibilityChangeReporter: Compat change id reported: 183155436; UID 10087; state: ENABLED
+11-19 23:46:16.577  2073  2073 I FirebaseApp: Device unlocked: initializing all Firebase APIs for app [DEFAULT]
+11-19 23:46:16.579  1796  1873 I Finsky  : [53] VerifyApps: Verifier app is not installed
+11-19 23:46:16.580  1796  1900 I Finsky  : [58] Finished loading 0 libraries.
+11-19 23:46:16.584  1796  1873 I Finsky  : [53] VerifyApps: Successfully updated the ADI Warn Mode activity to disabled
+11-19 23:46:16.590   973  1024 I AlarmManager: setExactAndAllowWhileIdle [name: GCM_HB_ALARM type: 2 triggerAtMillis: 585368]
+11-19 23:46:16.596  2024  2155 I GnpSdk  : Started Broadcast execution [1].
+11-19 23:46:16.600  2073  2073 I FirebaseInitProvider: FirebaseApp initialization successful
+11-19 23:46:16.601  1796  1873 I Finsky  : [53] VerifyApps: Successfully updated Oppo ADI Warn Mode aliases to default
+11-19 23:46:16.606  2073  2156 W ziparchive: Unable to open '/data/user_de/0/com.google.android.gms/app_chimera/m/00000002/DynamiteLoader.dm': No such file or directory
+11-19 23:46:16.606  2073  2156 W ziparchive: Unable to open '/data/user_de/0/com.google.android.gms/app_chimera/m/00000002/DynamiteLoader.dm': No such file or directory
+11-19 23:46:16.608  2092  2092 V GraphicsEnvironment: Currently set values for:
+11-19 23:46:16.608  2092  2092 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
+11-19 23:46:16.608  2092  2092 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
+11-19 23:46:16.609  2024  2135 I FirebaseApp: Device unlocked: initializing all Firebase APIs for app CHIME_ANDROID_SDK
+11-19 23:46:16.609  2024  2155 I GnpSdk  : Executing action in BroadcastReceiver [android.intent.action.BOOT_COMPLETED].
+11-19 23:46:16.609  2073  2156 I DynamiteModule: Considering local module com.google.android.gms.measurement.dynamite:97 and remote module com.google.android.gms.measurement.dynamite:93
+11-19 23:46:16.609  2073  2156 I DynamiteModule: Selected local version of com.google.android.gms.measurement.dynamite
+11-19 23:46:16.611  2092  2092 V GraphicsEnvironment: ANGLE GameManagerService for com.android.externalstorage: false
+11-19 23:46:16.611  2092  2092 V GraphicsEnvironment: com.android.externalstorage is not listed in per-application setting
+11-19 23:46:16.611  2092  2092 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+11-19 23:46:16.613  1796  1888 I Finsky  : [55] Device is eligible for platform Cronet and will attempt to use it.
+11-19 23:46:16.617  2073  2173 W .katniss:search: Accessing hidden field Ljava/util/Collections$SynchronizedCollection;->mutex:Ljava/lang/Object; (max-target-o, reflection, denied)
+11-19 23:46:16.617  2073  2173 W .katniss:search: Accessing hidden method Ljava/util/Collections$SynchronizedSet;-><init>(Ljava/util/Set;Ljava/lang/Object;)V (max-target-o, reflection, denied)
+11-19 23:46:16.617  2073  2173 W .katniss:search: Accessing hidden method Ljava/util/Collections$SynchronizedCollection;-><init>(Ljava/util/Collection;Ljava/lang/Object;)V (max-target-o, reflection, denied)
+11-19 23:46:16.618  1973  2009 I DynamiteModule: Considering local module com.google.android.gms.googlecertificates:7 and remote module com.google.android.gms.googlecertificates:7
+11-19 23:46:16.618  1973  2009 I DynamiteModule: Selected local version of com.google.android.gms.googlecertificates
+11-19 23:46:16.620   497  1027 D CompatibilityChangeReporter: Compat change id reported: 261072174; UID 10093; state: DISABLED
+11-19 23:46:16.621  2024  2155 D CompatibilityChangeReporter: Compat change id reported: 194532703; UID 10093; state: ENABLED
+11-19 23:46:16.621  2024  2155 D CompatibilityChangeReporter: Compat change id reported: 253665015; UID 10093; state: DISABLED
+11-19 23:46:16.621   497  1644 D CompatibilityChangeReporter: Compat change id reported: 271850009; UID 10093; state: DISABLED
+11-19 23:46:16.621   497  1644 D CompatibilityChangeReporter: Compat change id reported: 253665015; UID 10093; state: DISABLED
+11-19 23:46:16.621   497  1644 D CompatibilityChangeReporter: Compat change id reported: 194532703; UID 10093; state: ENABLED
+11-19 23:46:16.621   497   519 D CompatibilityChangeReporter: Compat change id reported: 161145287; UID 10098; state: DISABLED
+11-19 23:46:16.627  1973  2009 W GoogleCertificates: GoogleCertificates has been initialized already
+11-19 23:46:16.628  2049  2147 W roid.youtube.tv: Accessing hidden field Ljava/util/Collections$SynchronizedCollection;->mutex:Ljava/lang/Object; (max-target-o, reflection, denied)
+11-19 23:46:16.628  2049  2147 W roid.youtube.tv: Accessing hidden method Ljava/util/Collections$SynchronizedSet;-><init>(Ljava/util/Set;Ljava/lang/Object;)V (max-target-o, reflection, denied)
+11-19 23:46:16.628  2049  2147 W roid.youtube.tv: Accessing hidden method Ljava/util/Collections$SynchronizedCollection;-><init>(Ljava/util/Collection;Ljava/lang/Object;)V (max-target-o, reflection, denied)
+11-19 23:46:16.633  2073  2073 D CompatibilityChangeReporter: Compat change id reported: 3400644; UID 10087; state: ENABLED
+11-19 23:46:16.640   497   519 D ConnectivityService: requestNetwork for uid/pid:10085/1796 activeRequest: null callbackRequest: 48 [NetworkRequest [ REQUEST id=49, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10085 RequestorUid: 10085 RequestorPkg: com.android.vending UnderlyingNetworks: Null] ]] callback flags: 0 order: 2147483647
+11-19 23:46:16.642   497   634 D ConnectivityService: NetReassign [49 : null → 100] [c 0] [a 0] [i 0]
+11-19 23:46:16.642   497   634 D ConnectivityService: NetReassign [no changes] [c 0] [a 0] [i 1]
+11-19 23:46:16.644   497   572 D ConnectivityService: requestNetwork for uid/pid:10098/2049 activeRequest: null callbackRequest: 51 [NetworkRequest [ REQUEST id=52, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10098 RequestorUid: 10098 RequestorPkg: com.google.android.youtube.tv UnderlyingNetworks: Null] ]] callback flags: 0 order: 2147483647
+11-19 23:46:16.644   497   633 D EthernetNetworkFactory: eth0: onNetworkNeeded for request: NetworkRequest [ REQUEST id=49, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10085 RequestorUid: 10085 RequestorPkg: com.android.vending UnderlyingNetworks: Null] ]
+11-19 23:46:16.644   497   633 D EthernetNetworkFactory: IpClient already started
+11-19 23:46:16.644   497   626 D UntrustedWifiNetworkFactory: got request NetworkRequest [ REQUEST id=49, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10085 RequestorUid: 10085 RequestorPkg: com.android.vending UnderlyingNetworks: Null] ]
+11-19 23:46:16.644   497   626 D OemPaidWifiNetworkFactory: got request NetworkRequest [ REQUEST id=49, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10085 RequestorUid: 10085 RequestorPkg: com.android.vending UnderlyingNetworks: Null] ]
+11-19 23:46:16.644   497   626 D MultiInternetWifiNetworkFactory: got request NetworkRequest [ REQUEST id=49, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10085 RequestorUid: 10085 RequestorPkg: com.android.vending UnderlyingNetworks: Null] ]
+11-19 23:46:16.651  2073  2073 I katniss_search_StartupTaskManager: Starting 29 task(s)
+11-19 23:46:16.651  2073  2073 I katniss_search_StartupTaskManager: Running 3 critical task(s)
+11-19 23:46:16.651  2073  2073 I katniss_search_StartupTaskManager: Running critical startup task: SAFE_LIBRARY_LOADER
+11-19 23:46:16.651  2073  2073 I katniss_search_StartupTaskManager: Running critical startup task: GSERVICES
+11-19 23:46:16.651   497   634 D ConnectivityService: NetReassign [52 : null → 100] [c 0] [a 0] [i 0]
+11-19 23:46:16.651   497   633 D EthernetNetworkFactory: eth0: onNetworkNeeded for request: NetworkRequest [ REQUEST id=52, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10098 RequestorUid: 10098 RequestorPkg: com.google.android.youtube.tv UnderlyingNetworks: Null] ]
+11-19 23:46:16.651   497   633 D EthernetNetworkFactory: IpClient already started
+11-19 23:46:16.651   497   626 D UntrustedWifiNetworkFactory: got request NetworkRequest [ REQUEST id=52, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10098 RequestorUid: 10098 RequestorPkg: com.google.android.youtube.tv UnderlyingNetworks: Null] ]
+11-19 23:46:16.651   497   626 D OemPaidWifiNetworkFactory: got request NetworkRequest [ REQUEST id=52, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10098 RequestorUid: 10098 RequestorPkg: com.google.android.youtube.tv UnderlyingNetworks: Null] ]
+11-19 23:46:16.651   497   626 D MultiInternetWifiNetworkFactory: got request NetworkRequest [ REQUEST id=52, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10098 RequestorUid: 10098 RequestorPkg: com.google.android.youtube.tv UnderlyingNetworks: Null] ]
+11-19 23:46:16.654   497  1648 D ConnectivityService: requestNetwork for uid/pid:10098/2049 activeRequest: null callbackRequest: 53 [NetworkRequest [ REQUEST id=54, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10098 RequestorUid: 10098 RequestorPkg: com.google.android.youtube.tv UnderlyingNetworks: Null] ]] callback flags: 0 order: 2147483647
+11-19 23:46:16.654   497   634 D ConnectivityService: NetReassign [54 : null → 100] [c 0] [a 0] [i 0]
+11-19 23:46:16.654   497   633 D EthernetNetworkFactory: eth0: onNetworkNeeded for request: NetworkRequest [ REQUEST id=54, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10098 RequestorUid: 10098 RequestorPkg: com.google.android.youtube.tv UnderlyingNetworks: Null] ]
+11-19 23:46:16.654   497   633 D EthernetNetworkFactory: IpClient already started
+11-19 23:46:16.654   497   626 D UntrustedWifiNetworkFactory: got request NetworkRequest [ REQUEST id=54, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10098 RequestorUid: 10098 RequestorPkg: com.google.android.youtube.tv UnderlyingNetworks: Null] ]
+11-19 23:46:16.654   497   626 D OemPaidWifiNetworkFactory: got request NetworkRequest [ REQUEST id=54, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10098 RequestorUid: 10098 RequestorPkg: com.google.android.youtube.tv UnderlyingNetworks: Null] ]
+11-19 23:46:16.654   497   626 D MultiInternetWifiNetworkFactory: got request NetworkRequest [ REQUEST id=54, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10098 RequestorUid: 10098 RequestorPkg: com.google.android.youtube.tv UnderlyingNetworks: Null] ]
+11-19 23:46:16.657  2092  2092 D ExternalStorage: After updating volumes, found 1 active roots
+11-19 23:46:16.658   973  1022 I NetworkScheduler.Stats: (REDACTED) Task %s/%s started execution. cause:%s exec_start_elapsed_seconds: %s
+11-19 23:46:16.664   497   564 D CompatibilityChangeReporter: Compat change id reported: 261072174; UID 10098; state: DISABLED
+11-19 23:46:16.667   497   634 D ConnectivityService: NetReassign [no changes] [c 0] [a 0] [i 0]
+11-19 23:46:16.668   497  1682 I ActivityManager: Flag disabled. Ignoring finishAttachApplication from uid: 10065. pid: 2092
+11-19 23:46:16.668   973   973 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.presencemanager.service.START dat=chimera-action:/... cmp=com.google.android.gms/.chimera.PersistentApiService }
+11-19 23:46:16.668   973   973 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.presencemanager.service.START dat=chimera-action:/... cmp=com.google.android.gms/.chimera.PersistentApiService }
+11-19 23:46:16.675  2092  2092 D ExternalStorage: After updating volumes, found 1 active roots
+11-19 23:46:16.676   973   973 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.presencemanager.service.INTERNAL_IDENTITY dat=chimera-action:/... cmp=com.google.android.gms/.chimera.PersistentApiService }
+11-19 23:46:16.676   973   973 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.presencemanager.service.INTERNAL_IDENTITY dat=chimera-action:/... cmp=com.google.android.gms/.chimera.PersistentApiService }
+11-19 23:46:16.679  1298  1791 W ProviderHelper: Unknown dynamite feature providerinstaller.dynamite
+11-19 23:46:16.679  1298  1791 I DynamiteModule: Considering local module com.google.android.gms.providerinstaller.dynamite:1 and remote module com.google.android.gms.providerinstaller.dynamite:0
+11-19 23:46:16.679  1298  1791 I DynamiteModule: Selected local version of com.google.android.gms.providerinstaller.dynamite
+11-19 23:46:16.680  2073  2073 I katniss_search_StartupTaskManager: Running critical startup task: PRIMES
+11-19 23:46:16.681  1298  1791 W PackageParser: Unknown element under <manifest>: queries at /data/user_de/0/com.google.android.gms/app_chimera/m/00000000/AdsDynamite.apk Binary XML file line #15
+11-19 23:46:16.683   497   564 W BackupManagerService: [UserID:0] dataChanged but no participant pkg='com.google.android.syncadapters.calendar' uid=10093
+11-19 23:46:16.687  1298  1791 W ProviderHelper: Unknown dynamite feature providerinstaller.dynamite
+11-19 23:46:16.687  1298  1791 I DynamiteModule: Considering local module com.google.android.gms.providerinstaller.dynamite:1 and remote module com.google.android.gms.providerinstaller.dynamite:0
+11-19 23:46:16.687  1298  1791 I DynamiteModule: Selected local version of com.google.android.gms.providerinstaller.dynamite
+11-19 23:46:16.692  2092  2092 D ExternalStorage: After updating volumes, found 1 active roots
+11-19 23:46:16.696  1796  1846 I Finsky  : [43] RECEIVER_SINGLE_USER_SETTINGS#logWorkEndAndFinishGoAsync: SUCCESS
+11-19 23:46:16.698  2073  2073 I katniss_search_StartupTaskManager: Launching 21 async task(s)
+11-19 23:46:16.698  1796  1888 I cr_CronetLibraryLoader: Cronet version: 114.0.5735.84, arch: i686
+11-19 23:46:16.700  2024  2155 I GnpSdk  : Finished Broadcast execution [1].
+11-19 23:46:16.706   497  1644 D CompatibilityChangeReporter: Compat change id reported: 161145287; UID 10087; state: ENABLED
+11-19 23:46:16.713   973  1024 I NetworkScheduler.Stats: (REDACTED) Task %s/%s finished executing. cause:%s result: %s elapsed_millis: %s uptime_millis: %s exec_start_elapsed_seconds: %s
+11-19 23:46:16.714  2073  2187 I FA      : App measurement initialized, version: 82015
+11-19 23:46:16.714  2073  2187 I FA      : To enable debug logging run: adb shell setprop log.tag.FA VERBOSE
+11-19 23:46:16.714  2073  2187 I FA      : To enable faster debug mode event logging run:
+11-19 23:46:16.714  2073  2187 I FA      :   adb shell setprop debug.firebase.analytics.app com.google.android.katniss
+11-19 23:46:16.715  1298  1791 W ProviderHelper: Unknown dynamite feature providerinstaller.dynamite
+11-19 23:46:16.715  1298  1791 I DynamiteModule: Considering local module com.google.android.gms.providerinstaller.dynamite:1 and remote module com.google.android.gms.providerinstaller.dynamite:0
+11-19 23:46:16.715  1298  1791 I DynamiteModule: Selected local version of com.google.android.gms.providerinstaller.dynamite
+11-19 23:46:16.716  1796  1888 I Finsky  : [55] CronetEngine is present. Using Cronet for the networking stack.
+11-19 23:46:16.735  2073  2225 I katniss_search_StartupTaskManager: Running async startup task: BuildTypeStartupTask
+11-19 23:46:16.735  2073  2225 I katniss_search_BuildTypeStartupTask: This is a RELEASE build.
+11-19 23:46:16.735  2073  2225 I katniss_search_StartupTaskManager: Finished async startup task: BuildTypeStartupTask
+11-19 23:46:16.736  1796  2232 I Finsky  : [80] ApplicationRestrictions: {}
+11-19 23:46:16.739  2081  2081 I AidlLazyServiceRegistrar: Process has 1 (of 1 available) client(s) in use after notification android.hardware.drm.IDrmFactory/clearkey has clients: 1
+11-19 23:46:16.743  2081  2081 I AidlLazyServiceRegistrar: Process has 0 (of 1 available) client(s) in use after notification android.hardware.drm.IDrmFactory/clearkey has clients: 0
+11-19 23:46:16.743  2081  2081 I AidlLazyServiceRegistrar: Trying to shut down the service. No clients in use for any service in process.
+11-19 23:46:16.746  1298  1791 W ProviderHelper: Unknown dynamite feature providerinstaller.dynamite
+11-19 23:46:16.746  1298  1791 I DynamiteModule: Considering local module com.google.android.gms.providerinstaller.dynamite:1 and remote module com.google.android.gms.providerinstaller.dynamite:0
+11-19 23:46:16.746  1298  1791 I DynamiteModule: Selected local version of com.google.android.gms.providerinstaller.dynamite
+11-19 23:46:16.748  2107  2107 I AidlLazyServiceRegistrar: Process has 1 (of 1 available) client(s) in use after notification android.hardware.drm.IDrmFactory/widevine has clients: 1
+11-19 23:46:16.751  1298  1791 W ProviderHelper: Unknown dynamite feature providerinstaller.dynamite
+11-19 23:46:16.751  1298  1791 I DynamiteModule: Considering local module com.google.android.gms.providerinstaller.dynamite:1 and remote module com.google.android.gms.providerinstaller.dynamite:0
+11-19 23:46:16.751  1298  1791 I DynamiteModule: Selected local version of com.google.android.gms.providerinstaller.dynamite
+11-19 23:46:16.759  1973  2009 D nativeloader: Configuring clns-9 for other apk . target_sdk_version=33, uses_libraries=ALL, library_path=, permitted_path=/data:/mnt/expand
+11-19 23:46:16.761  2073  2073 I katniss_search_StartupTaskManager: All async tasks launched
+11-19 23:46:16.761  2073  2225 I katniss_search_StartupTaskManager: Running async startup task: ConfigStartupTask
+11-19 23:46:16.761  2073  2225 I katniss_search_StartupTaskManager: Finished async startup task: ConfigStartupTask
+11-19 23:46:16.761  2073  2225 I katniss_search_StartupTaskManager: Running async startup task: DeviceDataStoreStartupTask
+11-19 23:46:16.762  2107  2107 I AidlLazyServiceRegistrar: Process has 0 (of 1 available) client(s) in use after notification android.hardware.drm.IDrmFactory/widevine has clients: 0
+11-19 23:46:16.762  2107  2107 I AidlLazyServiceRegistrar: Trying to shut down the service. No clients in use for any service in process.
+11-19 23:46:16.764  2081  2081 I AidlLazyServiceRegistrar: Unregistered all clients and exiting
+11-19 23:46:16.767  2107  2107 I AidlLazyServiceRegistrar: Unregistered all clients and exiting
+11-19 23:46:16.780   497  1644 I ActivityManager: Flag disabled. Ignoring finishAttachApplication from uid: 10087. pid: 2073
+11-19 23:46:16.784  2073  2246 I katniss_search_StartupTaskManager: Running async startup task: CastStartupTask
+11-19 23:46:16.785  2073  2246 I katniss_search_CastServiceInfoImpl: startLoadingCastInfo
+11-19 23:46:16.786  2073  2246 I katniss_search_StartupTaskManager: Running async startup task: DscAccessorCacheStartupTask
+11-19 23:46:16.797  1298  1791 I GmsModuleFndr: Beginning GMS chimera module scan
+11-19 23:46:16.804  2073  2226 D TrafficStats: tagSocket(69) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:16.808  2073  2246 I katniss_search_StartupTaskManager: Running async startup task: EventLoggerStartupTask
+11-19 23:46:16.808  2073  2246 I katniss_search_StartupTaskManager: Finished async startup task: EventLoggerStartupTask
+11-19 23:46:16.809  2073  2246 I katniss_search_StartupTaskManager: Running async startup task: FixAssistantSettingsStartupTask
+11-19 23:46:16.809  2073  2246 I katniss_search_StartupTaskManager: Running async startup task: GsaStrictModeStartupTask
+11-19 23:46:16.809  2073  2246 I katniss_search_StartupTaskManager: Finished async startup task: GsaStrictModeStartupTask
+11-19 23:46:16.809  2073  2246 I katniss_search_StartupTaskManager: Running async startup task: LifecycleStartupTask
+11-19 23:46:16.809  2073  2246 I katniss_search_StartupTaskManager: Finished async startup task: LifecycleStartupTask
+11-19 23:46:16.809  2073  2246 I katniss_search_StartupTaskManager: Running async startup task: LocationUpdaterStartupTask
+11-19 23:46:16.809  2073  2246 I katniss_search_StartupTaskManager: Running async startup task: LoggerStartupTask
+11-19 23:46:16.809  2073  2246 I katniss_search_KatnissIpcConnection: Starting the connection to the target service. .LatencyLoggerService
+11-19 23:46:16.815  2073  2225 I katniss_search_StartupTaskManager: Running async startup task: NetworkStateStartupTask
+11-19 23:46:16.816  2073  2225 I katniss_search_StartupTaskManager: Finished async startup task: NetworkStateStartupTask
+11-19 23:46:16.816  2073  2225 I katniss_search_StartupTaskManager: Running async startup task: PackageCacheStartupTask
+11-19 23:46:16.816  2073  2225 I katniss_search_PackageCache: Initializing package cache
+11-19 23:46:16.816  2073  2225 I katniss_search_StartupTaskManager: Running async startup task: PhenotypeStartupTask
+11-19 23:46:16.816  2073  2225 I katniss_search_StartupTaskManager: Running async startup task: ProcessExitReasonStartupTask
+11-19 23:46:16.823   497   677 I RemoteProvisionSysSvc: getRegistration(android.hardware.security.keymint.IRemotelyProvisionedComponent/default)
+11-19 23:46:16.824   497   497 I RegistrationProxy: onServiceConnected: com.android.rkpdapp.service.RemoteProvisioningService
+11-19 23:46:16.828  2073  2225 W katniss_search_ProcessExitReasonStartupTask: SEARCH was restarted, but exit reason wasn't in the first 10 of historical processes: []
+11-19 23:46:16.828  2073  2225 I katniss_search_StartupTaskManager: Finished async startup task: ProcessExitReasonStartupTask
+11-19 23:46:16.829  2073  2225 I katniss_search_StartupTaskManager: Running async startup task: SearchSettingsStartupTask
+11-19 23:46:16.829  2073  2246 I katniss_search_StartupTaskManager: Finished async startup task: LoggerStartupTask
+11-19 23:46:16.829  2073  2246 I katniss_search_StartupTaskManager: Running async startup task: SecurityProviderStartupTask
+11-19 23:46:16.829  2073  2246 I katniss_search_StartupTaskManager: Running async startup task: TokenUpdaterStartupTask
+11-19 23:46:16.829   497   677 I RegistrationProxy: IGetRegistrationCallback.onSuccess
+11-19 23:46:16.830   497   910 I RemoteProvisionSysSvc: Fetching key 10088 for client 123641277
+11-19 23:46:16.830   497   910 I RegistrationProxy: getKeyAsync operation started with callback 75952050
+11-19 23:46:16.830  1979  2274 I RkpdRegistrationBinder: Key requested for : android.hardware.security.keymint.IRemotelyProvisionedComponent/default, clientUid: 1017, keyId: 10088, callback: 51608641
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: unable to connect to cast service
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:8008
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.io.RealConnection.connectSocket(RealConnection.java:147)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.io.RealConnection.connect(RealConnection.java:116)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.http.StreamAllocation.findConnection(StreamAllocation.java:186)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.http.StreamAllocation.findHealthyConnection(StreamAllocation.java:128)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.http.StreamAllocation.newStream(StreamAllocation.java:97)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.http.HttpEngine.connect(HttpEngine.java:289)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.http.HttpEngine.sendRequest(HttpEngine.java:232)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.huc.HttpURLConnectionImpl.execute(HttpURLConnectionImpl.java:465)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.huc.HttpURLConnectionImpl.getResponse(HttpURLConnectionImpl.java:411)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.huc.HttpURLConnectionImpl.getResponseCode(HttpURLConnectionImpl.java:542)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at kkk.call(PG:3)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at etm.a(Unknown Source:2)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at txo.call(PG:2)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at rbd.run(PG:1)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at ral.run(PG:2)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at java.lang.Thread.run(Thread.java:1012)
+11-19 23:46:16.830  2073  2226 E katniss_search_LoadCastServiceInfoTaskImpl: 	at rbj.run(PG:5)
+11-19 23:46:16.833  1979  2274 I RkpdRegistrationBinder: No key assigned, looking for an available key with expiry of 2026-11-22T23:46:16.833242Z
+11-19 23:46:16.833  1979  2274 I RkpdRegistrationBinder: No key assigned, looking for an available key with expiry of 2026-11-20T00:46:16.830533Z
+11-19 23:46:16.833  1979  2274 I RkpdRegistrationBinder: No keys are available, kicking off provisioning
+11-19 23:46:16.834  1979  2274 V RkpdServerInterface: Requesting data from server. Attempt 1
+11-19 23:46:16.835   497   910 I RegistrationProxy: Provisioning required before keys are available for android.security.rkp.service.RegistrationProxy$2@486efb2
+11-19 23:46:16.836   497  1933 I ActivityManager: Flag disabled. Ignoring finishAttachApplication from uid: 10098. pid: 2049
+11-19 23:46:16.837  2073  2246 I katniss_search_TokenUpdaterImpl: Starting TokenUpdater.
+11-19 23:46:16.837  2073  2246 I katniss_search_StartupTaskManager: Finished async startup task: TokenUpdaterStartupTask
+11-19 23:46:16.837  2073  2246 I katniss_search_StartupTaskManager: Running async startup task: UsageStatsStartupTask
+11-19 23:46:16.837  2073  2246 I katniss_search_StartupTaskManager: Running async startup task: UserDataStoreStartupTask
+11-19 23:46:16.838  2073  2246 I katniss_search_StartupTaskManager: Running async startup task: WidgetInfoStartupTask
+11-19 23:46:16.838  2073  2246 I katniss_search_StartupTaskManager: Finished async startup task: WidgetInfoStartupTask
+11-19 23:46:16.840  2073  2226 E ActivityThread: Failed to find provider info for com.google.android.tvsetup.app.machine.services.castsetup.castsetupinfo.CastInfoProvider
+11-19 23:46:16.842  2073  2226 E katniss_search_CastContentProviderAdapter: Cursor is not valid to read the content provider.
+11-19 23:46:16.842  2073  2226 W katniss_search_LoadCastServiceInfoTaskImpl: Failed to get cast id and certificate from Content Provider.
+11-19 23:46:16.842  2073  2267 I katniss_search_RetryingFuture: [LoadCastServiceInfoTask] attempt failed. Potentially retrying...
+11-19 23:46:16.842  2073  2267 I katniss_search_RetryingFuture: java.lang.Exception: Failed to get cast id and certificate.
+11-19 23:46:16.842  2073  2267 I katniss_search_RetryingFuture: 	at kkk.call(PG:66)
+11-19 23:46:16.842  2073  2267 I katniss_search_RetryingFuture: 	at etm.a(Unknown Source:2)
+11-19 23:46:16.842  2073  2267 I katniss_search_RetryingFuture: 	at txo.call(PG:2)
+11-19 23:46:16.842  2073  2267 I katniss_search_RetryingFuture: 	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+11-19 23:46:16.842  2073  2267 I katniss_search_RetryingFuture: 	at rbd.run(PG:1)
+11-19 23:46:16.842  2073  2267 I katniss_search_RetryingFuture: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+11-19 23:46:16.842  2073  2267 I katniss_search_RetryingFuture: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)
+11-19 23:46:16.842  2073  2267 I katniss_search_RetryingFuture: 	at ral.run(PG:2)
+11-19 23:46:16.842  2073  2267 I katniss_search_RetryingFuture: 	at java.lang.Thread.run(Thread.java:1012)
+11-19 23:46:16.842  2073  2267 I katniss_search_RetryingFuture: 	at rbj.run(PG:5)
+11-19 23:46:16.844  2073  2246 I katniss_search_GlobalEnvironmentProvider: Retrieved zero Google account from GMS.
+11-19 23:46:16.844  1796  2227 D TrafficStats: tagSocket(104) with statsTag=0x4be64f9b, statsUid=-1
+11-19 23:46:16.845  2073  2263 I katniss_search_AppsAllowedForKidMigration: PDS migration required: false
+11-19 23:46:16.845  2073  2263 I katniss_search_AppsSearchEnabledMigration: PDS migration required: false
+11-19 23:46:16.847  2073  2073 I katniss_search_GlobalEnvironmentProvider: Retrieved zero Google account from GMS.
+11-19 23:46:16.847  2073  2073 I katniss_search_SearchSettingsImpl: No adult account available, setting search account to null.
+11-19 23:46:16.851  1979  2274 D TrafficStats: tagSocket(80) with statsTag=0x0, statsUid=-1
+11-19 23:46:16.855  2073  2263 I katniss_search_AppContextDataMigration: PDS migration required: false
+11-19 23:46:16.856  2073  2263 I katniss_search_SearchTabDataMigration: PDS migration required: false
+11-19 23:46:16.862  1298  1791 I ModuleSetMgr: Computing pending module set with APKs: [[AdsFdrDynamite.integ:232400000100000], [Cronetdynamite:233515180706], [Dynamiteloader:233515180006], [Dynamitemodulesa:233515180006], [Dynamitemodulesc:233515180006], [Googlecertificates:233515180006], [Mapsdynamite:233515180006], [Measurementdynamite:233515180006], [KidsNotPhone.integ:222880200150006]]
+11-19 23:46:16.862  2073  2263 I katniss_search_PackageCache: Apps for Intent { act=android.intent.action.MAIN cat=[android.intent.category.LEANBACK_LAUNCHER] }: [AppInfo(applicationLabel=Settings, enabled=true, isSystemApp=true, longVersionCode=1, packageName=com.android.tv.settings, uid=1000, versionCode=1, versionName=1.0), AppInfo(applicationLabel=Live TV, enabled=true, isSystemApp=true, longVersionCode=417000452, packageName=com.android.tv, uid=10084, versionCode=417000452, versionName=1.24-asop), AppInfo(applicationLabel=Google Play Store, enabled=true, isSystemApp=true, longVersionCode=85381728, packageName=com.android.vending, uid=10085, versionCode=85381728, versionName=53.8.17-34 [8] [PR] 1012696962), AppInfo(applicationLabel=YouTube, enabled=true, isSystemApp=true, longVersionCode=218009360, packageName=com.google.android.youtube.tv, uid=10098, versionCode=218009360, versionName=2.18.009), AppInfo(applicationLabel=YouTube Music, enabled=true, isSystemApp=true, longVersionCode=110003320, packageName=com.google.android.youtube.tvmusic, uid=10095, versionCode=110003320, versionName=1.10.03), AppInfo(applicationLabel=Google Play Games, enabled=true, isSystemApp=true, longVersionCode=462434070, packageName=com.google.android.play.games, uid=10096, versionCode=462434070, versionName=2023.08.46243 (567560229.567560229-000700)), AppInfo(applicationLabel=AltaPlay Launcher, enabled=true, isSystemApp=false, longVersionCode=10, packageName=com.altaplay.launcher, uid=10127, versionCode=10, versionName=1.3.2), AppInfo(applicationLabel=AltaPlay Launcher, enabled=true, isSystemApp=false, longVersionCode=10, packageName=com.altaplay.launcher, uid=10127, versionCode=10, versionName=1.3.2)]
+11-19 23:46:16.863  2073  2263 I katniss_search_PackageCache: Apps for Intent { act=android.intent.action.MAIN cat=[android.intent.category.LEANBACK_SETTINGS] }: [AppInfo(applicationLabel=Settings, enabled=true, isSystemApp=true, longVersionCode=1, packageName=com.android.tv.settings, uid=1000, versionCode=1, versionName=1.0), AppInfo(applicationLabel=Settings, enabled=true, isSystemApp=true, longVersionCode=1, packageName=com.android.tv.settings, uid=1000, versionCode=1, versionName=1.0)]
+11-19 23:46:16.863  2073  2263 I katniss_search_PackageCache: Apps for Intent { act=android.intent.action.MAIN cat=[android.intent.category.HOME] }: [AppInfo(applicationLabel=AltaPlay Launcher, enabled=true, isSystemApp=false, longVersionCode=10, packageName=com.altaplay.launcher, uid=10127, versionCode=10, versionName=1.3.2), AppInfo(applicationLabel=Settings, enabled=true, isSystemApp=true, longVersionCode=1, packageName=com.android.tv.settings, uid=1000, versionCode=1, versionName=1.0)]
+11-19 23:46:16.863  2073  2263 I katniss_search_PackageCache: Apps for Intent { act=com.google.assistant.DATA_SHARING_CONSENT }: [AppInfo(applicationLabel=Google, enabled=true, isSystemApp=true, longVersionCode=15000514, packageName=com.google.android.katniss, uid=10087, versionCode=15000514, versionName=7.9.20231101.4)]
+11-19 23:46:16.864  2073  2073 I katniss_search_KatnissIpcConnection: Starting the connection to the target service. .KatnissInteractorProcessService
+11-19 23:46:16.869  2073  2246 I katniss_search_StartupTaskManager: Finished async startup task: PackageCacheStartupTask
+11-19 23:46:16.869  2073  2263 W DynamiteModule: Local module descriptor class for com.google.android.gms.providerinstaller.dynamite not found.
+11-19 23:46:16.871  1796  2227 D TrafficStats: tagSocket(110) with statsTag=0x4be64f9b, statsUid=-1
+11-19 23:46:16.874  2073  2246 I katniss_search_StartupTaskManager: Finished async startup task: DscAccessorCacheStartupTask
+11-19 23:46:16.875  2073  2246 I katniss_search_StartupTaskManager: Finished async startup task: UserDataStoreStartupTask
+11-19 23:46:16.877  1796  2227 D TrafficStats: tagSocket(110) with statsTag=0x4be64f9b, statsUid=-1
+11-19 23:46:16.878   789   789 D AvrcpBrowsablePlayerConnector: Received a message: msg.what=2
+11-19 23:46:16.878   789   789 V AvrcpBrowsablePlayerConnector: Timed out waiting for players
+11-19 23:46:16.878   789   789 I AvrcpBrowsablePlayerConnector: Successfully connected to 0 browsable players.
+11-19 23:46:16.878   789   789 I MediaPlayerList: init: Browsable Player list size is 0
+11-19 23:46:16.880  2073  2073 I katniss_search_GlobalEnvironmentProvider: Retrieved zero Google account from GMS.
+11-19 23:46:16.880  2073  2073 I katniss_search_SearchSettingsImpl: Mirroring UDC settings of 0 account(s) to :interactor
+11-19 23:46:16.880  2073  2073 I katniss_search_GlobalEnvironmentProvider: Retrieved zero Google account from GMS.
+11-19 23:46:16.881  2073  2225 I katniss_search_StartupTaskManager: Finished async startup task: SearchSettingsStartupTask
+11-19 23:46:16.881  2073  2073 I katniss_search_KatnissIpcConnection: Service is connected. .LatencyLoggerService
+11-19 23:46:16.881  2073  2073 I katniss_search_KatnissIpcConnection: Service is connected. .KatnissInteractorProcessService
+11-19 23:46:16.884  1796  2227 D TrafficStats: tagSocket(110) with statsTag=0x4be64f9b, statsUid=-1
+11-19 23:46:16.885   973  1503 W ProviderHelper: Unknown dynamite feature providerinstaller.dynamite
+11-19 23:46:16.886  1796  2227 D TrafficStats: tagSocket(110) with statsTag=0x4be64f9b, statsUid=-1
+11-19 23:46:16.889  1796  2227 D TrafficStats: tagSocket(110) with statsTag=0x4be64f9b, statsUid=-1
+11-19 23:46:16.889  2073  2254 I katniss_search_CastDataMigrationBuilder: Migrating data to PDS
+11-19 23:46:16.890   973  1305 I HeterodyneSyncScheduler: (REDACTED) Scheduling Phenotype for a %s(%d, %s) one off with window [%d, %d] in seconds
+11-19 23:46:16.899  1298  1791 I ModuleSetMgr: Pending container module APKs: []
+11-19 23:46:16.899  1298  1791 I ModuleSetMgr: Pending non-container module APKs: []
+11-19 23:46:16.903   497   574 W BroadcastLoopers: Found previously unknown looper Thread[appscheduling.default,5,main]
+11-19 23:46:16.913  1608  2290 I PGAm.dnm: Attempting to fetch and commit configuration
+11-19 23:46:16.916  1298  1967 I SystemUpdate: [Installation,ReceiverIntentOperation] Received intent: Intent { act=com.google.android.gms.update.BASE_MODULE_INIT cat=[targeted_intent_op_prefix:.update.control.ReceiverIntentOperation] cmp=com.google.android.gms/.chimera.GmsIntentOperationService }.
+11-19 23:46:16.917  1298  1656 I Auth    : [WorkAccount] update authenticator enabled for boot or update
+11-19 23:46:16.917   973  1387 I Auth    : [WorkAccountServiceImpl] init work authenticator
+11-19 23:46:16.923  2073  2263 I DynamiteModule: Considering local module com.google.android.gms.providerinstaller.dynamite:0 and remote module com.google.android.gms.providerinstaller.dynamite:0
+11-19 23:46:16.924  2073  2263 W ProviderInstaller: Failed to load providerinstaller module: No acceptable module com.google.android.gms.providerinstaller.dynamite found. Local version is 0 and remote version is 0.
+11-19 23:46:16.925  1298  1541 I Ads     : Initialized AdMob in container 23.35.15 (180706-565551795)
+11-19 23:46:16.927  1298  1634 W SystemServiceRegistry: No service published for: persistent_data_block
+11-19 23:46:16.928  1298  1908 I Auth    : [FRP,FrpUpdateIntentOperation] FRP is not supported for this device / user
+11-19 23:46:16.931   973   984 I .gms.persistent: Background concurrent copying GC freed 287134(13MB) AllocSpace objects, 49(1204KB) LOS objects, 49% free, 8522KB/16MB, paused 41us,19us total 143.652ms
+11-19 23:46:16.931  2049  2143 D CompatibilityChangeReporter: Compat change id reported: 160794467; UID 10098; state: ENABLED
+11-19 23:46:16.931  1298  1656 I Auth    : [SupervisedAccountIntentOperation] onHandleIntent(): android.intent.action.BOOT_COMPLETED
+11-19 23:46:16.932  1298  1541 W Auth    : [PubsubPeriodicSyncherRuntimeInit] Initializing periodic tasks, IntentAction=android.intent.action.BOOT_COMPLETED, InitRuntimeState=2
+11-19 23:46:16.940  2073  2225 I katniss_search_StartupTaskManager: Finished async startup task: LocationUpdaterStartupTask
+11-19 23:46:16.943   497   525 D CompatibilityChangeReporter: Compat change id reported: 265464455; UID 10127; state: DISABLED
+11-19 23:46:16.943   497   525 D CompatibilityChangeReporter: Compat change id reported: 265452344; UID 10127; state: DISABLED
+11-19 23:46:16.943   497   525 D CompatibilityChangeReporter: Compat change id reported: 266124927; UID 10127; state: DISABLED
+11-19 23:46:16.943   497   525 D CompatibilityChangeReporter: Compat change id reported: 265451093; UID 10127; state: DISABLED
+11-19 23:46:16.943   497   525 D CompatibilityChangeReporter: Compat change id reported: 265456536; UID 10127; state: DISABLED
+11-19 23:46:16.943   497   525 D CompatibilityChangeReporter: Compat change id reported: 255940284; UID 10127; state: DISABLED
+11-19 23:46:16.943   497   525 D CompatibilityChangeReporter: Compat change id reported: 236283604; UID 10127; state: DISABLED
+11-19 23:46:16.943   497   525 D CompatibilityChangeReporter: Compat change id reported: 263959004; UID 10127; state: DISABLED
+11-19 23:46:16.943   497   525 D CompatibilityChangeReporter: Compat change id reported: 264304459; UID 10127; state: DISABLED
+11-19 23:46:16.943   497   525 D CompatibilityChangeReporter: Compat change id reported: 264301586; UID 10127; state: DISABLED
+11-19 23:46:16.943   497   525 D CompatibilityChangeReporter: Compat change id reported: 254631730; UID 10127; state: DISABLED
+11-19 23:46:16.943   497   525 D CompatibilityChangeReporter: Compat change id reported: 273509367; UID 10127; state: DISABLED
+11-19 23:46:16.943   497   525 D CompatibilityChangeReporter: Compat change id reported: 263259275; UID 10127; state: DISABLED
+11-19 23:46:16.943   497   525 D CompatibilityChangeReporter: Compat change id reported: 174042980; UID 10127; state: DISABLED
+11-19 23:46:16.943   497   525 D CompatibilityChangeReporter: Compat change id reported: 174042936; UID 10127; state: DISABLED
+11-19 23:46:16.943   497   525 D CompatibilityChangeReporter: Compat change id reported: 181136395; UID 10127; state: DISABLED
+11-19 23:46:16.944   497   525 D CompatibilityChangeReporter: Compat change id reported: 184838306; UID 10127; state: DISABLED
+11-19 23:46:16.944   497   525 D CompatibilityChangeReporter: Compat change id reported: 185004937; UID 10127; state: DISABLED
+11-19 23:46:16.944   497   525 D CompatibilityChangeReporter: Compat change id reported: 194480991; UID 10127; state: ENABLED
+11-19 23:46:16.944   497   525 E CellBroadcastUtils: getDefaultCellBroadcastReceiverPackageName: no package found
+11-19 23:46:16.946   497   525 I ActivityTaskManager: START u0 {act=android.intent.action.MAIN cat=[android.intent.category.HOME] flg=0x10000100 cmp=com.altaplay.launcher/com.gathin.tvhome.MainActivity (has extras)} with LAUNCH_SINGLE_TASK from uid 0 (BAL_ALLOW_ALLOWLISTED_UID) result code=3
+11-19 23:46:16.947   973   973 W SystemServiceRegistry: No service published for: persistent_data_block
+11-19 23:46:16.952  1298  1656 I RecoverableKeyStoreGms: [RecoverableKeyStoreGmsInitOperation] Initializing auth_folsom
+11-19 23:46:16.952  2049  2143 D CompatibilityChangeReporter: Compat change id reported: 194532703; UID 10098; state: DISABLED
+11-19 23:46:16.952  2049  2143 D CompatibilityChangeReporter: Compat change id reported: 253665015; UID 10098; state: DISABLED
+11-19 23:46:16.952   497   519 D CompatibilityChangeReporter: Compat change id reported: 271850009; UID 10098; state: DISABLED
+11-19 23:46:16.952   497   519 D CompatibilityChangeReporter: Compat change id reported: 253665015; UID 10098; state: DISABLED
+11-19 23:46:16.952   497   519 D CompatibilityChangeReporter: Compat change id reported: 194532703; UID 10098; state: DISABLED
+11-19 23:46:16.953  1298  1656 I RecoverableKeyStoreGms: [RecoverableKeyStoreGmsInitOperation] com.google.android.gms.auth.folsom.service.FolsomPublicKeyUpdateService is already enabled. Ignore.
+11-19 23:46:16.953  1298  1656 I RecoverableKeyStoreGms: [RecoverableKeyStoreGmsInitOperation] com.google.android.gms.auth.folsom.service.GcmReceiverService is already enabled. Ignore.
+11-19 23:46:16.953   497   519 D ConnectivityService: requestNetwork for uid/pid:1000/497 asUid: 10098 activeRequest: null callbackRequest: 56 [NetworkRequest [ REQUEST id=57, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10098 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]] callback flags: 0 order: 2147483647
+11-19 23:46:16.954  2073  2246 I katniss_search_StartupTaskManager: Finished async startup task: PhenotypeStartupTask
+11-19 23:46:16.954   497   634 D ConnectivityService: NetReassign [57 : null → 100] [c 0] [a 1] [i 0]
+11-19 23:46:16.955   497   633 D EthernetNetworkFactory: eth0: onNetworkNeeded for request: NetworkRequest [ REQUEST id=57, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10098 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]
+11-19 23:46:16.955   497   633 D EthernetNetworkFactory: IpClient already started
+11-19 23:46:16.955   497   626 D UntrustedWifiNetworkFactory: got request NetworkRequest [ REQUEST id=57, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10098 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]
+11-19 23:46:16.955   497   626 D OemPaidWifiNetworkFactory: got request NetworkRequest [ REQUEST id=57, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10098 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]
+11-19 23:46:16.955   497   626 D MultiInternetWifiNetworkFactory: got request NetworkRequest [ REQUEST id=57, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VCN_MANAGED Uid: 10098 RequestorUid: 1000 RequestorPkg: android UnderlyingNetworks: Null] ]
+11-19 23:46:16.957  2073  2225 I katniss_search_GlobalEnvironmentProvider: Retrieved zero Google account from GMS.
+11-19 23:46:16.957  2073  2225 I katniss_search_StartupTaskManager: Finished async startup task: DeviceDataStoreStartupTask
+11-19 23:46:16.958  1298  1656 I Auth    : [AuthManaged, PasswordComplexityHelperImpl] Updating password complexity components state.
+11-19 23:46:16.958  1298  1656 I Auth    : [AuthManaged, PasswordComplexityHelperImpl] Disabling com.google.android.gms.auth.managed.admin.DeviceAdminReceiver
+11-19 23:46:16.958  1298  1656 I Auth    : [AuthManaged, PasswordComplexityHelperImpl] Disabling com.google.android.gms.auth.managed.ui.SetNewPasswordActivity
+11-19 23:46:16.958  1298  1656 I Auth    : [AuthManaged, AuthManagedModuleInitIntentOperation] enabling com.google.android.gms.auth.managed.ui.EmmActivity
+11-19 23:46:16.958  1298  1656 I Auth    : [AuthManaged, AuthManagedModuleInitIntentOperation] enabling com.google.android.gms.auth.managed.ui.PhoneskyDpcInstallActivity
+11-19 23:46:16.960  1298  1656 W Auth    : [AuthManaged, SettingsSecurityDeviceOwnerChimeraActivity] device owner: n/a
+11-19 23:46:16.960  1298  1656 I Auth    : [AuthManaged, AuthManagedModuleInitIntentOperation] disabling com.google.android.gms.auth.managed.ui.SettingsSecurityDeviceOwnerActivity
+11-19 23:46:16.961  1298  1656 I Auth    : [AuthManaged, PasswordComplexityHelperImpl] Updating password complexity components state.
+11-19 23:46:16.961  1298  1656 I Auth    : [AuthManaged, PasswordComplexityHelperImpl] Disabling com.google.android.gms.auth.managed.admin.DeviceAdminReceiver
+11-19 23:46:16.961  1298  1656 I Auth    : [AuthManaged, PasswordComplexityHelperImpl] Disabling com.google.android.gms.auth.managed.ui.SetNewPasswordActivity
+11-19 23:46:16.962  1298  1656 E CastAuth: [CastAuthModuleInitIntent] Feature is not available, reason = CastAuth feature is disabled.. [CONTEXT service_id=360 ]
+11-19 23:46:16.973   497   802 I BroadcastQueue: BOOT_COMPLETED_BROADCAST_COMPLETION_LATENCY_REPORTED action:android.intent.action.BOOT_COMPLETED dispatchLatency:-20026 completeLatency:5725 dispatchRealLatency:-20026 completeRealLatency:5725 receiversSize:59 userId:0 userType:android.os.usertype.full.SYSTEM
+11-19 23:46:16.973   497   524 I ActivityManager: Finished processing BOOT_COMPLETED for u0
+11-19 23:46:16.976   973   986 W .gms.persistent: ApkAssets: Deleting an ApkAssets object '<empty> and /product/app/LatinIMEGoogleTvPrebuilt/LatinIMEGoogleTvPrebuilt.apk' with 1 weak references
+11-19 23:46:16.988   698   731 D WindowManagerShell: TvPipMenuController: closeMenu()
+11-19 23:46:16.988   698   731 D WindowManagerShell: TvPipMenuController: switchToMenuMode: from=MODE_NO_MENU, to=MODE_NO_MENU
+11-19 23:46:16.989   698   698 I vol.VolumeDialogImpl: mDialog.dismiss() reason: volume_controller from: com.android.systemui.volume.VolumeDialogImpl$7.onDismissRequested:3
+11-19 23:46:16.991  1298  1656 I WakefulBroadcastRcvr: Processing wakeful broadcast: com.google.android.gms.checkin.CHECKIN_START_ACTION
+11-19 23:46:16.993   973   973 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.chimera.container.BIND_FIND_BUFFER_SIZE dat=chimera-action:/... cmp=com.google.android.gms/.chimera.PersistentInternalBoundBrokerService }
+11-19 23:46:16.993   973   973 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.chimera.container.BIND_FIND_BUFFER_SIZE dat=chimera-action:/... cmp=com.google.android.gms/.chimera.PersistentInternalBoundBrokerService }
+11-19 23:46:17.002  1298  1541 I SyncIntentOperation: (REDACTED) Handling the intent: %s.
+11-19 23:46:17.002  1298  1908 I Checkin : [CheckinIntentOperation] onHandleIntent, Intent { act=com.google.android.gms.checkin.CHECKIN_START_ACTION cat=[targeted_intent_op_prefix:.checkin.CheckinIntentOperation] cmp=com.google.android.gms/.chimera.GmsIntentOperationService (has extras) }
+11-19 23:46:17.007  2073  2246 I katniss_search_GlobalEnvironmentProvider: Retrieved zero Google account from GMS.
+11-19 23:46:17.016  2073  2225 I katniss_search_StartupTaskManager: Finished async startup task: FixAssistantSettingsStartupTask
+11-19 23:46:17.017  1168  1252 D EGL_emulation: app_time_stats: avg=568.43ms min=174.85ms max=1290.48ms count=5
+11-19 23:46:17.019  2073  2225 I katniss_search_StartupTaskManager: Finished async startup task: UsageStatsStartupTask
+11-19 23:46:17.036  2073  2263 D nativeloader: Configuring clns-9 for other apk /system/framework/com.android.location.provider.jar. target_sdk_version=33, uses_libraries=ALL, library_path=/product/priv-app/PrebuiltGmsCore/lib/x86:/product/priv-app/PrebuiltGmsCore/PrebuiltGmsCorePano.apk!/lib/x86, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.gms
+11-19 23:46:17.036  2073  2263 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.extensions.jar
+11-19 23:46:17.036  2073  2263 D ApplicationLoaders: Returning zygote-cached class loader: /system_ext/framework/androidx.window.sidecar.jar
+11-19 23:46:17.041  2073  2263 D nativeloader: Configuring product-clns-10 for unbundled product apk /product/priv-app/PrebuiltGmsCore/PrebuiltGmsCorePano.apk. target_sdk_version=33, uses_libraries=, library_path=/product/priv-app/PrebuiltGmsCore/lib/x86:/product/priv-app/PrebuiltGmsCore/PrebuiltGmsCorePano.apk!/lib/x86:/product/lib:/system/product/lib, permitted_path=/data:/mnt/expand:/data/user/0/com.google.android.gms:/product/lib:/system/product/lib
+11-19 23:46:17.048  2073  2263 V NativeCrypto: Registering com/google/android/gms/org/conscrypt/NativeCrypto's 302 native methods...
+11-19 23:46:17.050  1979  2274 V RkpdServerInterface: Network request completed successfully.
+11-19 23:46:17.053  1979  2274 I RkpdKeyPoolStats: PoolStats{keysInUse=0, idealTotalSignedKeys=12, keysToGenerate=12, keysUnassigned=0}
+11-19 23:46:17.053  1979  2274 I RkpdProvisioner: Requested number of keys for provisioning: 12
+11-19 23:46:17.082  2073  2263 I ProviderInstaller: Installed default security provider GmsCore_OpenSSL
+11-19 23:46:17.082  2073  2263 I katniss_search_SecurityProviderStartupTask: Security provider installed.
+11-19 23:46:17.083  2073  2246 I katniss_search_StartupTaskManager: Finished async startup task: SecurityProviderStartupTask
+11-19 23:46:17.086  1298  1634 I SystemUpdate: [Execution,InstallationEventIntentOperation] Handling event of type 1.
+11-19 23:46:17.088  1979  2274 W RkpdSystemInterface: HAL returned a batch size that's too small (20), defaulting to 20
+11-19 23:46:17.089  1979  2274 I RkpdServerInterface: request_id: 2cf0533e-8d2d-49f1-8c51-3c72bc6f392f
+11-19 23:46:17.089  1979  2274 V RkpdServerInterface: Requesting data from server. Attempt 1
+11-19 23:46:17.095  1298  1908 I Checkin : [EventLogChimeraService] Opted in for usage reporting: false
+11-19 23:46:17.100   973   973 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.pseudonymous.service.START dat=chimera-action:/... cmp=com.google.android.gms/.chimera.PersistentApiService }
+11-19 23:46:17.100   973   973 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.pseudonymous.service.START dat=chimera-action:/... cmp=com.google.android.gms/.chimera.PersistentApiService }
+11-19 23:46:17.107  1298  1908 W GmsTaskScheduler: ScheduledCheckinGmsTaskService is not available. This may cause the task to be lost.
+11-19 23:46:17.127   497   677 I WifiService: releaseMulticastLock uid=10127
+11-19 23:46:17.135  1979  2274 E RkpdServerInterface: Server connection failed for url: https://remoteprovisioning.googleapis.com/v1:signCertificates?challenge=AAABofY0LhEBILStY5h8akf_yKck9M8nAOwj7RE=&request_id=2cf0533e-8d2d-49f1-8c51-3c72bc6f392f, response code: 400
+11-19 23:46:17.135  1979  2274 E RkpdServerInterface: Repeated failure count: 1
+11-19 23:46:17.136  1979  2274 E RkpdServerInterface: {
+11-19 23:46:17.136  1979  2274 E RkpdServerInterface:   "error": {
+11-19 23:46:17.136  1979  2274 E RkpdServerInterface:     "code": 400,
+11-19 23:46:17.136  1979  2274 E RkpdServerInterface:     "message": "Invalid request payload: vendor_patch_level`0` should be in the format YYYYMMDD or YYYYMM if present.\nRequestId: 2cf0533e-8d2d-49f1-8c51-3c72bc6f392f",
+11-19 23:46:17.136  1979  2274 E RkpdServerInterface:     "status": "INVALID_ARGUMENT"
+11-19 23:46:17.136  1979  2274 E RkpdServerInterface:   }
+11-19 23:46:17.136  1979  2274 E RkpdServerInterface: }
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: RKPD failed to provision keys
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: com.android.rkpdapp.RkpdException: HTTP error status encountered: 400
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at com.android.rkpdapp.interfaces.ServerInterface.requestData(ServerInterface.java:341)
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at com.android.rkpdapp.interfaces.ServerInterface.connectAndGetData(ServerInterface.java:287)
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at com.android.rkpdapp.interfaces.ServerInterface.requestSignedCertificates(ServerInterface.java:121)
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at com.android.rkpdapp.provisioner.Provisioner.batchProvision(Provisioner.java:157)
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at com.android.rkpdapp.provisioner.Provisioner.fetchCertificates(Provisioner.java:136)
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at com.android.rkpdapp.provisioner.Provisioner.provisionKeys(Provisioner.java:89)
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at com.android.rkpdapp.service.RegistrationBinder.fetchGeekAndProvisionKeys(RegistrationBinder.java:151)
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at com.android.rkpdapp.service.RegistrationBinder.getKeyWorker(RegistrationBinder.java:117)
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at com.android.rkpdapp.service.RegistrationBinder.getKeyThreadWorker(RegistrationBinder.java:235)
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at com.android.rkpdapp.service.RegistrationBinder.lambda$getKey$3(RegistrationBinder.java:223)
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at com.android.rkpdapp.service.RegistrationBinder.$r8$lambda$TliFA5y2_wUzHwCyn77kum7XL5E(RegistrationBinder.java:0)
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at com.android.rkpdapp.service.RegistrationBinder$$ExternalSyntheticLambda9.run(R8$$SyntheticClass:0)
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:487)
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)
+11-19 23:46:17.138  1979  2274 E RkpdRegistrationBinder: 	at java.lang.Thread.run(Thread.java:1012)
+11-19 23:46:17.139  1298  1908 I Checkin : [EventLogChimeraService] Accumulating logs since 1795131933370
+11-19 23:46:17.141   497   497 E RemoteProvisionSysSvc: RKP error fetching key for client 123641277: ERROR_UNKNOWN: HTTP error status encountered: 400
+11-19 23:46:17.141   154   163 E keystore2: system/security/keystore2/src/rkpd_client.rs:172 - IGetKeyCallback failed: ERROR_UNKNOWN: HTTP error status encountered: 400
+11-19 23:46:17.141   154   166 W keystore2: system/security/keystore2/src/remote_provisioning.rs:102 - Error occurred: system/security/keystore2/src/rkpd_client.rs:187: GetKeyCallback failed: r#ERROR_UNKNOWN "ERROR_UNKNOWN: HTTP error status encountered: 400"
+11-19 23:46:17.141   154   166 W keystore2: 
+11-19 23:46:17.141   154   166 W keystore2: Caused by:
+11-19 23:46:17.141   154   166 W keystore2:     Error::Rc(r#OUT_OF_KEYS_TRANSIENT_ERROR)
+11-19 23:46:17.142  1298  1657 I AppDoctorManager: Updating appdoctor Uri Permissions. [CONTEXT service_id=256 ]
+11-19 23:46:17.142  1168  2306 D TrafficStats: tagSocket(136) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.145  1168  2308 D TrafficStats: tagSocket(138) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.145  1168  2309 D TrafficStats: tagSocket(139) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.145  1168  2310 D TrafficStats: tagSocket(140) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.145  1168  2311 D TrafficStats: tagSocket(141) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.145  1168  2312 D TrafficStats: tagSocket(142) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.145  1168  2313 D TrafficStats: tagSocket(143) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.145  1168  2314 D TrafficStats: tagSocket(144) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.145  1168  2315 D TrafficStats: tagSocket(145) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.145  1168  2316 D TrafficStats: tagSocket(146) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.145  1168  2317 D TrafficStats: tagSocket(147) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.145  1168  2307 D TrafficStats: tagSocket(148) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.153  1168  2307 D TrafficStats: tagSocket(148) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.154  1298  1967 I SystemUpdate: [Execution,InstallationIntentOperation] Received intent: Intent { act=com.google.android.gms.update.INSTALL_UPDATE cat=[targeted_intent_op_prefix:.update.execution.InstallationIntentOperation] cmp=com.google.android.gms/.chimera.GmsIntentOperationService (has extras) }.
+11-19 23:46:17.164  1168  2308 D TrafficStats: tagSocket(138) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.174  1298  1967 I SystemUpdate: [Execution,ExecutionManager] Action finished-execution executed for 0.02 seconds.
+11-19 23:46:17.216  1796  1796 I Finsky  : [2] [PLUS] Received response
+11-19 23:46:17.222  1298  1791 W PackageParser: Unknown element under <manifest>: queries at /data/user_de/0/com.google.android.gms/app_chimera/m/00000000/AdsDynamite.apk Binary XML file line #15
+11-19 23:46:17.240  1298  1656 E IPCThreadState: Binder transaction failure: 41926/29201/-28
+11-19 23:46:17.240  1298  1656 W BpBinder: Large outgoing transaction of 1056768 bytes, interface descriptor , code 1
+11-19 23:46:17.240  1298  1656 E JavaBinder: !!! FAILED BINDER TRANSACTION !!!  (parcel size = 1056768)
+11-19 23:46:17.241   973   973 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.chimera.container.BIND_FIND_BUFFER_SIZE dat=chimera-action:/... cmp=com.google.android.gms/.chimera.PersistentInternalBoundBrokerService }
+11-19 23:46:17.242  1298  1656 I Fido    : [FidoInitIntentOperation] Initializing Fido module, InitRuntimeState=2
+11-19 23:46:17.246  1298  1656 I Fido    : [FidoInitIntentOperation] Unable to enable the component com.google.android.gms.fido.authenticator.ui.AuthenticatorActivity
+11-19 23:46:17.247  1298  1656 I Fido    : [FidoInitIntentOperation] Unable to enable the component com.google.android.gms.fido.fido2.ui.Fido2FullScreenActivity
+11-19 23:46:17.247  1298  1656 I Fido    : [FidoInitIntentOperation] Unable to enable the component com.google.android.gms.fido.u2f.U2fService
+11-19 23:46:17.247  1298  1656 I Fido    : [FidoInitIntentOperation] Unable to enable the component com.google.android.gms.fido.u2f.ui.AuthenticateActivity
+11-19 23:46:17.248  1973  2009 D libEGL  : loaded /vendor/lib/egl/libEGL_emulation.so
+11-19 23:46:17.248  1973  2009 D libEGL  : loaded /vendor/lib/egl/libGLESv1_CM_emulation.so
+11-19 23:46:17.249  1973  2009 D libEGL  : loaded /vendor/lib/egl/libGLESv2_emulation.so
+11-19 23:46:17.252  1796  1852 I Finsky  : [47] [PLUS] Successfully updated PayloadValueStore
+11-19 23:46:17.252  1796  1893 I Finsky  : [57] [PLUS] Sync complete, number synced: 1, number failed: 0
+11-19 23:46:17.253  1796  1893 I Finsky  : [57] SCH: jobFinished: 37-2. TimeElapsed: 1146ms.
+11-19 23:46:17.253  1796  1893 I Finsky  : [57] WM::SCH: Logging work end for 37-2
+11-19 23:46:17.256  1298  1656 I Fido    : [FidoInitIntentOperation] Unable to enable the component com.google.android.gms.fido.fido2.pollux.CableAuthenticatorService
+11-19 23:46:17.256  1298  1656 I Fido    : [FidoInitIntentOperation] Unable to enable the component com.google.android.gms.fido.fido2.ui.PolluxActivity
+11-19 23:46:17.256   497   802 W ActivityManager: Unable to start service Intent { cmp=com.google.android.gms/.fido.fido2.pollux.CableAuthenticatorService } U=0: not found
+11-19 23:46:17.268  1298  1656 I Fido    : [FidoInitIntentOperation] Unable to enable the component com.google.android.gms.fido.authenticator.service.cablev2.GcmReceiverService
+11-19 23:46:17.268  1298  1656 I Fido    : [FidoInitIntentOperation] Unable to enable the component com.google.android.gms.fido.authenticator.service.AuthenticatorService
+11-19 23:46:17.268   497   802 W ActivityManager: Unable to start service Intent { cmp=com.google.android.gms/.fido.authenticator.service.AuthenticatorService } U=0: not found
+11-19 23:46:17.271  1298  1298 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.auth.cryptauth.cryptauthservice.START pkg=com.google.android.gms }
+11-19 23:46:17.271  1298  1298 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.auth.cryptauth.cryptauthservice.START pkg=com.google.android.gms }
+11-19 23:46:17.271  1298  1298 I BndSvcConfigHelper: No bound-service is registered for action: com.google.android.gms.auth.cryptauth.cryptauthservice.START
+11-19 23:46:17.271  1298  1298 I BoundBrokerSvc: Bound service not available for: Intent { act=com.google.android.gms.auth.cryptauth.cryptauthservice.START pkg=com.google.android.gms }
+11-19 23:46:17.271  1298  1298 I ChimeraSrvcProxy: com.google.android.gms.chimera.GmsBoundBrokerService returning NullBinder for action com.google.android.gms.auth.cryptauth.cryptauthservice.START
+11-19 23:46:17.292   497   802 D BiometricService: canAuthenticate: User=0, Caller=0, Authenticators=255
+11-19 23:46:17.292   497   802 D BiometricService/PreAuthInfo: getCanAuthenticateInternal Modality: 0 AuthenticatorStatus: 2
+11-19 23:46:17.292   497   802 D AuthService: canAuthenticate, userId: 0, callingUserId: 0, authenticators: 255, result: 12
+11-19 23:46:17.293  1298  1656 W SystemServiceRegistry: No service published for: fingerprint
+11-19 23:46:17.293  1298  1656 I Fido    : [FidoV2EnrollmentController] Attempting to enroll Autofill Keystore keys
+11-19 23:46:17.293  1298  1656 I Fido    : [FidoV2EnrollmentController] No screen lock set.
+11-19 23:46:17.293  1298  1657 I GamesModuleInitIntentOp: (REDACTED) onInitRuntimeState invoked with: %d
+11-19 23:46:17.293  1298  1657 I GamesModuleInitIntentOp: (REDACTED) Check flag for %s is %s.
+11-19 23:46:17.293  1298  1657 I EditProfileActivityHelp: (REDACTED) Check flag for %s is %d.
+11-19 23:46:17.305   973  1023 I AlarmManager: setExactAndAllowWhileIdle [name: GCM_CONN_ALARM type: 2 triggerAtMillis: 28391]
+11-19 23:46:17.308  1298  1512 I ChimeraSrvcProxy: NullBinder for com.google.android.gms.auth.cryptauth.cryptauthservice.START throwing RemoteException due to Service without Chimera impl
+11-19 23:46:17.309  1298  1512 W GmsClient: IGmsServiceBroker.getService failed
+11-19 23:46:17.309  1298  1512 W GmsClient: android.os.RemoteException: Service without Chimera impl
+11-19 23:46:17.309  1298  1512 W GmsClient: 	at eki.onTransact(:com.google.android.gms@233515114@23.35.15 (180706-565551795):217)
+11-19 23:46:17.309  1298  1512 W GmsClient: 	at android.os.Binder.transact(Binder.java:1183)
+11-19 23:46:17.309  1298  1512 W GmsClient: 	at qcj.fg(:com.google.android.gms@233515114@23.35.15 (180706-565551795):33)
+11-19 23:46:17.309  1298  1512 W GmsClient: 	at qaq.s(:com.google.android.gms@233515114@23.35.15 (180706-565551795):133)
+11-19 23:46:17.309  1298  1512 W GmsClient: 	at pip.run(:com.google.android.gms@233515114@23.35.15 (180706-565551795):54)
+11-19 23:46:17.309  1298  1512 W GmsClient: 	at android.os.Handler.handleCallback(Handler.java:958)
+11-19 23:46:17.309  1298  1512 W GmsClient: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+11-19 23:46:17.309  1298  1512 W GmsClient: 	at acgy.hv(:com.google.android.gms@233515114@23.35.15 (180706-565551795):1)
+11-19 23:46:17.309  1298  1512 W GmsClient: 	at acgy.dispatchMessage(:com.google.android.gms@233515114@23.35.15 (180706-565551795):143)
+11-19 23:46:17.309  1298  1512 W GmsClient: 	at android.os.Looper.loopOnce(Looper.java:205)
+11-19 23:46:17.309  1298  1512 W GmsClient: 	at android.os.Looper.loop(Looper.java:294)
+11-19 23:46:17.309  1298  1512 W GmsClient: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+11-19 23:46:17.358   133   133 I hwservicemanager: getTransport: Cannot find entry android.hardware.configstore@1.0::ISurfaceFlingerConfigs/default in either framework or device VINTF manifest.
+11-19 23:46:17.379  1298  1657 I Icing   : Using TV flags by method 2
+11-19 23:46:17.383  1298  1657 I MobileDataHub: Scheduling periodic tasks
+11-19 23:46:17.403  1235  2322 D ProfileInstaller: Installing profile for com.google.android.gsf
+11-19 23:46:17.420   497   802 I DropBoxManagerService: add tag=event_log isTagEnabled=true flags=0x2
+11-19 23:46:17.437  1298  1908 D CompatibilityChangeReporter: Compat change id reported: 247079863; UID 10088; state: DISABLED
+11-19 23:46:17.497  1298  1822 I Icing   : Storage manager: low false usage 1.55MB avail 5.16GB capacity 5.80GB
+11-19 23:46:17.565  1298  1565 I ChimeraConfigurator: Starting update, reason: 4 urgentFeatures: 
+11-19 23:46:17.578  1796  1900 I Finsky  : [58] SCH: Scheduling phonesky job Id: 26-1414141414, CT: 1795131864610, Constraints: [{ L: 900000, D: 1800000, C: CHARGING_NONE, I: IDLE_NONE, N: NET_NONE, B: BATTERY_ANY }]
+11-19 23:46:17.593  1973  2014 W DG      : [flow checkin] DroidGuardRunner.newVmProcessForFastSignalCollection(): Fast program not found [CONTEXT service_id=25 ]
+11-19 23:46:17.595  1168  2313 D TrafficStats: tagSocket(102) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.595  1168  2309 D TrafficStats: tagSocket(139) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.596  1168  2316 D TrafficStats: tagSocket(146) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.596  1168  2314 D TrafficStats: tagSocket(144) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.596  1168  2311 D TrafficStats: tagSocket(141) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.596  1168  2310 D TrafficStats: tagSocket(140) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.596  1168  2312 D TrafficStats: tagSocket(142) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.596  1168  2315 D TrafficStats: tagSocket(145) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.597  1168  2317 D TrafficStats: tagSocket(147) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.599  1168  2306 D TrafficStats: tagSocket(136) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.600  1168  2313 D TrafficStats: tagSocket(102) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.601  1796  1893 I Finsky  : [57] SCH: Scheduling 1 system job(s)
+11-19 23:46:17.601  1796  1893 I Finsky  : [57] SCH: Scheduling system job Id: 9188, L: 787009, D: 1687009, C: false, I: false, N: 0
+11-19 23:46:17.604  1168  2307 D TrafficStats: tagSocket(104) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.611  1796  2021 I Finsky  : [67] SCH: job service finished with id 9179.
+11-19 23:46:17.614  1796  1873 I Finsky  : [53] SCH: Scheduling phonesky job Id: 1-1337, CT: 1795131863685, Constraints: [{ L: 32987934, D: 76187934, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }]
+11-19 23:46:17.614  1796  1873 I Finsky  : [53] SCH: Scheduling phonesky job Id: 10-4, CT: 1795131863498, Constraints: [{ L: 1200000, D: 86400000, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }]
+11-19 23:46:17.614  1796  1873 I Finsky  : [53] SCH: Scheduling phonesky job Id: 10-11, CT: 1795131863498, Constraints: [{ L: 600000, D: 86400000, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }]
+11-19 23:46:17.614  1796  1873 I Finsky  : [53] SCH: Scheduling phonesky job Id: 10-26, CT: 1795131863499, Constraints: [{ L: 600000, D: 86400000, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }]
+11-19 23:46:17.614  1796  1873 I Finsky  : [53] SCH: Scheduling phonesky job Id: 10-93, CT: 1795131863499, Constraints: [{ L: 300000, D: 86400000, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }]
+11-19 23:46:17.614  1796  1873 I Finsky  : [53] SCH: Scheduling phonesky job Id: 10-123, CT: 1795131863499, Constraints: [{ L: 600000, D: 86400000, C: CHARGING_NONE, I: IDLE_NONE, N: NET_ANY, B: BATTERY_ANY }]
+11-19 23:46:17.616  1168  2308 D TrafficStats: tagSocket(103) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.619  1796  1900 I Finsky  : [58] SCH: Scheduling 1 system job(s)
+11-19 23:46:17.620  1796  1900 I Finsky  : [58] SCH: Scheduling system job Id: 9189, L: 185880, D: 76074000, C: false, I: false, N: 1
+11-19 23:46:17.634  1298  1565 I ChimeraConfigurator: Detected pending changes for urgent request: []. Pending module sets: container:2335159180706
+11-19 23:46:17.660  1298  1791 I Icing   : IndexChimeraService.getServiceInterface callingPackage=com.google.android.gms componentName=ContactsIndexer serviceId=33
+11-19 23:46:17.688  1298  1657 I SupervisionStateUtils: State no supervision required [CONTEXT service_id=42 ]
+11-19 23:46:17.697  1298  1657 I SupervisionStateUtils: State recover:NO_SUPERVISION_REQUIRED [CONTEXT service_id=42 ]
+11-19 23:46:17.762   497   910 I RemoteProvisionSysSvc: getRegistration(android.hardware.security.keymint.IRemotelyProvisionedComponent/default)
+11-19 23:46:17.767   497   497 I RegistrationProxy: onServiceConnected: com.android.rkpdapp.service.RemoteProvisioningService
+11-19 23:46:17.784   497   677 I RegistrationProxy: IGetRegistrationCallback.onSuccess
+11-19 23:46:17.809   698   707 I ndroid.systemui: Background concurrent copying GC freed 104360(3662KB) AllocSpace objects, 8(224KB) LOS objects, 49% free, 3858KB/7716KB, paused 37us,12us total 860.734ms
+11-19 23:46:17.825  1298  1545 I Google Maps Android API: Validating conditions for requesting maps_core feature. [CONTEXT service_id=71 ]
+11-19 23:46:17.825  1298  1545 I Google Maps Android API: (REDACTED) Is maps_core feature installed? %d
+11-19 23:46:17.825  1298  1545 I Google Maps Android API: cutoffSize=2147483648, internalFreeBytes=5543886848
+11-19 23:46:17.825  1298  1545 I Google Maps Android API: Eligible to request maps_core feature. [CONTEXT service_id=71 ]
+11-19 23:46:17.827   497  1027 I RemoteProvisionSysSvc: Fetching key 10088 for client 216589080
+11-19 23:46:17.827   497  1027 I RegistrationProxy: getKeyAsync operation started with callback 15348081
+11-19 23:46:17.828  1298  1545 I Google Maps Android API: maps_core feature request succeeded. [CONTEXT service_id=71 ]
+11-19 23:46:17.833  1298  1565 I ChimeraConfigurator: Update complete: success
+11-19 23:46:17.836  1298  1565 I GmsModuleFndr: Beginning GMS chimera module scan
+11-19 23:46:17.838  1796  2021 I Finsky  : [67] SCH: job service finished with id 9176.
+11-19 23:46:17.843   497   574 D CompatibilityChangeReporter: Compat change id reported: 265195908; UID 10085; state: ENABLED
+11-19 23:46:17.845  1298  1565 I ModuleSetMgr: Computing pending module set with APKs: [[AdsFdrDynamite.integ:232400000100000], [Cronetdynamite:233515180706], [Dynamiteloader:233515180006], [Dynamitemodulesa:233515180006], [Dynamitemodulesc:233515180006], [Googlecertificates:233515180006], [Mapsdynamite:233515180006], [Measurementdynamite:233515180006], [KidsNotPhone.integ:222880200150006]]
+11-19 23:46:17.848  1298  1565 I ModuleSetMgr: Pending container module APKs: []
+11-19 23:46:17.848  1298  1565 I ModuleSetMgr: Pending non-container module APKs: []
+11-19 23:46:17.854  2073  2247 D TrafficStats: tagSocket(83) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: unable to connect to cast service
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: java.net.ConnectException: Failed to connect to localhost/127.0.0.1:8008
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.io.RealConnection.connectSocket(RealConnection.java:147)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.io.RealConnection.connect(RealConnection.java:116)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.http.StreamAllocation.findConnection(StreamAllocation.java:186)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.http.StreamAllocation.findHealthyConnection(StreamAllocation.java:128)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.http.StreamAllocation.newStream(StreamAllocation.java:97)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.http.HttpEngine.connect(HttpEngine.java:289)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.http.HttpEngine.sendRequest(HttpEngine.java:232)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.huc.HttpURLConnectionImpl.execute(HttpURLConnectionImpl.java:465)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.huc.HttpURLConnectionImpl.getResponse(HttpURLConnectionImpl.java:411)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at com.android.okhttp.internal.huc.HttpURLConnectionImpl.getResponseCode(HttpURLConnectionImpl.java:542)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at kkk.call(PG:3)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at etm.a(Unknown Source:2)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at txo.call(PG:2)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at rbd.run(PG:1)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at ral.run(PG:2)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at java.lang.Thread.run(Thread.java:1012)
+11-19 23:46:17.859  2073  2247 E katniss_search_LoadCastServiceInfoTaskImpl: 	at rbj.run(PG:5)
+11-19 23:46:17.872   973  1305 E apaa    : Phenotype API error. Event # btuz@707363f6, EventCode: 42 [CONTEXT service_id=51 ]
+11-19 23:46:17.872   973  1305 E apaa    : aoyo: 29514: tryCreateStorageInfoInTransaction() is not enabled yet.
+11-19 23:46:17.872   973  1305 E apaa    : 	at apck.a(:com.google.android.gms@233515114@23.35.15 (180706-565551795):431)
+11-19 23:46:17.872   973  1305 E apaa    : 	at apbe.g(:com.google.android.gms@233515114@23.35.15 (180706-565551795):13)
+11-19 23:46:17.872   973  1305 E apaa    : 	at apaa.e(:com.google.android.gms@233515114@23.35.15 (180706-565551795):18)
+11-19 23:46:17.872   973  1305 E apaa    : 	at apaa.f(:com.google.android.gms@233515114@23.35.15 (180706-565551795):11)
+11-19 23:46:17.872   973  1305 E apaa    : 	at abzz.ea(:com.google.android.gms@233515114@23.35.15 (180706-565551795):1)
+11-19 23:46:17.872   973  1305 E apaa    : 	at acak.run(:com.google.android.gms@233515114@23.35.15 (180706-565551795):100)
+11-19 23:46:17.872   973  1305 E apaa    : 	at bgit.run(:com.google.android.gms@233515114@23.35.15 (180706-565551795):13)
+11-19 23:46:17.872   973  1305 E apaa    : 	at qqx.c(:com.google.android.gms@233515114@23.35.15 (180706-565551795):50)
+11-19 23:46:17.872   973  1305 E apaa    : 	at qqx.run(:com.google.android.gms@233515114@23.35.15 (180706-565551795):97)
+11-19 23:46:17.872   973  1305 E apaa    : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+11-19 23:46:17.872   973  1305 E apaa    : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)
+11-19 23:46:17.872   973  1305 E apaa    : 	at qvz.run(:com.google.android.gms@233515114@23.35.15 (180706-565551795):8)
+11-19 23:46:17.872   973  1305 E apaa    : 	at java.lang.Thread.run(Thread.java:1012)
+11-19 23:46:17.873   973  1305 W AsyncOperation: operation=GetStorageInfoGmsOperation, opStatusCode=29514 [CONTEXT service_id=51 ]
+11-19 23:46:17.873   973  1305 W AsyncOperation: OperationException[Status{statusCode=tryCreateStorageInfoInTransaction() is not enabled yet., resolution=null}]
+11-19 23:46:17.873   973  1305 W AsyncOperation: 	at apaa.e(:com.google.android.gms@233515114@23.35.15 (180706-565551795):67)
+11-19 23:46:17.873   973  1305 W AsyncOperation: 	at apaa.f(:com.google.android.gms@233515114@23.35.15 (180706-565551795):11)
+11-19 23:46:17.873   973  1305 W AsyncOperation: 	at abzz.ea(:com.google.android.gms@233515114@23.35.15 (180706-565551795):1)
+11-19 23:46:17.873   973  1305 W AsyncOperation: 	at acak.run(:com.google.android.gms@233515114@23.35.15 (180706-565551795):100)
+11-19 23:46:17.873   973  1305 W AsyncOperation: 	at bgit.run(:com.google.android.gms@233515114@23.35.15 (180706-565551795):13)
+11-19 23:46:17.873   973  1305 W AsyncOperation: 	at qqx.c(:com.google.android.gms@233515114@23.35.15 (180706-565551795):50)
+11-19 23:46:17.873   973  1305 W AsyncOperation: 	at qqx.run(:com.google.android.gms@233515114@23.35.15 (180706-565551795):97)
+11-19 23:46:17.873   973  1305 W AsyncOperation: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+11-19 23:46:17.873   973  1305 W AsyncOperation: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)
+11-19 23:46:17.873   973  1305 W AsyncOperation: 	at qvz.run(:com.google.android.gms@233515114@23.35.15 (180706-565551795):8)
+11-19 23:46:17.873   973  1305 W AsyncOperation: 	at java.lang.Thread.run(Thread.java:1012)
+11-19 23:46:17.879  1979  2275 I RkpdRegistrationBinder: Key requested for : android.hardware.security.keymint.IRemotelyProvisionedComponent/default, clientUid: 1017, keyId: 10088, callback: 862883
+11-19 23:46:17.883  1979  2275 I RkpdRegistrationBinder: No key assigned, looking for an available key with expiry of 2026-11-22T23:46:17.883336Z
+11-19 23:46:17.884  1979  2275 I RkpdRegistrationBinder: No key assigned, looking for an available key with expiry of 2026-11-20T00:46:17.879748Z
+11-19 23:46:17.884  1979  2275 I RkpdRegistrationBinder: No keys are available, kicking off provisioning
+11-19 23:46:17.884  1979  2275 V RkpdServerInterface: Requesting data from server. Attempt 1
+11-19 23:46:17.884   497   677 I RegistrationProxy: Provisioning required before keys are available for android.security.rkp.service.RegistrationProxy$2@ea3171
+11-19 23:46:17.884  2073  2247 E ActivityThread: Failed to find provider info for com.google.android.tvsetup.app.machine.services.castsetup.castsetupinfo.CastInfoProvider
+11-19 23:46:17.888  2073  2247 E katniss_search_CastContentProviderAdapter: Cursor is not valid to read the content provider.
+11-19 23:46:17.888  2073  2247 W katniss_search_LoadCastServiceInfoTaskImpl: Failed to get cast id and certificate from Content Provider.
+11-19 23:46:17.893  2073  2321 I katniss_search_RetryingFuture: [LoadCastServiceInfoTask] attempt failed. Potentially retrying...
+11-19 23:46:17.893  2073  2321 I katniss_search_RetryingFuture: java.lang.Exception: Failed to get cast id and certificate.
+11-19 23:46:17.893  2073  2321 I katniss_search_RetryingFuture: 	at kkk.call(PG:66)
+11-19 23:46:17.893  2073  2321 I katniss_search_RetryingFuture: 	at etm.a(Unknown Source:2)
+11-19 23:46:17.893  2073  2321 I katniss_search_RetryingFuture: 	at txo.call(PG:2)
+11-19 23:46:17.893  2073  2321 I katniss_search_RetryingFuture: 	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+11-19 23:46:17.893  2073  2321 I katniss_search_RetryingFuture: 	at rbd.run(PG:1)
+11-19 23:46:17.893  2073  2321 I katniss_search_RetryingFuture: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+11-19 23:46:17.893  2073  2321 I katniss_search_RetryingFuture: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)
+11-19 23:46:17.893  2073  2321 I katniss_search_RetryingFuture: 	at ral.run(PG:2)
+11-19 23:46:17.893  2073  2321 I katniss_search_RetryingFuture: 	at java.lang.Thread.run(Thread.java:1012)
+11-19 23:46:17.893  2073  2321 I katniss_search_RetryingFuture: 	at rbj.run(PG:5)
+11-19 23:46:17.901  1298  1565 W PackageParser: Unknown element under <manifest>: queries at /data/user_de/0/com.google.android.gms/app_chimera/m/00000000/AdsDynamite.apk Binary XML file line #15
+11-19 23:46:17.992  1979  2275 V RkpdServerInterface: Network request completed successfully.
+11-19 23:46:17.993  1979  2275 I RkpdKeyPoolStats: PoolStats{keysInUse=0, idealTotalSignedKeys=12, keysToGenerate=12, keysUnassigned=0}
+11-19 23:46:17.993  1979  2275 I RkpdProvisioner: Requested number of keys for provisioning: 12
+11-19 23:46:18.016  1979  2275 W RkpdSystemInterface: HAL returned a batch size that's too small (20), defaulting to 20
+11-19 23:46:18.047  1168  2310 D TrafficStats: tagSocket(113) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.047  1168  2312 D TrafficStats: tagSocket(132) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.047  1168  2314 D TrafficStats: tagSocket(140) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.047  1168  2311 D TrafficStats: tagSocket(141) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.047  1168  2315 D TrafficStats: tagSocket(139) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.048  1168  2317 D TrafficStats: tagSocket(146) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.048  1168  2309 D TrafficStats: tagSocket(154) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.051  1168  2316 D TrafficStats: tagSocket(156) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.052  1979  2275 I RkpdServerInterface: request_id: 8d979740-aa0c-46e8-a88f-3909baab99fa
+11-19 23:46:18.052  1979  2275 V RkpdServerInterface: Requesting data from server. Attempt 1
+11-19 23:46:18.052  1168  2306 D TrafficStats: tagSocket(118) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.052  1168  2313 D TrafficStats: tagSocket(102) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.055  1168  2307 D TrafficStats: tagSocket(104) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.061  1168  1252 D EGL_emulation: app_time_stats: avg=121.36ms min=53.97ms max=226.90ms count=8
+11-19 23:46:18.067  1168  2308 D TrafficStats: tagSocket(103) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.165  1979  2275 E RkpdServerInterface: Server connection failed for url: https://remoteprovisioning.googleapis.com/v1:signCertificates?challenge=AAABofY0MYQBILStY5AfrAgBbowWIBF95mQAaAY=&request_id=8d979740-aa0c-46e8-a88f-3909baab99fa, response code: 400
+11-19 23:46:18.165  1979  2275 E RkpdServerInterface: Repeated failure count: 1
+11-19 23:46:18.165  1979  2275 E RkpdServerInterface: {
+11-19 23:46:18.165  1979  2275 E RkpdServerInterface:   "error": {
+11-19 23:46:18.165  1979  2275 E RkpdServerInterface:     "code": 400,
+11-19 23:46:18.165  1979  2275 E RkpdServerInterface:     "message": "Invalid request payload: vendor_patch_level`0` should be in the format YYYYMMDD or YYYYMM if present.\nRequestId: 8d979740-aa0c-46e8-a88f-3909baab99fa",
+11-19 23:46:18.165  1979  2275 E RkpdServerInterface:     "status": "INVALID_ARGUMENT"
+11-19 23:46:18.165  1979  2275 E RkpdServerInterface:   }
+11-19 23:46:18.165  1979  2275 E RkpdServerInterface: }
+11-19 23:46:18.167  1298  1565 I ChimeraConfigurator: Checking 1 listeners. All downloaded: true
+11-19 23:46:18.169  1298  1565 I GmsDebugLogger: [83] 0 []
+11-19 23:46:18.170   698   709 W System  : A resource failed to call release. 
+11-19 23:46:18.171   698   709 W System  : A resource failed to call release. 
+11-19 23:46:18.171   698   709 W System  : A resource failed to call release. 
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: RKPD failed to provision keys
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: com.android.rkpdapp.RkpdException: HTTP error status encountered: 400
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at com.android.rkpdapp.interfaces.ServerInterface.requestData(ServerInterface.java:341)
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at com.android.rkpdapp.interfaces.ServerInterface.connectAndGetData(ServerInterface.java:287)
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at com.android.rkpdapp.interfaces.ServerInterface.requestSignedCertificates(ServerInterface.java:121)
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at com.android.rkpdapp.provisioner.Provisioner.batchProvision(Provisioner.java:157)
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at com.android.rkpdapp.provisioner.Provisioner.fetchCertificates(Provisioner.java:136)
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at com.android.rkpdapp.provisioner.Provisioner.provisionKeys(Provisioner.java:89)
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at com.android.rkpdapp.service.RegistrationBinder.fetchGeekAndProvisionKeys(RegistrationBinder.java:151)
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at com.android.rkpdapp.service.RegistrationBinder.getKeyWorker(RegistrationBinder.java:117)
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at com.android.rkpdapp.service.RegistrationBinder.getKeyThreadWorker(RegistrationBinder.java:235)
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at com.android.rkpdapp.service.RegistrationBinder.lambda$getKey$3(RegistrationBinder.java:223)
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at com.android.rkpdapp.service.RegistrationBinder.$r8$lambda$TliFA5y2_wUzHwCyn77kum7XL5E(RegistrationBinder.java:0)
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at com.android.rkpdapp.service.RegistrationBinder$$ExternalSyntheticLambda9.run(R8$$SyntheticClass:0)
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:487)
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at java.util.concurrent.FutureTask.run(FutureTask.java:264)
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)
+11-19 23:46:18.179  1979  2275 E RkpdRegistrationBinder: 	at java.lang.Thread.run(Thread.java:1012)
+11-19 23:46:18.179   497   497 E RemoteProvisionSysSvc: RKP error fetching key for client 216589080: ERROR_UNKNOWN: HTTP error status encountered: 400
+11-19 23:46:18.179   154   163 E keystore2: system/security/keystore2/src/rkpd_client.rs:172 - IGetKeyCallback failed: ERROR_UNKNOWN: HTTP error status encountered: 400
+11-19 23:46:18.179   154   166 W keystore2: system/security/keystore2/src/remote_provisioning.rs:102 - Error occurred: system/security/keystore2/src/rkpd_client.rs:187: GetKeyCallback failed: r#ERROR_UNKNOWN "ERROR_UNKNOWN: HTTP error status encountered: 400"
+11-19 23:46:18.179   154   166 W keystore2: 
+11-19 23:46:18.179   154   166 W keystore2: Caused by:
+11-19 23:46:18.179   154   166 W keystore2:     Error::Rc(r#OUT_OF_KEYS_TRANSIENT_ERROR)
+11-19 23:46:18.208  1298  1565 I ChimeraConfigurator: Starting update, reason: 4 urgentFeatures: maps_core:-1
+11-19 23:46:18.244  1298  1565 I ChimeraConfigurator: Detected pending changes for urgent request: [maps_core]. Pending module sets: container:2335159180706
+11-19 23:46:18.265  1298  1565 I ChimeraConfigurator: Update complete: success
+11-19 23:46:18.270  2348  2348 W BpBinder: Linking to death on android.gui.ISurfaceComposer but there are no threads (yet?) listening to incoming transactions. See ProcessState::startThreadPool and ProcessState::setThreadPoolMaxThreadCount. Generally you should setup the binder threadpool before other initialization steps.
+11-19 23:46:18.272  2348  2348 W ProcessState: Extra binder thread started, but 0 threads requested. Do not use *startThreadPool when zero threads are requested.
+11-19 23:46:18.274   381   600 W ServiceManagerCppClient: Permission failure: android.permission.CAPTURE_BLACKOUT_CONTENT from uid=2000 pid=2348
+11-19 23:46:18.277   381   600 D PermissionCache: checking android.permission.CAPTURE_BLACKOUT_CONTENT for uid=2000 => denied (2242 us)
+11-19 23:46:18.290   133   133 I hwservicemanager: getTransport: Cannot find entry android.hardware.graphics.mapper@4.0::IMapper/default in either framework or device VINTF manifest.
+11-19 23:46:18.290  2348  2349 I Gralloc4: mapper 4.x is not supported
+11-19 23:46:18.351  1298  1545 I MdiSyncModule: initializing module...
+11-19 23:46:18.363  1298  1565 I GmsModuleFndr: Beginning GMS chimera module scan
+11-19 23:46:18.364  1298  1565 I ModuleSetMgr: Computing pending module set with APKs: [[AdsFdrDynamite.integ:232400000100000], [Cronetdynamite:233515180706], [Dynamiteloader:233515180006], [Dynamitemodulesa:233515180006], [Dynamitemodulesc:233515180006], [Googlecertificates:233515180006], [Mapsdynamite:233515180006], [Measurementdynamite:233515180006], [KidsNotPhone.integ:222880200150006]]
+11-19 23:46:18.378  1298  1545 I MdiSyncModule: module initialization completed
+11-19 23:46:18.391  1298  1565 I ModuleSetMgr: Pending container module APKs: []
+11-19 23:46:18.391  1298  1565 I ModuleSetMgr: Pending non-container module APKs: []
+11-19 23:46:18.398  1298  1565 W PackageParser: Unknown element under <manifest>: queries at /data/user_de/0/com.google.android.gms/app_chimera/m/00000000/AdsDynamite.apk Binary XML file line #15
+11-19 23:46:18.409  1298  1565 I ChimeraConfigurator: Checking 1 listeners. All downloaded: true
+11-19 23:46:18.409  1298  1565 I GmsDebugLogger: [83] 2 [maps_core]
+11-19 23:46:18.416  1298  1822 I native  : I0000 00:00:1795131978.415873    1822 permission-checker.cc:81] Creating PermissionChecker based on ACL with config_version 1 having 12 permissions defined.
+11-19 23:46:18.417  1298  1822 W native  : W0000 00:00:1795131978.417561    1822 words-map.cc:34] INVALID_ARGUMENT: Empty URI
+11-19 23:46:18.417  1298  1822 W native  : W0000 00:00:1795131978.417595    1822 words-map.cc:38] WordsMap was not properly initialized
+11-19 23:46:18.453  1298  2319 D CompatibilityChangeReporter: Compat change id reported: 150939131; UID 10088; state: ENABLED
+11-19 23:46:18.457  1102  1336 I katniss_interactor_StartupTaskManager: Finished async startup task: PhenotypeStartupTask
+11-19 23:46:18.486  1973  2014 D CompatibilityChangeReporter: Compat change id reported: 263076149; UID 10088; state: DISABLED
+11-19 23:46:18.497  1168  2310 D TrafficStats: tagSocket(113) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.498  1168  2309 D TrafficStats: tagSocket(131) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.498  1168  2317 D TrafficStats: tagSocket(146) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.498  1168  2314 D TrafficStats: tagSocket(140) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.498  1168  2312 D TrafficStats: tagSocket(132) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.498  1168  2311 D TrafficStats: tagSocket(141) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.498  1168  2315 D TrafficStats: tagSocket(139) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.501  1168  2316 D TrafficStats: tagSocket(127) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.502  1168  2306 D TrafficStats: tagSocket(118) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.502  1168  2313 D TrafficStats: tagSocket(102) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.505  1168  2307 D TrafficStats: tagSocket(104) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.518  1168  2308 D TrafficStats: tagSocket(103) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.523  1298  1657 W MDM     : [75] aeob.p: Q+ devices does not need device admin.
+11-19 23:46:18.525   497   802 W ActivityManager: Unable to start service Intent { act=com.google.android.gms.findmydevice.spot.service.management.START pkg=com.google.android.gms } U=0: not found
+11-19 23:46:18.526   973   973 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.icing.LIGHTWEIGHT_INDEX_SERVICE dat=chimera-action:/... cmp=com.google.android.gms/.chimera.PersistentApiService }
+11-19 23:46:18.526   973   973 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.icing.LIGHTWEIGHT_INDEX_SERVICE dat=chimera-action:/... cmp=com.google.android.gms/.chimera.PersistentApiService }
+11-19 23:46:18.531  1298  1635 I Nearby  : (REDACTED) is blocked device type %s, isAuto=%s, isIot=%s, isLatchsky=%s, isChinaWearable=%s, isTv=%s, isWearable=%s (supportWearOs=%s), isChromeOsDevice=%s (supportChromeOs=%s)
+11-19 23:46:18.534  1298  1635 I NearbyDiscovery: Trigger rescan contextual cards [CONTEXT service_id=265 ]
+11-19 23:46:18.534   497  1644 W ActivityManager: Unable to start service Intent { act=com.google.android.gms.nearby.discovery:ACTION_INIT_MESSAGES_PATH cmp=com.google.android.gms/.nearby.discovery.service.DiscoveryService } U=0: not found
+11-19 23:46:18.534  1298  1635 I NearbyDiscovery: (REDACTED) FastPair: HeadsetPieceImage, grant permission files:%d
+11-19 23:46:18.534  1298  1635 I NearbyFastPair: (REDACTED) onInitRuntimeState isEnableWearableListener: %s
+11-19 23:46:18.536  1298  1635 I NearbyFastPair: FastPairInitIntentOperation: check the Footprints sync tasks. [CONTEXT service_id=265 ]
+11-19 23:46:18.536  1298  1635 I NearbyFastPair: (REDACTED) TaskSchedulerUtils cancelTask %s success.
+11-19 23:46:18.537  1298  1635 I NearbyFastPair: TSS cancel footprints recon sync [CONTEXT service_id=265 ]
+11-19 23:46:18.537  1298  1635 I NearbyFastPair: (REDACTED) TaskSchedulerUtils cancelTask %s success.
+11-19 23:46:18.537  1298  1635 I NearbyFastPair: TSS scheduleFootprintsOneOffSync: not enable [CONTEXT service_id=265 ]
+11-19 23:46:18.538  1298  1565 I NearbySharing: (REDACTED) Runtime state initialization complete. Sharing is disabled for reason %s.
+11-19 23:46:18.565   497   783 W ActivityManager: Unbind failed: could not find connection for android.os.BinderProxy@d90253e
+11-19 23:46:18.567  1298  1565 I DeletedNullContactsCleanup: Scheduling the service.
+11-19 23:46:18.570  1298  1565 I BackupAndSyncValidation: Scheduling the service.
+11-19 23:46:18.572  1298  1512 W GmsClient: unable to connect to service: com.google.android.gms.findmydevice.spot.service.management.START on com.google.android.gms
+11-19 23:46:18.578  1298  1657 W PeoplePU: getServiceInfo failed.
+11-19 23:46:18.578  1298  1657 W PeoplePU: android.content.pm.PackageManager$NameNotFoundException: ComponentInfo{com.google.android.gms/com.google.android.gms.people.sync.focus.ContactsSyncAdapterService}
+11-19 23:46:18.578  1298  1657 W PeoplePU: 	at android.app.ApplicationPackageManager.getServiceInfo(ApplicationPackageManager.java:616)
+11-19 23:46:18.578  1298  1657 W PeoplePU: 	at android.app.ApplicationPackageManager.getServiceInfo(ApplicationPackageManager.java:599)
+11-19 23:46:18.578  1298  1657 W PeoplePU: 	at aous.b(:com.google.android.gms@233515114@23.35.15 (180706-565551795):31)
+11-19 23:46:18.578  1298  1657 W PeoplePU: 	at com.google.android.gms.people.sync.focus.ContactsSyncIntentOperation.onHandleIntent(:com.google.android.gms@233515114@23.35.15 (180706-565551795):973)
+11-19 23:46:18.578  1298  1657 W PeoplePU: 	at com.google.android.chimera.IntentOperation.onHandleIntent(:com.google.android.gms@233515114@23.35.15 (180706-565551795):2)
+11-19 23:46:18.578  1298  1657 W PeoplePU: 	at oah.onHandleIntent(:com.google.android.gms@233515114@23.35.15 (180706-565551795):10)
+11-19 23:46:18.578  1298  1657 W PeoplePU: 	at emi.run(:com.google.android.gms@233515114@23.35.15 (180706-565551795):70)
+11-19 23:46:18.578  1298  1657 W PeoplePU: 	at emh.run(:com.google.android.gms@233515114@23.35.15 (180706-565551795):152)
+11-19 23:46:18.578  1298  1657 W PeoplePU: 	at bgit.run(:com.google.android.gms@233515114@23.35.15 (180706-565551795):13)
+11-19 23:46:18.578  1298  1657 W PeoplePU: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+11-19 23:46:18.578  1298  1657 W PeoplePU: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:644)
+11-19 23:46:18.578  1298  1657 W PeoplePU: 	at java.lang.Thread.run(Thread.java:1012)
+11-19 23:46:18.578  1298  1657 I FSA2_ContactsSyncIntentOp: Sync is disabled. Skip prepareToSync
+11-19 23:46:18.581  1298  1565 I PeopleInitIntentOp: Not initializing debuggability [CONTEXT service_id=5 ]
+11-19 23:46:18.581  1973  2009 D TrafficStats: tagSocket(90) with statsTag=0x1809, statsUid=-1
+11-19 23:46:18.584  1298  1565 W ChimeraUtils: Module com.google.android.gms.phonesky_recovery missing resource null(0)
+11-19 23:46:18.587  1298  1298 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.common.BIND_SHARED_PREFS pkg=com.google.android.gms }
+11-19 23:46:18.588  1298  1298 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.common.BIND_SHARED_PREFS pkg=com.google.android.gms }
+11-19 23:46:18.592  1608  2290 I PGAm.dnm: Successfully committed configuration version: 1795125300
+11-19 23:46:18.603  1973  2009 D TrafficStats: tagSocket(90) with statsTag=0x1809, statsUid=-1
+11-19 23:46:18.608  1973  2009 D TrafficStats: tagSocket(90) with statsTag=0x1809, statsUid=-1
+11-19 23:46:18.628  1298  1657 I GmsSyncPolicyEngine: (REDACTED) Periodic sync %d disabled by policy, cancelled.
+11-19 23:46:18.628  1298  1657 I GmsSyncPolicyEngine: (REDACTED) Periodic sync %d disabled by policy, cancelled.
+11-19 23:46:18.628  1298  1657 I GmsSyncPolicyEngine: (REDACTED) Periodic sync %d disabled by policy, cancelled.
+11-19 23:46:18.644   973   988 D CompatibilityChangeReporter: Compat change id reported: 150939131; UID 10088; state: ENABLED
+11-19 23:46:18.653  1298  1545 W ChimeraUtils: Module com.google.android.gms.smartdevice missing resource null(0)
+11-19 23:46:18.664  1298  1545 I SmartDevice: [CleanBufferedLogsService] Periodic task upload_buffered_logs_periodic scheduled!
+11-19 23:46:18.665  1298  1545 I AppLinksModuleInit: onInitRuntimeState [CONTEXT service_id=244 ]
+11-19 23:46:18.669  1298  1298 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.common.BIND_SHARED_PREFS pkg=com.google.android.gms }
+11-19 23:46:18.670  1298  1298 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.common.BIND_SHARED_PREFS pkg=com.google.android.gms }
+11-19 23:46:18.670  1298  1298 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.common.BIND_SHARED_PREFS pkg=com.google.android.gms }
+11-19 23:46:18.670  1298  1545 I AppLinksModuleInit: verifying requested domain links post-boot [CONTEXT service_id=244 ]
+11-19 23:46:18.675  1298  1298 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.common.BIND_SHARED_PREFS pkg=com.google.android.gms }
+11-19 23:46:18.678  1298  1657 I SystemUpdate: [Control,UpdateReminderDialogControl] Received action: android.intent.action.BOOT_COMPLETED
+11-19 23:46:18.678  1973  2009 W SystemServiceRegistry: No service published for: persistent_data_block
+11-19 23:46:18.680  1298  1545 D CompatibilityChangeReporter: Compat change id reported: 263076149; UID 10088; state: DISABLED
+11-19 23:46:18.681  1298  1545 I AppLinksRequestHandler: (REDACTED) Processing %d input requests
+11-19 23:46:18.681  1298  1545 I AppLinksModuleInit: Rerunning all WIP verifications [CONTEXT service_id=244 ]
+11-19 23:46:18.684  1298  1545 I AppLinksRequestHandler: (REDACTED) Processing %d WIP requests.
+11-19 23:46:18.684  1298  1545 I AppLinksModuleInit: Scheduling regular retry verifications. [CONTEXT service_id=244 ]
+11-19 23:46:18.684  1298  1545 I AppLinksVerRegularRetry: Retries scheduled. [CONTEXT service_id=244 ]
+11-19 23:46:18.691   973  1539 I UsageReportingOptionsSt: (REDACTED) User 0 is opted-in? %b
+11-19 23:46:18.691   973  1539 I UsageReportingOptionsSt: Updating global setting to unknown [CONTEXT service_id=41 ]
+11-19 23:46:18.743   973  1032 W SystemServiceRegistry: No service published for: contexthub
+11-19 23:46:18.754  1298  1298 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.feedback.internal.IFeedbackService dat=chimera-action:/... cmp=com.google.android.gms/.chimera.GmsBoundBrokerService }
+11-19 23:46:18.754  1298  1298 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.feedback.internal.IFeedbackService dat=chimera-action:/... cmp=com.google.android.gms/.chimera.GmsBoundBrokerService }
+11-19 23:46:18.762   497   783 D CompatibilityChangeReporter: Compat change id reported: 149924527; UID 10088; state: ENABLED
+11-19 23:46:18.763   497   783 D CompatibilityChangeReporter: Compat change id reported: 132649864; UID 10088; state: DISABLED
+11-19 23:46:18.768   973  1032 W ChimeraUtils: Module com.google.android.gms.location__nonwearable missing resource location_module_display_name(0)
+11-19 23:46:18.785  1298  1298 W MdmInitializer: SPOT API unavailable. [CONTEXT service_id=247 ]
+11-19 23:46:18.785  1298  1298 W MdmInitializer: pes: None of the queried APIs are available. Spot.API: ConnectionResult{statusCode=API_UNAVAILABLE, resolution=null, message=null}
+11-19 23:46:18.785  1298  1298 W MdmInitializer: 	at pgd.a(:com.google.android.gms@233515114@23.35.15 (180706-565551795):38)
+11-19 23:46:18.785  1298  1298 W MdmInitializer: 	at pin.o(:com.google.android.gms@233515114@23.35.15 (180706-565551795):37)
+11-19 23:46:18.785  1298  1298 W MdmInitializer: 	at pin.g(:com.google.android.gms@233515114@23.35.15 (180706-565551795):29)
+11-19 23:46:18.785  1298  1298 W MdmInitializer: 	at pin.onConnectionFailed(:com.google.android.gms@233515114@23.35.15 (180706-565551795):2)
+11-19 23:46:18.785  1298  1298 W MdmInitializer: 	at pip.run(:com.google.android.gms@233515114@23.35.15 (180706-565551795):86)
+11-19 23:46:18.785  1298  1298 W MdmInitializer: 	at android.os.Handler.handleCallback(Handler.java:958)
+11-19 23:46:18.785  1298  1298 W MdmInitializer: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+11-19 23:46:18.785  1298  1298 W MdmInitializer: 	at acgy.hv(:com.google.android.gms@233515114@23.35.15 (180706-565551795):1)
+11-19 23:46:18.785  1298  1298 W MdmInitializer: 	at acgy.dispatchMessage(:com.google.android.gms@233515114@23.35.15 (180706-565551795):143)
+11-19 23:46:18.785  1298  1298 W MdmInitializer: 	at android.os.Looper.loopOnce(Looper.java:205)
+11-19 23:46:18.785  1298  1298 W MdmInitializer: 	at android.os.Looper.loop(Looper.java:294)
+11-19 23:46:18.785  1298  1298 W MdmInitializer: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+11-19 23:46:18.798  1298  1629 I Icing   : IndexChimeraService.getServiceInterface callingPackage=com.google.android.gms componentName=null serviceId=30
+11-19 23:46:18.800   973  1378 W NetworkScheduler.Filter: Ignored malformed rule: 
+11-19 23:46:18.809  1298  1822 I Icing   : updateResources: need to parse ycm{com.google.android.gms}
+11-19 23:46:18.829   497   557 W BroadcastLoopers: Found previously unknown looper Thread[PackageManager,5,main]
+11-19 23:46:18.830   497   557 E libprocessgroup: No such cgroup attribute: /sys/fs/cgroup/uid_10083/cgroup.freeze
+11-19 23:46:18.830   497   557 W libprocessgroup: Failed to apply Frozen process profile: No such file or directory
+11-19 23:46:18.831   497   557 E libprocessgroup: No such cgroup attribute: /sys/fs/cgroup/uid_10083/cgroup.freeze
+11-19 23:46:18.831   497   557 W libprocessgroup: Failed to apply Unfrozen process profile: No such file or directory
+11-19 23:46:18.839   381   600 D PermissionCache: checking android.permission.DUMP for uid=10088 => granted (383 us)
+11-19 23:46:18.841   497   497 V NotificationListeners: enabling notification listener for 0: ComponentInfo{com.google.android.apps.tv.launcherx/com.google.android.apps.tv.launcherx.coreservices.notificationlistener.TvNotificationListenerService}
+11-19 23:46:18.841   497   497 V NotificationListeners: binding: Intent { act=android.service.notification.NotificationListenerService cmp=com.google.android.apps.tv.launcherx/.coreservices.notificationlistener.TvNotificationListenerService (has extras) }
+11-19 23:46:18.849   497   581 I RoleService: Granting default roles...
+11-19 23:46:18.850   789   789 V MediaPlayerList: mPackageChangedBroadcastReceiver: action: android.intent.action.PACKAGE_CHANGED
+11-19 23:46:18.850   789   789 V MediaPlayerList: mPackageChangedBroadcastReceiver: action: android.intent.action.PACKAGE_CHANGED
+11-19 23:46:18.857  1796  1796 I Finsky  : [2] tad - Received: android.intent.action.PACKAGE_CHANGED, [Wb95jlTCZ1IaHirDHRhIkSt8n9aDFyFLnnE1Nm2n4J4]
+11-19 23:46:18.867   497   592 I InputReader: Reconfiguring input devices, changes=KEYBOARD_LAYOUTS
+11-19 23:46:18.878  1796  1796 I Finsky  : [2] AIM: AppInfoCacheUpdater -> invalidating apps: [com.google.android.apps.tv.launcherx]
+11-19 23:46:18.878  1796  1796 I Finsky  : [2] AIM: AppInfoManager-Perf > Creating AppInfoManager ...
+11-19 23:46:18.879  1796  1796 W Settings: Setting download_manager_max_bytes_over_mobile has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-19 23:46:18.879  1796  1796 I Finsky  : [2] SettingNotFoundException for download_manager_max_bytes_over_mobile
+11-19 23:46:18.879  1796  1796 W Settings: Setting download_manager_recommended_max_bytes_over_mobile has moved from android.provider.Settings.Secure to android.provider.Settings.Global.
+11-19 23:46:18.880  1796  1796 I Finsky  : [2] SettingNotFoundException for download_manager_recommended_max_bytes_over_mobile
+11-19 23:46:18.881  1796  1796 D CompatibilityChangeReporter: Compat change id reported: 263076149; UID 10085; state: ENABLED
+11-19 23:46:18.886   497   534 I ActivityManager: com.android.vending is exempt from freezer
+11-19 23:46:18.886   497   534 D CompatibilityChangeReporter: Compat change id reported: 135634846; UID 10085; state: DISABLED
+11-19 23:46:18.887   497   535 D CompatibilityChangeReporter: Compat change id reported: 143937733; UID 10085; state: ENABLED
+11-19 23:46:18.890  1796  1796 I Finsky  : [2] AIM: AppInfoManager-Perf > getApps > called for 1 apps
+11-19 23:46:18.902   497   497 D CompatibilityChangeReporter: Compat change id reported: 135634846; UID 10083; state: DISABLED
+11-19 23:46:18.902  1796  1900 I Finsky  : [58] AIM: AppInfoManager-Perf > OnDeviceAppInfo > cacheHitCount=0, cacheMissCount=1. Missed  in cache (limit 10) : [com.google.android.apps.tv.launcherx]
+11-19 23:46:18.903   317   317 D Zygote  : Forked child process 2395
+11-19 23:46:18.916   497   535 W ActivityManager: Slow operation: 54ms so far, now at startProcess: done updating battery stats
+11-19 23:46:18.916   497   535 W ActivityManager: Slow operation: 54ms so far, now at startProcess: building log message
+11-19 23:46:18.916   497   535 I ActivityManager: Start proc 2395:com.android.vending:background/u0a85 for broadcast {com.android.vending/com.google.android.finsky.packagemonitor.backgroundimpl.BackgroundPackageMonitorReceiverImpl$RegisteredReceiver}
+11-19 23:46:18.916   497   535 W ActivityManager: Slow operation: 54ms so far, now at startProcess: starting to update pids map
+11-19 23:46:18.916   497   535 W ActivityManager: Slow operation: 54ms so far, now at startProcess: done updating pids map
+11-19 23:46:18.916   497   535 D CompatibilityChangeReporter: Compat change id reported: 143937733; UID 10083; state: ENABLED
+11-19 23:46:18.918  1796  1888 I Finsky  : [55] AIM: Got app ownership map. App counts: . Unique apps: 0
+11-19 23:46:18.918  1796  1888 E Finsky  : [55] [Counters] attempted to use a non-positive increment for: 4752
+11-19 23:46:18.918  1796  1888 E Finsky  : [55] [Counters] attempted to use a non-positive increment for: 4753
+11-19 23:46:18.921   317   317 D Zygote  : Forked child process 2398
+11-19 23:46:18.922  1298  1298 D BoundBrokerSvc: onBind: Intent { act=com.google.android.gms.safetynet.service.START pkg=com.google.android.gms }
+11-19 23:46:18.922  1298  1298 D BoundBrokerSvc: Loading bound service for intent: Intent { act=com.google.android.gms.safetynet.service.START pkg=com.google.android.gms }
+11-19 23:46:18.923  1796  1900 I Finsky  : [58] AIM: AppInfoManager-Perf > OnDeviceAppInfo > cacheHitCount=1, cacheMissCount=0. Missed  in cache (limit 10) : []
+11-19 23:46:18.923  1796  1900 I Finsky  : [58] AIM: Got app ownership map. App counts: . Unique apps: 0
+11-19 23:46:18.923  1796  1900 E Finsky  : [58] [Counters] attempted to use a non-positive increment for: 4752
+11-19 23:46:18.923  1796  1900 E Finsky  : [58] [Counters] attempted to use a non-positive increment for: 4753
+11-19 23:46:18.930  1973  2009 W libc    : Access denied finding property "persist.adb.tls_server.enable"
+11-19 23:46:18.930  1973  2009 W libc    : Access denied finding property "service.adb.tls.port"
+11-19 23:46:18.932   497   535 I ActivityManager: Start proc 2398:com.google.android.apps.tv.launcherx:coreservices/u0a83 for service {com.google.android.apps.tv.launcherx/com.google.android.apps.tv.launcherx.coreservices.notificationlistener.TvNotificationListenerService}
+11-19 23:46:18.938  1949  1959 I PermissionControllerServiceImpl: Updating user sensitive for uid 10083
+11-19 23:46:18.947  1168  2310 D TrafficStats: tagSocket(113) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.948  1168  2312 D TrafficStats: tagSocket(132) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.948  1168  2315 D TrafficStats: tagSocket(139) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.948  1168  2311 D TrafficStats: tagSocket(141) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.948  1168  2314 D TrafficStats: tagSocket(140) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.948  1168  2317 D TrafficStats: tagSocket(146) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.948  1168  2309 D TrafficStats: tagSocket(131) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.951  1168  2316 D TrafficStats: tagSocket(127) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.958  1168  2313 D TrafficStats: tagSocket(102) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.958  1168  2306 D TrafficStats: tagSocket(118) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.958  1168  2307 D TrafficStats: tagSocket(104) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.969  1168  2308 D TrafficStats: tagSocket(103) with statsTag=0xffffffff, statsUid=-1
+11-19 23:46:18.981   497   533 W TextServicesManagerService: no available spell checker services found
+11-19 23:46:18.984  1973  2014 D TrafficStats: tagSocket(84) with statsTag=0x1809, statsUid=-1
+11-19 23:46:18.989   497   533 W Searchables: No web search activity found
+11-19 23:46:18.989   497   533 W BroadcastLoopers: Found previously unknown looper Thread[android.bg,5,main]
+11-19 23:46:18.990   497   533 W Searchables: No web search activity found
+11-19 23:46:19.002  1973  2014 D TrafficStats: tagSocket(84) with statsTag=0x1809, statsUid=-1
+11-19 23:46:19.002  1796  1845 I Finsky  : [42] RECEIVER_PACKAGE_MONITOR#logWorkEndAndFinishGoAsync: SUCCESS
+11-19 23:46:18.927  1973  1973 W binder:1973_1: type=1400 audit(0.0:8): avc:  denied  { read } for  name="u:object_r:system_adbd_prop:s0" dev="tmpfs" ino=292 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:system_adbd_prop:s0 tclass=file permissive=0 app=com.google.android.gms
+11-19 23:46:18.927  1973  1973 W binder:1973_1: type=1400 audit(0.0:9): avc:  denied  { read } for  name="u:object_r:adbd_prop:s0" dev="tmpfs" ino=59 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:adbd_prop:s0 tclass=file permissive=0 app=com.google.android.gms
+11-19 23:46:19.022  1973  2014 D TrafficStats: tagSocket(84) with statsTag=0x1809, statsUid=-1
+11-19 23:46:19.043  2395  2395 I ding:background: Using CollectorTypeCC GC.
+11-19 23:46:19.043  2398  2398 I rx:coreservices: Using CollectorTypeCC GC.
+11-19 23:46:19.043  2395  2395 W ding:background: Unexpected CPU variant for x86: x86.
+11-19 23:46:19.043  2395  2395 W ding:background: Known variants: atom, sandybridge, silvermont, goldmont, goldmont-plus, tremont, kabylake, default
+11-19 23:46:19.043  2398  2398 W rx:coreservices: Unexpected CPU variant for x86: x86.
+11-19 23:46:19.043  2398  2398 W rx:coreservices: Known variants: atom, sandybridge, silvermont, goldmont, goldmont-plus, tremont, kabylake, default
+11-19 23:46:19.044   497  2403 D CompatibilityChangeReporter: Compat change id reported: 161145287; UID 10106; state: ENABLED
+11-19 23:46:19.047   973  1369 I GCoreUlr: WorldUpdater received intent Intent { act=com.google.android.location.reporting.ACTION_UPDATE_WORLD cmp=com.google.android.gms/com.google.android.location.reporting.service.DispatchingService (has extras) } with receiverAction init
+11-19 23:46:19.049   497   574 D CompatibilityChangeReporter: Compat change id reported: 265195908; UID 10059; state: ENABLED
+11-19 23:46:19.056  1796  1888 I Finsky  : [55] AIM: AppInfoManager-Perf > ItemModel > CacheSize=147, cacheHitCount=1, cacheMissCount=0, total appsWithNoServerDataCount=132. Missed  in cache (limit 10) : []
+11-19 23:46:19.058  1949  2404 W Role    : Cannot get ApplicationInfo for default holder: com.android.messaging
+11-19 23:46:19.065  1298  1526 I GmscoreIpa: (REDACTED) Using %s flags by method %d
+11-19 23:46:19.069  1796  1964 D nativeloader: Configuring clns-8 for other apk . target_sdk_version=37, uses_libraries=ALL, library_path=, permitted_path=/data:/mnt/expand
+11-19 23:46:19.072  2395  2395 E ding:background: Not starting debugger since process cannot load the jdwp agent.
+11-19 23:46:19.075  1796  1893 I Finsky  : [57] AIM: AppInfoManager-Perf > ItemModel > CacheSize=147, cacheHitCount=1, cacheMissCount=0, total appsWithNoServerDataCount=132. Missed  in cache (limit 10) : []

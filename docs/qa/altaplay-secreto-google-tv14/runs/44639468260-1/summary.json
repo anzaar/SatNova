@@ -1,0 +1,151 @@
+{
+  "platform": "Google TV Android 14 AVD; TV 1080p",
+  "app": "AltaPlay Launcher from unmodified Secreto v1.3.2 features plus Zen module",
+  "screenshot_count": 16,
+  "errors": [],
+  "checks": [
+    {
+      "check": "ro.build.version.sdk",
+      "value": "34"
+    },
+    {
+      "check": "ro.product.name",
+      "value": "sdk_google_atv_amati_x86"
+    },
+    {
+      "check": "ro.build.type",
+      "value": "user"
+    },
+    {
+      "check": "screen",
+      "value": "Physical size: 1920x1080"
+    },
+    {
+      "check": "install",
+      "value": "Serving...\nPerforming Incremental Install\nSuccess\nInstall command complete in 2086 ms\nAll files should be loaded. Notifying the device.",
+      "pass": true
+    },
+    {
+      "check": "package_path",
+      "value": "package:/data/app/~~Y1t8WCiyEym0sm4R-RWU4g==/com.altaplay.launcher-UF-XALwm9MvRQVtGOFhAXA==/base.apk",
+      "pass": true
+    },
+    {
+      "check": "start_secreto_main",
+      "value": "Starting: Intent { cmp=com.altaplay.launcher/com.gathin.tvhome.MainActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.altaplay.launcher/com.gathin.tvhome.MainActivity\nTotalTime: 1758\nWaitTime: 1860\nComplete",
+      "pass": true
+    },
+    {
+      "check": "home_foreground_initial",
+      "value": [
+        "topResumedActivity=ActivityRecord{d502d60 u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t6}"
+      ],
+      "pass": true
+    },
+    {
+      "check": "secreto_settings_tap",
+      "value": "settings  rc=0"
+    },
+    {
+      "check": "zen_accessibility_configured",
+      "value": "com.altaplay.launcher/com.satnova.alpha.Zen4HdmiRemoteService",
+      "pass": true
+    },
+    {
+      "check": "start_main_after_accessibility",
+      "value": "Starting: Intent { cmp=com.altaplay.launcher/com.gathin.tvhome.MainActivity }\nWarning: Activity not started, intent has been delivered to currently running top-most instance.\nStatus: ok\nLaunchState: UNKNOWN (0)\nActivity: com.altaplay.launcher/com.gathin.tvhome.MainActivity\nTotalTime: 0\nWaitTime: 20\nComplete",
+      "pass": true
+    },
+    {
+      "check": "start_zen_overlay_prime",
+      "value": "Starting: Intent { cmp=com.altaplay.launcher/com.satnova.alpha.AltaPlayZenActivity }\nStatus: ok\nLaunchState: WARM\nActivity: com.altaplay.launcher/com.satnova.alpha.AltaPlayZenActivity\nTotalTime: 242\nWaitTime: 275\nComplete",
+      "pass": true
+    },
+    {
+      "check": "secreto_zen_overlay_foreground",
+      "value": [
+        "topResumedActivity=ActivityRecord{d502d60 u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t6}"
+      ],
+      "pass": true
+    },
+    {
+      "check": "start_zen_settings",
+      "value": "Starting: Intent { cmp=com.altaplay.launcher/com.satnova.alpha.AltaPlayZenActivity }\nStatus: ok\nLaunchState: WARM\nActivity: com.altaplay.launcher/com.satnova.alpha.AltaPlayZenActivity\nTotalTime: 87\nWaitTime: 108\nComplete",
+      "pass": true
+    },
+    {
+      "check": "islamic_export_tap",
+      "value": "exporter le fond islamique vers downloads / altaplay  rc=0"
+    },
+    {
+      "check": "islamic_wallpaper_export",
+      "value": "total 8\n-rwxrwx--- 1 u0_a113 media_rw 4012 2026-11-19 23:44 AltaPlay-Islamic.webp",
+      "pass": true
+    },
+    {
+      "check": "set_home_activity",
+      "value": "Success\n"
+    },
+    {
+      "check": "home_foreground_after_home_key",
+      "value": [
+        "topResumedActivity=ActivityRecord{b28bcb u0 com.google.android.apps.tv.launcherx/.home.HomeActivity t5}"
+      ],
+      "pass": false
+    },
+    {
+      "check": "home_role",
+      "value": "com.altaplay.launcher"
+    },
+    {
+      "check": "start_before_reboot",
+      "value": "Starting: Intent { cmp=com.altaplay.launcher/com.gathin.tvhome.MainActivity }\nWarning: Activity not started, its current task has been brought to the front\nStatus: ok\nLaunchState: HOT\nActivity: com.altaplay.launcher/com.gathin.tvhome.MainActivity\nTotalTime: 233\nWaitTime: 285\nComplete",
+      "pass": true
+    },
+    {
+      "check": "reboot_complete",
+      "value": true,
+      "pass": true
+    },
+    {
+      "check": "home_foreground_after_reboot",
+      "value": [
+        "topResumedActivity=ActivityRecord{2f44175 u0 com.google.android.apps.tv.launcherx/.home.HomeActivity t4}"
+      ],
+      "pass": false
+    },
+    {
+      "check": "TEMP_google_launcher_disabled_emulator_only",
+      "value": "Package com.google.android.apps.tv.launcherx new state: disabled-user"
+    },
+    {
+      "check": "home_foreground_stock_off",
+      "value": [
+        "topResumedActivity=ActivityRecord{c2b508 u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t5}"
+      ],
+      "pass": true
+    },
+    {
+      "check": "home_foreground_stock_off_after_reboot",
+      "value": [
+        "topResumedActivity=ActivityRecord{f4898fa u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t4}"
+      ],
+      "pass": true
+    },
+    {
+      "check": "stock_google_launcher_restored",
+      "value": "Package com.google.android.apps.tv.launcherx new state: enabled"
+    },
+    {
+      "check": "app_crash_log",
+      "value": "No AltaPlay crash in crash buffer",
+      "pass": true
+    }
+  ],
+  "limitations": [
+    "No physical Lifemaxx hardware",
+    "No Zen 4 receiver or real HDMI passthrough; cannot prove remote forwarding",
+    "Screenshots are real emulator captures, not AI mockups",
+    "No live catalogue unless a real Zen is paired"
+  ]
+}
