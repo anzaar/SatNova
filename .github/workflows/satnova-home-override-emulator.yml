@@ -2,7 +2,15 @@ name: SatNova Opt-in Google TV Home Override - Android 14 Emulator
 on:
   push:
     branches: [feature/tvbridge-home-override-optin-20261119]
-    paths: [.github/workflows/satnova-home-override-emulator.yml]
+    paths:
+      - .github/workflows/satnova-home-override-emulator.yml
+      - scripts/satnova-home-override-emulator.sh
+      - scripts/satnova-ui-tour.py
+      - scripts/satnova-screenshot-contact-sheet.py
+      - tvhome/src/main/java/com/satnova/alpha/AtlasLionsEmblemView.kt
+      - tvhome/src/main/java/com/satnova/alpha/MoroccanHomePanel.kt
+      - tvhome/src/main/java/com/satnova/alpha/Zen4HdmiRemoteService.kt
+      - tvhome/src/main/java/com/satnova/alpha/MinimalHomeActivity.kt
   workflow_dispatch:
 permissions:
   contents: read
