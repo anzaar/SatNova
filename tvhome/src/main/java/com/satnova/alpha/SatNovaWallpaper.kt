@@ -35,9 +35,11 @@ internal class SatNovaWallpaper(
         context.assets.open("satnova_wallpaper.webp").use { BitmapFactory.decodeStream(it) }
     } catch (_: Exception) { null }
     // The sports photo is bundled at 1920×1080 for instant offline switching.
-    private val stadium: Bitmap? = try {
-        context.assets.open("satnova_sport_theme.webp").use { BitmapFactory.decodeStream(it) }
-    } catch (_: Exception) { null }
+    private val stadium: Bitmap? by lazy(LazyThreadSafetyMode.NONE) {
+        try {
+            context.assets.open("satnova_sport_theme.webp").use { BitmapFactory.decodeStream(it) }
+        } catch (_: Exception) { null }
+    }
     private val customFile = File(context.filesDir, "satnova_custom_background.jpg")
     private var customBitmap: Bitmap? = null
     private val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG)
