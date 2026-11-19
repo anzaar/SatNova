@@ -8,6 +8,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
+      - name: Require verified SatNova 0.5.14 source branch
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_NAME" != "feature/tvbridge-v0.5.14-onboarding-i18n-quran" ]; then
+            echo "::error::Select the feature/tvbridge-v0.5.14-onboarding-i18n-quran branch when running this manually."
+            exit 1
+          fi
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
