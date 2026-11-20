@@ -18,6 +18,8 @@ jobs:
           endpoints={
             "habous_official_unverified_diagnostic_only":"https://habous.gov.ma/prieres/horaire_hijri_2.php?ville=2",
             "habous_home_unverified_diagnostic_only":"https://habous.gov.ma/",
+            "habous_month_unverified_diagnostic_only":"https://habous.gov.ma/data/horaires-2026-11.js",
+            "habous_code_unverified_diagnostic_only":"https://habous.gov.ma/assets/js/prieres.js",
             "prayertimes_ma_khemisset":"https://prayertimes.ma/ar/mawaqit-salah-khemissat",
             "prayertimes_ma_cities":"https://prayertimes.ma/fr/villes",
             "ahfid_khemisset":"https://ahfid.me/ar/tools/prayer-times/khemisset/",
@@ -36,6 +38,8 @@ jobs:
                   if ix>=0: print("  term",token,"context",repr(text[max(0,ix-60):ix+240]))
                 links=re.findall(r'href=["\\\']([^"\\\']*(?:prayer|salat|khemisset)[^"\\\']*)',body,re.I)
                 print("  links_sample",links[:9])
+                if name.startswith("habous_month") or name.startswith("habous_code"):
+                  print("  raw_official_script_start",body[:2800])
                 if name=="habous_home_unverified_diagnostic_only":
                   print("  raw_home_html",body[:10000])
                 print("  ministry_table",bool(re.search(r'<table[^>]*id=["\\\']?horaire',body,re.I)))
