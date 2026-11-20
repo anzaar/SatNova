@@ -6,6 +6,8 @@ on:
     paths:
       - '.github/workflows/altaplay-google-tv-qa.yml'
       - 'altaplay-launcher/qa/google-tv-smoke.sh'
+      - '.github/qa/zen_mock_receiver.py'
+      - '.github/qa/connected_zen_test.sh'
   workflow_dispatch:
 concurrency:
   group: altaplay-cleanyourtv-google-tv-qa-${{ github.ref }}
@@ -19,12 +21,12 @@ jobs:
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
-      - name: Retrieve exact released AltaPlay v0.4 APK
+      - name: Retrieve exact released AltaPlay v0.5 APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p qa-results
-          gh release download altaplay-launcher-v0.4.0-preview --repo "${GITHUB_REPOSITORY}" --pattern 'AltaPlay-Launcher-v0.4-debug.apk' --dir qa-results
+          gh release download altaplay-launcher-v0.5.0-preview --repo "${GITHUB_REPOSITORY}" --pattern 'AltaPlay-Launcher-v0.5-debug.apk' --dir qa-results
           sha256sum qa-results/*.apk | tee qa-results/apk-sha256.txt
       - name: Probe live official Habous city page and Open-Meteo sources
         shell: bash
@@ -57,8 +59,8 @@ jobs:
       - name: Point the existing proven Google TV smoke test at v0.4
         shell: bash
         run: |
-          sed -i 's/AltaPlay-Launcher-v0.3-debug.apk/AltaPlay-Launcher-v0.4-debug.apk/g' altaplay-launcher/qa/google-tv-smoke.sh
-          grep -Fq 'AltaPlay-Launcher-v0.4-debug.apk' altaplay-launcher/qa/google-tv-smoke.sh
+          sed -i 's/AltaPlay-Launcher-v0.3-debug.apk/AltaPlay-Launcher-v0.5-debug.apk/g' altaplay-launcher/qa/google-tv-smoke.sh
+          grep -Fq 'AltaPlay-Launcher-v0.5-debug.apk' altaplay-launcher/qa/google-tv-smoke.sh
       - name: Free only disposable runner toolchains and enable KVM
         shell: bash
         run: |
@@ -85,7 +87,7 @@ jobs:
           disable-animations: true
           emulator-boot-timeout: 900
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -partition-size 1536 -gpu swiftshader_indirect -partition-size 1536
-          script: bash altaplay-launcher/qa/google-tv-smoke.sh
+          script: bash altaplay-launcher/qa/google-tv-smoke.sh && bash .github/qa/connected_zen_test.sh
       - name: Inspect captured official prayer text on Google TV
         if: always()
         shell: bash
@@ -115,5 +117,5 @@ jobs:
           else
             echo 'No emulator screenshots produced; inspect boot failure logs.'
           fi
-          (cd qa-results && zip -q -r ../AltaPlay-v0.4-GoogleTV-API34-QA.zip .)
-          gh release upload altaplay-launcher-v0.4.0-preview AltaPlay-v0.4-GoogleTV-API34-QA.zip --clobber --repo "${GITHUB_REPOSITORY}"
+          (cd qa-results && zip -q -r ../AltaPlay-v0.5-GoogleTV-API34-QA.zip .)
+          gh release upload altaplay-launcher-v0.5.0-preview AltaPlay-v0.5-GoogleTV-API34-QA.zip --clobber --repo "${GITHUB_REPOSITORY}"
