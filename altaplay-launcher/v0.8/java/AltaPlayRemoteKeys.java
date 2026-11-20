@@ -11,13 +11,13 @@ import android.widget.Toast;
 /**
  * Android TV key -> existing proven ZenClient.key(...) protocol.
  * Green is Shahid direct link, as verified on the Lifemaxx installation.
- * Audio key is configurable; an unverified code is NEVER transmitted.
+ * G-MScreen AUDIO candidate 54 comes from a third-party compatible receiver,\n * not yet proven on the user's Zen 4. The user can override/disable it.
  */
 final class AltaPlayRemoteKeys {
     private AltaPlayRemoteKeys(){}
     private static int audioCode(Context c){
         return c.getSharedPreferences("altaplay_zen",Context.MODE_PRIVATE)
-            .getInt("zen_audio_key",-1);
+            .getInt("zen_audio_key",54);
     }
     static boolean handle(Context context,int androidKey){
         if(androidKey==KeyEvent.KEYCODE_PROG_GREEN){
