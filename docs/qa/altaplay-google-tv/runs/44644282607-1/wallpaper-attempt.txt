@@ -1,0 +1,3 @@
+Personal wallpaper option found: False
+Selected saved Islamic image: see picker screen and screenshot evidence
+App settings were operated with ADB UI interaction, not by altering XML prefs.

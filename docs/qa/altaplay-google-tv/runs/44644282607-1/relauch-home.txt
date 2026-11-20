@@ -1,0 +1,8 @@
+Starting: Intent { cmp=com.altaplay.launcher/com.gathin.tvhome.MainActivity }
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+Status: ok
+LaunchState: UNKNOWN (0)
+Activity: com.altaplay.launcher/com.gathin.tvhome.MainActivity
+TotalTime: 0
+WaitTime: 23
+Complete
