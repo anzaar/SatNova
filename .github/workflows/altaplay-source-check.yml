@@ -36,6 +36,8 @@ jobs:
                   if ix>=0: print("  term",token,"context",repr(text[max(0,ix-60):ix+240]))
                 links=re.findall(r'href=["\\\']([^"\\\']*(?:prayer|salat|khemisset)[^"\\\']*)',body,re.I)
                 print("  links_sample",links[:9])
+                if name=="habous_home_unverified_diagnostic_only":
+                  print("  raw_home_html",body[:10000])
                 print("  ministry_table",bool(re.search(r'<table[^>]*id=["\\\']?horaire',body,re.I)))
             except Exception as e:print("SOURCE",name,"ERROR",type(e).__name__,str(e)[:190])
           PY
