@@ -1,4 +1,4 @@
-name: AltaPlay Habous source diagnostics
+name: AltaPlay official monthly dataset certificate and digest diagnostics
 on:
   push:
     branches: [feature/altaplay-launcher-cleanyourtv-build]
@@ -6,45 +6,29 @@ on:
 permissions:
   contents: read
 jobs:
-  sources:
+  source:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
-      - name: Inspect exact official responses and certified mirror page
+      - name: Verify ministry monthly dataset and certificate
         shell: bash
         run: |
+          set -euo pipefail
           python3 - <<'PY'
-          import urllib.request,urllib.error,re,ssl,html
-          endpoints={
-            "habous_official_unverified_diagnostic_only":"https://habous.gov.ma/prieres/horaire_hijri_2.php?ville=2",
-            "habous_home_unverified_diagnostic_only":"https://habous.gov.ma/",
-            "habous_month_unverified_diagnostic_only":"https://habous.gov.ma/data/horaires-2026-11.js",
-            "habous_www_month_verified":"https://www.habous.gov.ma/data/horaires-2026-11.js",
-            "habous_www_home_verified":"https://www.habous.gov.ma/",
-            "habous_december_unverified_diagnostic_only":"https://habous.gov.ma/data/horaires-2026-12.js",
-            "habous_code_unverified_diagnostic_only":"https://habous.gov.ma/assets/js/prieres.js",
-            "prayertimes_ma_khemisset":"https://prayertimes.ma/ar/mawaqit-salah-khemissat",
-            "prayertimes_ma_cities":"https://prayertimes.ma/fr/villes",
-            "ahfid_khemisset":"https://ahfid.me/ar/tools/prayer-times/khemisset/",
-          }
-          for name,url in endpoints.items():
-            try:
-              req=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0 (compatible; AltaPlay QA/0.3)"})
-              kwargs={"timeout":17}
-              if "unverified_diagnostic_only" in name:kwargs["context"]=ssl._create_unverified_context()
-              with urllib.request.urlopen(req,**kwargs) as response:
-                body=response.read(900_000).decode("utf-8","replace")
-                print("SOURCE",name,"STATUS",response.status,"bytes",len(body),"final_url",response.url)
-                text=" ".join(html.unescape(re.sub(r"<[^>]+>"," ",body)).split())
-                for token in ["حصة الصلاة","نوفمبر","نونبر","جمادى", "20 نونبر", "Khemisset", "khemisset","الصبح"]:
-                  ix=text.find(token)
-                  if ix>=0: print("  term",token,"context",repr(text[max(0,ix-60):ix+240]))
-                links=re.findall(r'href=["\\\']([^"\\\']*(?:prayer|salat|khemisset)[^"\\\']*)',body,re.I)
-                print("  links_sample",links[:9])
-                if name.startswith("habous_month") or name.startswith("habous_code"):
-                  print("  raw_official_script_start",body[:2800])
-                if name=="habous_home_unverified_diagnostic_only":
-                  print("  raw_home_html",body[:10000])
-                print("  ministry_table",bool(re.search(r'<table[^>]*id=["\\\']?horaire',body,re.I)))
-            except Exception as e:print("SOURCE",name,"ERROR",type(e).__name__,str(e)[:190])
+          import urllib.request,urllib.error,ssl,hashlib,json,re
+          u='https://habous.gov.ma/data/horaires-2026-11.js'
+          for host in ['https://habous.gov.ma/data/horaires-2026-11.js',
+                       'https://www.habous.gov.ma/data/horaires-2026-11.js']:
+            for verified in (True,False):
+              try:
+                ctx=ssl.create_default_context() if verified else ssl._create_unverified_context()
+                with urllib.request.urlopen(urllib.request.Request(host,headers={'User-Agent':'Mozilla/5.0'}),context=ctx,timeout=16) as response:
+                  data=response.read(900000)
+                  print('SOURCE',host,'SSL_VERIFIED',verified,'STATUS',response.status,'SHA256',hashlib.sha256(data).hexdigest(),'SIZE',len(data))
+                  if not verified and host==u:
+                    t=data.decode('utf-8')
+                    v=json.loads(t[t.find('.push(')+6:t.rfind(')')])
+                    city=next(x for x in v['villes'] if x['c']==2)
+                    print('OFFICIAL_FORMAT',v['annee'],v['mois'],v['fuseau'],'CITY_COUNT',len(v['villes']),'KHEMISSET_NAME',city['n'],'DAY20',city['h'][19])
+              except Exception as e:print('SOURCE_ERROR',host,'SSL_VERIFIED',verified,type(e).__name__,str(e)[:200])
           PY
