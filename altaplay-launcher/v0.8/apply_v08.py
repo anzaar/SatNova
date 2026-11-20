@@ -37,6 +37,36 @@ s=once(s,
         }
         // A real key''',
     "colored TV remote keys")
+# Some upstream cards never call the tile-specific vertical handler in the
+# single-row GridView. Globally consume DOWN while a descendant of app grid
+# is focused, BEFORE the stock fallback can jump backwards to header/Hijri.
+s=once(s,
+    "    private static final int LAUNCHER_SETTINGS_REQUEST = 42;",
+    "    private boolean altaplayDownHandled;\n    private static final int LAUNCHER_SETTINGS_REQUEST = 42;",
+    "DPAD suppression state")
+s=once(s,
+    "dispatchKeyEvent(KeyEvent event) {\n        // Keys are received",
+    '''dispatchKeyEvent(KeyEvent event) {
+        if(event.getKeyCode()==KeyEvent.KEYCODE_DPAD_DOWN){
+            if(event.getAction()==KeyEvent.ACTION_UP && altaplayDownHandled){
+                altaplayDownHandled=false;return true;
+            }
+            if(event.getAction()==KeyEvent.ACTION_DOWN && event.getRepeatCount()==0){
+                View focus=getCurrentFocus();
+                for(View node=focus;node!=null;){
+                    if(node==grid){
+                        if(AltaPlayZenPanel.focusTvRow(this)){
+                            altaplayDownHandled=true;return true;
+                        }
+                        break;
+                    }
+                    android.view.ViewParent parent=node.getParent();
+                    node=parent instanceof View?(View)parent:null;
+                }
+            }
+        }
+        // Keys are received''',
+    "force app grid DPAD down before stock dispatcher")
 main.write_text(s,encoding="utf-8")
 
 s=prayer.read_text(encoding="utf-8")
@@ -205,6 +235,7 @@ s=s[:start]+'''    static boolean focusTvRow(Activity a){return focusTaggedRow(a
                 if(bitmap!=null){
                     img.setImageBitmap(bitmap);
                     img.setContentDescription("شعار القناة: "+item.name);
+                    placeholder.setVisibility(View.INVISIBLE);
                 }
             }
             // Real external art updates asynchronously, persisted for offline use.
