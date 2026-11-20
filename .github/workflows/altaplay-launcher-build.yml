@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-apk:
@@ -54,10 +54,18 @@ jobs:
           mkdir -p dist
           cp upstream/launcher/app/build/outputs/apk/debug/app-debug.apk dist/AltaPlay-Launcher-v0.2-debug.apk
           sha256sum dist/*.apk
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: AltaPlay-Launcher-v0.2-apk
-          path: dist/AltaPlay-Launcher-v0.2-debug.apk
-          if-no-files-found: error
-          retention-days: 30
+      - name: Publish private GitHub prerelease APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="altaplay-launcher-v0.2.0-preview"
+          ASSET="dist/AltaPlay-Launcher-v0.2-debug.apk"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ASSET" --clobber
+          else
+            gh release create "$TAG" "$ASSET" \
+              --target "$GITHUB_SHA" \
+              --title "AltaPlay Launcher v0.2 Preview" \
+              --notes "Android TV preview built from CleanYourTV with SatNova ZEN 4 controls. Test as app first; do not disable the stock launcher. Automatic HDMI remote forwarding and official adhan need real hardware verification." \
+              --prerelease
+          fi
