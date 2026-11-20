@@ -7,10 +7,10 @@ python3 .github/qa/zen_mock_receiver.py >qa-results/zen-qa-server.log 2>&1 &
 ZEN_PID=$!
 trap 'kill "$ZEN_PID" 2>/dev/null || true' EXIT
 for i in $(seq 1 25); do
-  if grep -q 'server ready' qa-results/zen-qa-server.log 2>/dev/null; then break; fi
+  if grep -q 'receiver ready on 20000' qa-results/zen-qa-server.log 2>/dev/null; then break; fi
   sleep 0.2
 done
-grep -q 'server ready' qa-results/zen-qa-server.log
+grep -q 'receiver ready on 20000' qa-results/zen-qa-server.log
 
 # 10.0.2.2 is Android Emulator's route to the host running the *test-only* receiver.
 # Debug APK only; do not modify physical-TV settings.
