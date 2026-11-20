@@ -19,13 +19,41 @@ jobs:
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
-      - name: Retrieve exact released AltaPlay v0.2 APK
+      - name: Retrieve exact released AltaPlay v0.3 APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p qa-results
-          gh release download altaplay-launcher-v0.2.0-preview --repo "${GITHUB_REPOSITORY}" --pattern 'AltaPlay-Launcher-v0.2-debug.apk' --dir qa-results
+          gh release download altaplay-launcher-v0.3.0-preview --repo "${GITHUB_REPOSITORY}" --pattern 'AltaPlay-Launcher-v0.3-debug.apk' --dir qa-results
           sha256sum qa-results/*.apk | tee qa-results/apk-sha256.txt
+      - name: Probe live official Habous city page and Open-Meteo sources
+        shell: bash
+        continue-on-error: true
+        run: |
+          python3 - <<'PY'
+          import urllib.request,urllib.error,re,html
+          endpoints={
+            "Habous homepage":"https://habous.gov.ma/",
+            "Habous prayers city=2":"https://habous.gov.ma/prieres/horaire_hijri_2.php?ville=2",
+            "Habous prayers www city=2":"https://www.habous.gov.ma/prieres/horaire_hijri_2.php?ville=2",
+            "Open-Meteo Khemisset":"https://api.open-meteo.com/v1/forecast?latitude=33.824&longitude=-6.066&current=temperature_2m,weather_code&timezone=Africa%2FCasablanca",
+          }
+          for name,url in endpoints.items():
+            try:
+              req=urllib.request.Request(url,headers={"User-Agent":"AltaPlayLauncher/0.3 source check"})
+              with urllib.request.urlopen(req,timeout=15) as r:
+                body=r.read(900000).decode("utf-8","replace")
+                print(name,"HTTP",r.status,"bytes",len(body),
+                      "has_habous_table",bool(re.search(r'<table[^>]*id=["\\\']?horaire',body,re.I)),
+                      "has_city_selector",bool(re.search(r'<select[^>]*name=["\\\']ville',body,re.I)))
+                if name.startswith("Habous"):
+                  text=re.sub('<[^>]*>',' ',body)
+                  text=' '.join(html.unescape(text).split())
+                  pos=text.find("حصة الصلاة")
+                  print("Sample:",text[max(0,pos):max(0,pos)+260] if pos>=0 else text[:260])
+                else: print("Sample:",body[:220])
+            except Exception as exc:print(name,"ERROR",type(exc).__name__,str(exc)[:160])
+          PY
       - name: Free only disposable runner toolchains and enable KVM
         shell: bash
         run: |
@@ -63,5 +91,5 @@ jobs:
           else
             echo 'No emulator screenshots produced; inspect boot failure logs.'
           fi
-          (cd qa-results && zip -q -r ../AltaPlay-GoogleTV-API34-QA.zip .)
-          gh release upload altaplay-launcher-v0.2.0-preview AltaPlay-GoogleTV-API34-QA.zip --clobber --repo "${GITHUB_REPOSITORY}"
+          (cd qa-results && zip -q -r ../AltaPlay-v0.3-GoogleTV-API34-QA.zip .)
+          gh release upload altaplay-launcher-v0.3.0-preview AltaPlay-v0.3-GoogleTV-API34-QA.zip --clobber --repo "${GITHUB_REPOSITORY}"
