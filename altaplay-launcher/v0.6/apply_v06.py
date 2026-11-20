@@ -209,7 +209,6 @@ replace='''int w = tileWidthPx(innerWidthPx, columns, density);
         }'''
 s=once(s,key,replace,"responsive dock sizing")
 adapter.write_text(s,encoding="utf-8")
-main.write_text(s,encoding="utf-8")
 
 s=config.read_text(encoding="utf-8")
 for a,b in [
