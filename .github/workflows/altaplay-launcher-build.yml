@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/altaplay-launcher-cleanyourtv-build
+      - fix/altaplay-v09-hw5-logo-remote-20261120
     paths:
       - 'altaplay-launcher/**'
       - '.github/workflows/altaplay-launcher-build.yml'
@@ -100,6 +101,28 @@ jobs:
           PY
       - name: Apply v0.8 complete TV remote + prayer + logos integration
         run: python3 altaplay-launcher/v0.8/apply_v08.py upstream
+      - name: Apply v0.9 verified Vestel HDMI 1 and full-logo fallback
+        run: python3 altaplay-launcher/v0.9/apply_v09.py upstream
+      - name: Validate HW5 direct URI, logo fallback, remote safety and untouched HOME
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          base=Path('upstream/launcher/app/src/main/java/com/gathin/tvhome')
+          panel=(base/'AltaPlayZenPanel.java').read_text()
+          service=(base/'AltaPlayHdmiRemoteService.java').read_text()
+          hdmi=(base/'AltaPlayHdmi1.java').read_text()
+          assert 'client.tune(item);' in panel
+          assert 'AltaPlayHdmi1.open(activity)' in panel
+          assert 'new Intent("com.android.tv.action.VIEW_INPUTS")' not in panel
+          assert 'com.mediatek.tvinput/.hdmi.HDMIInputService/HW5' in hdmi
+          assert 'TvContract.buildChannelUriForPassthroughInput(INPUT_ID)' in hdmi
+          assert 'ImageView.ScaleType.FIT_CENTER' in panel
+          assert 'GradientDrawable fallback' in panel
+          assert 'prefs.getBoolean("hdmi_remote_enabled",true)' in service
+          assert 'com.mediatek.wwtv.tvcenter' in service
+          assert 'expected.equals(activePackage)' in service
+          print('PASS v0.9 source sanity')
+          PY
       - name: Build verified external channel-logo URL index
         run: python3 altaplay-launcher/v0.8/prepare_online_logo_index.py
       - name: Test next Moroccan prayer and editable approximate Hijri
@@ -176,20 +199,20 @@ jobs:
       - name: Stage APK
         run: |
           mkdir -p dist
-          cp upstream/launcher/app/build/outputs/apk/debug/app-debug.apk dist/AltaPlay-Launcher-v0.8-debug.apk
+          cp upstream/launcher/app/build/outputs/apk/debug/app-debug.apk dist/AltaPlay-Launcher-v0.9-debug.apk
           sha256sum dist/*.apk
       - name: Publish private GitHub prerelease APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="altaplay-launcher-v0.8.0-preview"
-          ASSET="dist/AltaPlay-Launcher-v0.8-debug.apk"
+          TAG="altaplay-launcher-v0.9.0-preview"
+          ASSET="dist/AltaPlay-Launcher-v0.9-debug.apk"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ASSET" --clobber
           else
             gh release create "$TAG" "$ASSET" \
               --target "$GITHUB_SHA" \
-              --title "AltaPlay Launcher v0.8 Preview" \
-              --notes "Android TV preview built from CleanYourTV with SatNova ZEN 4 controls. Test as app first; do not disable the stock launcher. Official certified monthly Habous timetable, shared Open-Meteo; Arabic ambient UI with nonoverlapping single app row and actual Zen channel cards. Includes curated broadcaster logos as PNGs with precise normalized channel-name matching, Moroccan clock/date + official prayer timetable, real channel IDs from connected hardware (demo only uses verified DVB SIDs), no fabricated EPG. Keeps stock HOME untouched. Open-Meteo Arabic weather with stale-cache protection; v0.8 fixes channel DPAD, real remote broadcaster logo index with offline caching, next Habous prayer with tomorrow's Fajr, adjustable approximate Morocco Hijri under Gregorian, Shahid green key and opt-in HDMI package-scoped remote. Blue audio uses G-MScreen compatibility candidate key 54, not hardware-verified on Zen 4; overrideable or disableable. Automatic HDMI remote forwarding and audio adhan still need hardware verification." \
+              --title "AltaPlay Launcher v0.9 Preview" \
+              --notes "Android TV preview built from CleanYourTV with SatNova ZEN 4 controls. Test as app first; do not disable the stock launcher. Official certified monthly Habous timetable, shared Open-Meteo; Arabic ambient UI with nonoverlapping single app row and actual Zen channel cards. Includes curated broadcaster logos as PNGs with precise normalized channel-name matching, Moroccan clock/date + official prayer timetable, real channel IDs from connected hardware (demo only uses verified DVB SIDs), no fabricated EPG. Keeps stock HOME untouched. Open-Meteo Arabic weather with stale-cache protection; v0.9 adds HW5 direct HDMI, logo fallback and default MediaTek remote; v0.8 fixes channel DPAD, real remote broadcaster logo index with offline caching, next Habous prayer with tomorrow's Fajr, adjustable approximate Morocco Hijri under Gregorian, Shahid green key and opt-in HDMI package-scoped remote. Blue audio uses G-MScreen compatibility candidate key 54, not hardware-verified on Zen 4; overrideable or disableable. Automatic HDMI remote forwarding and audio adhan still need hardware verification." \
               --prerelease
           fi
