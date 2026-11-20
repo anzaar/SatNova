@@ -78,6 +78,26 @@ jobs:
         run: python3 altaplay-launcher/v0.5/apply_v05.py upstream
       - name: Apply v0.6 layout, Casablanca clock and real logo matcher
         run: python3 altaplay-launcher/v0.6/apply_v06.py upstream
+      - name: Apply v0.7 resilient Arabic weather and cache
+        run: python3 altaplay-launcher/v0.7/apply_v07.py upstream
+      - name: Verify Arabic weather failure states, cached fallback and retry logic
+        shell: bash
+        run: |
+          mkdir -p /tmp/altaplay-weather-tests
+          javac -encoding UTF-8 -d /tmp/altaplay-weather-tests \
+            altaplay-launcher/v0.7/java/ZenWeatherText.java \
+            altaplay-launcher/v0.7/tests/ZenWeatherTextTest.java
+          java -cp /tmp/altaplay-weather-tests com.gathin.tvhome.ZenWeatherTextTest
+          python3 - <<'PY'
+          from pathlib import Path
+          weather=Path("upstream/launcher/app/src/main/java/com/gathin/tvhome/ZenWeather.java").read_text()
+          ui=Path("upstream/launcher/app/src/main/java/com/gathin/tvhome/AltaPlayZenPanel.java").read_text()
+          assert 'error=ZenWeatherText.problem(failure);' in weather
+          assert 'weather_last_value' in weather
+          assert 'getMessage()' not in weather, "No raw English network error may be displayed"
+          assert 'weatherText.setOnLongClickListener' in ui
+          print("PASS: original Zen panel intact and weather error goes through Arabic-only localization")
+          PY
       - name: Bundle verified broadcaster logo PNGs for offline TV cards
         shell: bash
         run: python3 altaplay-launcher/v0.6/prepare_logos.py
@@ -123,20 +143,20 @@ jobs:
       - name: Stage APK
         run: |
           mkdir -p dist
-          cp upstream/launcher/app/build/outputs/apk/debug/app-debug.apk dist/AltaPlay-Launcher-v0.6-debug.apk
+          cp upstream/launcher/app/build/outputs/apk/debug/app-debug.apk dist/AltaPlay-Launcher-v0.7-debug.apk
           sha256sum dist/*.apk
       - name: Publish private GitHub prerelease APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="altaplay-launcher-v0.6.0-preview"
-          ASSET="dist/AltaPlay-Launcher-v0.6-debug.apk"
+          TAG="altaplay-launcher-v0.7.0-preview"
+          ASSET="dist/AltaPlay-Launcher-v0.7-debug.apk"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ASSET" --clobber
           else
             gh release create "$TAG" "$ASSET" \
               --target "$GITHUB_SHA" \
-              --title "AltaPlay Launcher v0.6 Preview" \
-              --notes "Android TV preview built from CleanYourTV with SatNova ZEN 4 controls. Test as app first; do not disable the stock launcher. Official certified monthly Habous timetable, shared Open-Meteo; Arabic ambient UI with nonoverlapping single app row and actual Zen channel cards. Includes curated broadcaster logos as PNGs with precise normalized channel-name matching, Moroccan clock/date + official prayer timetable, real channel IDs from connected hardware (demo only uses verified DVB SIDs), no fabricated EPG. Keeps stock HOME untouched. Open-Meteo weather uses the selected Moroccan city. Automatic HDMI remote forwarding and audio adhan still need hardware verification." \
+              --title "AltaPlay Launcher v0.7 Preview" \
+              --notes "Android TV preview built from CleanYourTV with SatNova ZEN 4 controls. Test as app first; do not disable the stock launcher. Official certified monthly Habous timetable, shared Open-Meteo; Arabic ambient UI with nonoverlapping single app row and actual Zen channel cards. Includes curated broadcaster logos as PNGs with precise normalized channel-name matching, Moroccan clock/date + official prayer timetable, real channel IDs from connected hardware (demo only uses verified DVB SIDs), no fabricated EPG. Keeps stock HOME untouched. Open-Meteo weather for the selected Moroccan city with entirely Arabic network error text, bounded network retries and last 12h valid cache. Automatic HDMI remote forwarding and audio adhan still need hardware verification." \
               --prerelease
           fi
