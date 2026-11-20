@@ -145,43 +145,43 @@ def main():
     if not chosen:
         print("FAILED TO LOCATE WALLPAPER STUDIO AFTER SCROLL",flush=True)
     nodes=stage("23_wallpaper_studio")
-    # The original app offers "Personal Photo"/"Slideshow Photos" and built-in themes.
-    # Try actual personal-photo path first (not developer override of preferences).
-    tried=False
-    for step in range(5):
-        candidates=["Personal Photo","Personal photo","Personal wallpaper","My photos",
-                    "My Photos","Photos","Choose photo","Select image","Import photo",
-                    "Choose from device","Device photo","Gallery","Personal","Image"]
-        if click(nodes,candidates):
-            tried=True
-            nodes=stage("24_personal_step"+str(step))
-            # If file picker selection is visible, choose our uploaded Islamic image.
-            if click(nodes,["AltaPlay-Islamic.webp","AltaPlay-Islamic","Pictures","Images"]):
-                nodes=stage("25_picker_step"+str(step))
-                if click(nodes,["AltaPlay-Islamic.webp","AltaPlay-Islamic"]):
-                    nodes=stage("26_islamic_selected")
-                    if click(nodes,["Use","Apply","Select","Choose","OK","Done"]):
-                        nodes=stage("27_wallpaper_applied")
-                    break
-        else:
-            print("PERSONAL WALLPAPER NOT VISIBLE: scroll",step,flush=True)
-            adb("shell","input","swipe","1350","850","1350","220","350")
-            tick(1)
-            nodes=stage("24_personal_scroll"+str(step))
-            if click(nodes,candidates):
-                tried=True
-                nodes=stage("25_personal_found"+str(step))
-                if click(nodes,["AltaPlay-Islamic.webp","AltaPlay-Islamic",
-                                "Pictures","Images","Downloads"]):
-                    nodes=stage("26_picker_start"+str(step))
-                    if click(nodes,["AltaPlay-Islamic.webp","AltaPlay-Islamic"]):
-                        nodes=stage("27_image_opened")
-                        click(nodes,["Use","Apply","Select","Choose","OK","Done"])
+    # REAL Secreto UI: Single personal photo -> Choose image from device.
+    nodes=stage("23_wallpaper_studio")
+    personal = click(nodes,["Single personal photo"])
+    nodes=stage("24_single_personal_photo")
+    picker = click(nodes,["Choose image from device","Choose image","Import photo"])
+    nodes=stage("25_device_picker_opened")
+    selected=False
+    if picker:
+        for step in range(12):
+            if click(nodes,["AltaPlay-Islamic.webp","AltaPlay-Islamic"]):
+                selected=True
+                nodes=stage("26_islamic_image_tapped")
+                # Some pickers ask to confirm this image, others return immediately.
+                click(nodes,["Use this photo","Use photo","Select","Done",
+                             "Apply","Open","OK"])
+                nodes=stage("27_after_image_selection")
                 break
+            # Android Photo Picker often has Photos/Albums/Browse tabs.
+            if click(nodes,["Pictures","Images","Browse files","Browse",
+                            "On this device","Files","Photos","Albums",
+                            "Downloads","Internal storage"]):
+                nodes=stage("25_picker_step"+str(step))
+                continue
+            print("IMAGE FILE NOT YET VISIBLE; SCROLL PHOTO PICKER",step,flush=True)
+            adb("shell","input","swipe","1340","840","1340","220","360")
+            nodes=stage("25_picker_scroll"+str(step))
+    else:
+        print("CHOOSER BUTTON WAS NOT AVAILABLE",flush=True)
+    # App can show a preview after picking. Use Secreto's own action
+    # and never claim the wallpaper was applied solely from click.
+    if selected:
+        if click(nodes,["Use saved selection","Apply wallpaper","Use photo"]):
+            nodes=stage("28_personal_wallpaper_applied")
     (ROOT/"wallpaper-attempt.txt").write_text(
-        "Personal wallpaper option found: "+str(tried)+"\n"
-        "Selected saved Islamic image: see picker screen and screenshot evidence\n"
-        "App settings were operated with ADB UI interaction, not by altering XML prefs.\n")
+        "Studio personal photo selected: "+str(personal)+"\n"+
+        "Device chooser opened: "+str(picker)+"\n"+
+        "Exact AltaPlay Islamic image selected: "+str(selected)+"\n")
     # Exit the settings the same way the remote would: back to original launcher.
     for i in range(4):
         adb("shell","input","keyevent","KEYCODE_BACK")
@@ -189,8 +189,16 @@ def main():
     home()
     stage("29_home_after_wallpaper")
     result=check_change()
-    (ROOT/"wallpaper-result.txt").write_text(result+"\n")
+    (ROOT/"wallpaper-result.txt").write_text(
+        result+"\n"+(ROOT/"wallpaper-attempt.txt").read_text())
     print("WALLPAPER RESULT",result,flush=True)
+    adb("shell","settings","put","secure","enabled_accessibility_services",
+        PKG+"/com.satnova.alpha.Zen4HdmiRemoteService")
+    adb("shell","settings","put","secure","accessibility_enabled","1")
+    tick(2)
+    home()
+    stage("30_home_with_zen_accessibility")
+
 
 if __name__=="__main__":
     main()
