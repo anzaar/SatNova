@@ -1,0 +1,27 @@
+name: Inspect bundled Zen client and TV key forwarding source
+on:
+  push:
+    branches: [feature/altaplay-launcher-cleanyourtv-build]
+    paths: ['.github/workflows/altaplay-inspect-zen.yml']
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect actual source implementation and manifest
+        run: |
+          python3 - <<'PY'
+          import base64,zipfile,pathlib
+          p=pathlib.Path("altaplay-launcher/overlay-v0.1.zip.base64.txt")
+          z=zipfile.ZipFile(__import__('io').BytesIO(base64.b64decode(''.join(p.read_text().split()))))
+          print("ZIP SOURCES",z.namelist()[:90])
+          for item in z.namelist():
+            if item.endswith('ZenClient.java') or item.endswith('AndroidManifest.xml') or item.endswith('KeyEventService.java'):
+              print("===== FILE "+item)
+              s=z.read(item).decode('utf-8')
+              a=s.splitlines()
+              for i,line in enumerate(a):
+                if any(k in line for k in ('void send','void key','boolean send','ZenClient(', 'void tune', 'void press','logo(', 'new File(', 'getChannel','AccessibilityService','android.permission', 'getService', 'static ZenClient','class ZenClient','getWindow','isOnline','request="')):
+                  print('%04d '%(i+1)+'\n'.join(a[max(0,i-1):min(len(a),i+3)]))
+          PY
