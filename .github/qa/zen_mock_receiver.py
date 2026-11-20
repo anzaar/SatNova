@@ -6,16 +6,39 @@ import socket
 import struct
 import sys
 
+# Real broadcasters + DVB service IDs (SID), as published in LyngSat 2026.
+# SID is NOT interchangeable with the proprietary local ProgramId of an
+# actual Zen 4, so the fixture borrows this value as ProgramId *ONLY in QA*.
+# Actual receiver IDs ALWAYS come from its own catalogue, never these values.
+# Badr 7: https://www.lyngsat.com/Badr-7-8-and-Eshail-2.html
+# Es'hail 1: https://www.lyngsat.com/Eshail-1.html
+# Satellite, transponder frequency and DVB SID are source-verified metadata.
 RECORDS = [
-    ("101","قناة تجريبية أولى",0),
-    ("102","قناة تجريبية أولى HD",0),
-    ("103","قناة تجريبية رياضية",0),
-    ("104","قناة تجريبية وثائقية",0),
-    ("105","قناة تجريبية للأطفال",0),
-    ("106","قناة تجريبية إخبارية",0),
-    ("107","إذاعة تجريبية أولى",1),
-    ("108","إذاعة تجريبية ثانية",1),
+    # Es'hail 1 25.5°E — Morocco SNRT, Al Jazeera
+    {"sid":3, "name":"Al Aoula Inter", "tv":0, "sat":"Es'hail 1", "tp":"11547 V"},
+    {"sid":13,"name":"Arryadia HD", "tv":0, "sat":"Es'hail 1", "tp":"11180 V PLS Stream 32"},
+    # Badr 7 26°E — MBC multiplex (same channel HD and SD)
+    {"sid":1, "name":"MBC HD", "tv":0, "sat":"Badr 7", "tp":"11270 V"},
+    {"sid":10,"name":"MBC", "tv":0, "sat":"Badr 7", "tp":"11270 V"},
+    {"sid":6, "name":"MBC 2", "tv":0, "sat":"Badr 7", "tp":"11270 V"},
+    {"sid":7, "name":"MBC Action", "tv":0, "sat":"Badr 7", "tp":"11270 V"},
+    # Es'hail 1 25.5°E — Al Jazeera 11604 H
+    {"sid":10501,"name":"Aljazeera Channel", "tv":0, "sat":"Es'hail 1", "tp":"11604 H"},
+    {"sid":10502,"name":"Aljazeera Mubasher", "tv":0, "sat":"Es'hail 1", "tp":"11604 H"},
+    {"sid":10503,"name":"Aljazeera English", "tv":0, "sat":"Es'hail 1", "tp":"11604 H"},
+    {"sid":10504,"name":"Aljazeera Documentary", "tv":0, "sat":"Es'hail 1", "tp":"11604 H"},
+    # Additional verified Badr service IDs
+    {"sid":9,"name":"MBC 3", "tv":0, "sat":"Badr 7", "tp":"11270 V"},
+    {"sid":2,"name":"MBC 4", "tv":0, "sat":"Badr 7", "tp":"11270 V"},
+    {"sid":8,"name":"MBC Max", "tv":0, "sat":"Badr 7", "tp":"11270 V"},
+    # Real radio services — names/IDs from same published transponder lists
+    {"sid":52,"name":"MBC FM", "tv":1, "sat":"Badr 7", "tp":"11270 V"},
+    {"sid":54,"name":"Panorama FM", "tv":1, "sat":"Badr 7", "tp":"11270 V"},
+    {"sid":11,"name":"Idaa al Watania", "tv":1, "sat":"Es'hail 1", "tp":"11180 V PLS Stream 48"},
+    {"sid":80,"name":"Radio Meknes", "tv":1, "sat":"Es'hail 1", "tp":"11180 V PLS Stream 48"},
 ]
+assert len({x["sid"] for x in RECORDS}) == len(RECORDS), "QA ProgramId collision"
+
 def recv_exact(sock, n):
     out = bytearray()
     while len(out) < n:
@@ -60,7 +83,7 @@ def serve(sock):
         elif kind==19:
             respond(sock,kind,{"array":[{"TvProgramCount":str(len(RECORDS))}]})
         elif kind==0:
-            result=[{"ProgramId":k,"ServiceName":n,"TvState":str(t)} for k,n,t in RECORDS]
+            result=[{"ProgramId":str(row["sid"]),"ServiceName":row["name"],"TvState":str(row["tv"])} for row in RECORDS]
             respond(sock,0,{"array":result})
         elif kind in (3,1040,1000):
             respond(sock,kind,{"array":[]})
@@ -72,7 +95,8 @@ def main():
     with socket.socket(socket.AF_INET,socket.SOCK_STREAM) as server:
         server.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
         server.bind(("0.0.0.0",20000));server.listen(4)
-        print("QA fixture server ready on 20000 — synthetic names, not real TV data",flush=True)
+        print("QA receiver ready on 20000 — REAL satellite names/SIDs, synthetic Zen ProgramIds; not physical hardware",flush=True)
+        print("SATELLITE CATALOGUE "+json.dumps(RECORDS,ensure_ascii=False),flush=True)
         while True:
             client,addr=server.accept()
             with client:
