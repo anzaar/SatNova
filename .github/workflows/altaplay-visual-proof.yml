@@ -22,6 +22,7 @@ jobs:
       - name: Prepare compact image previews for direct visual inspection
         shell: bash
         run: |
+          python3 -m pip install --quiet pillow
           python3 - <<'PY'
           from PIL import Image
           from pathlib import Path
