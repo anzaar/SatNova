@@ -6,6 +6,9 @@ on:
     paths:
       - '.github/workflows/altaplay-google-tv-qa.yml'
   workflow_dispatch:
+concurrency:
+  group: altaplay-cleanyourtv-google-tv-qa-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: write
 jobs:
@@ -22,8 +25,18 @@ jobs:
           mkdir -p qa-results
           gh release download altaplay-launcher-v0.2.0-preview --repo "${GITHUB_REPOSITORY}" --pattern 'AltaPlay-Launcher-v0.2-debug.apk' --dir qa-results
           sha256sum qa-results/*.apk | tee qa-results/apk-sha256.txt
-      - name: Enable KVM on hosted runner if available
+      - name: Free only disposable runner toolchains and enable KVM
+        shell: bash
         run: |
+          set -euo pipefail
+          echo "Available disk before cleaning:"
+          df -h /
+          # Match the setup of the successful Nov 19 Google TV 14 emulator test.
+          # These are temporary GitHub-hosted runner toolchains, NOT user files or repository contents.
+          sudo rm -rf /usr/share/dotnet /opt/hostedtoolcache/CodeQL /usr/local/lib/android/sdk/ndk /usr/local/lib/android/sdk/cmake /usr/local/share/powershell || true
+          sudo apt-get clean
+          echo "Available disk after cleaning:"
+          df -h /
           if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; ls -l /dev/kvm; else echo "KVM unavailable"; fi
       - name: Run exact APK in Google TV Android 14 AVD
         uses: reactivecircus/android-emulator-runner@v2
@@ -32,13 +45,12 @@ jobs:
           target: google-tv
           arch: x86
           profile: tv_1080p
-          cores: 4
-          disk-size: 2048M
+          cores: 2
+          disk-size: 1536M
           ram-size: 2048M
-          heap-size: 512M
           disable-animations: true
-          emulator-boot-timeout: 420
-          emulator-options: -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -partition-size 1536 -gpu swiftshader_indirect
           script: |
             set -euo pipefail
             mkdir -p qa-results
