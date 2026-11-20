@@ -74,6 +74,8 @@ jobs:
             upstream/launcher/app/src/main/java/com/gathin/tvhome/HabousPrayerSchedule.java
           cp altaplay-launcher/v0.4/java/HabousMonthlyParser.java \
             upstream/launcher/app/src/main/java/com/gathin/tvhome/HabousMonthlyParser.java
+      - name: Apply v0.5 native connected Zen 4 Arabic UI
+        run: python3 altaplay-launcher/v0.5/apply_v05.py upstream
       - name: Test exact Ministry published daily values
         shell: bash
         run: |
@@ -101,20 +103,20 @@ jobs:
       - name: Stage APK
         run: |
           mkdir -p dist
-          cp upstream/launcher/app/build/outputs/apk/debug/app-debug.apk dist/AltaPlay-Launcher-v0.4-debug.apk
+          cp upstream/launcher/app/build/outputs/apk/debug/app-debug.apk dist/AltaPlay-Launcher-v0.5-debug.apk
           sha256sum dist/*.apk
       - name: Publish private GitHub prerelease APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="altaplay-launcher-v0.4.0-preview"
-          ASSET="dist/AltaPlay-Launcher-v0.4-debug.apk"
+          TAG="altaplay-launcher-v0.5.0-preview"
+          ASSET="dist/AltaPlay-Launcher-v0.5-debug.apk"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ASSET" --clobber
           else
             gh release create "$TAG" "$ASSET" \
               --target "$GITHUB_SHA" \
-              --title "AltaPlay Launcher v0.4 Preview" \
-              --notes "Android TV preview built from CleanYourTV with SatNova ZEN 4 controls. Test as app first; do not disable the stock launcher. Certified www.habous.gov.ma monthly dataset shipped offline for November 2026, HTTPS automatic updates, 190 official cities; source SHA-256 pinned. Open-Meteo weather uses the selected Moroccan city. Automatic HDMI remote forwarding and audio adhan still need hardware verification." \
+              --title "AltaPlay Launcher v0.5 Preview" \
+              --notes "Android TV preview built from CleanYourTV with SatNova ZEN 4 controls. Test as app first; do not disable the stock launcher. Official certified monthly Habous timetable, shared Open-Meteo; Arabic ambient UI with Zen connection pill, real channel and radio catalogue, grouped HD/SD, no fabricated EPG. Keeps stock HOME untouched. Open-Meteo weather uses the selected Moroccan city. Automatic HDMI remote forwarding and audio adhan still need hardware verification." \
               --prerelease
           fi
