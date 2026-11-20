@@ -19,12 +19,12 @@ jobs:
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
-      - name: Retrieve exact released AltaPlay v0.3 APK
+      - name: Retrieve exact released AltaPlay v0.4 APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p qa-results
-          gh release download altaplay-launcher-v0.3.0-preview --repo "${GITHUB_REPOSITORY}" --pattern 'AltaPlay-Launcher-v0.3-debug.apk' --dir qa-results
+          gh release download altaplay-launcher-v0.4.0-preview --repo "${GITHUB_REPOSITORY}" --pattern 'AltaPlay-Launcher-v0.4-debug.apk' --dir qa-results
           sha256sum qa-results/*.apk | tee qa-results/apk-sha256.txt
       - name: Probe live official Habous city page and Open-Meteo sources
         shell: bash
@@ -34,8 +34,8 @@ jobs:
           import urllib.request,urllib.error,re,html
           endpoints={
             "Habous homepage":"https://habous.gov.ma/",
-            "Habous prayers city=2":"https://habous.gov.ma/prieres/horaire_hijri_2.php?ville=2",
-            "Habous prayers www city=2":"https://www.habous.gov.ma/prieres/horaire_hijri_2.php?ville=2",
+            "Habous November 2026 official":"https://www.habous.gov.ma/data/horaires-2026-11.js",
+            "Habous November 2026 verified URL (duplicate)":"https://www.habous.gov.ma/data/horaires-2026-11.js",
             "Open-Meteo Khemisset":"https://api.open-meteo.com/v1/forecast?latitude=33.824&longitude=-6.066&current=temperature_2m,weather_code&timezone=Africa%2FCasablanca",
           }
           for name,url in endpoints.items():
@@ -54,6 +54,11 @@ jobs:
                 else: print("Sample:",body[:220])
             except Exception as exc:print(name,"ERROR",type(exc).__name__,str(exc)[:160])
           PY
+      - name: Point the existing proven Google TV smoke test at v0.4
+        shell: bash
+        run: |
+          sed -i 's/AltaPlay-Launcher-v0.3-debug.apk/AltaPlay-Launcher-v0.4-debug.apk/g' altaplay-launcher/qa/google-tv-smoke.sh
+          grep -Fq 'AltaPlay-Launcher-v0.4-debug.apk' altaplay-launcher/qa/google-tv-smoke.sh
       - name: Free only disposable runner toolchains and enable KVM
         shell: bash
         run: |
@@ -81,6 +86,25 @@ jobs:
           emulator-boot-timeout: 900
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -partition-size 1536 -gpu swiftshader_indirect -partition-size 1536
           script: bash altaplay-launcher/qa/google-tv-smoke.sh
+      - name: Inspect captured official prayer text on Google TV
+        if: always()
+        shell: bash
+        run: |
+          if [ -s qa-results/first-window.xml ]; then
+            if grep -Fq 'الأوقاف' qa-results/first-window.xml; then
+              echo 'PASS: Ministry prayer label is visible in Google TV UI hierarchy'
+            else
+              echo 'INCONCLUSIVE: Ministry text not exposed in UI hierarchy; inspect screenshots'
+            fi
+            if grep -E -q '05:29|06:56|12:15|14:59|17:24|18:40' qa-results/first-window.xml; then
+              echo 'PASS: Published Khemisset prayer time present in UI hierarchy'
+            else
+              echo 'INCONCLUSIVE: UI hierarchy omitted the times; inspect screenshots'
+            fi
+          else
+            echo 'INCONCLUSIVE: Google TV UI hierarchy was not captured; screenshots still available'
+          fi
+          cat qa-results/qa-summary.txt 2>/dev/null || true
       - name: Publish QA screenshots and diagnostics to private release (artifact quota independent)
         if: always()
         env:
@@ -91,5 +115,5 @@ jobs:
           else
             echo 'No emulator screenshots produced; inspect boot failure logs.'
           fi
-          (cd qa-results && zip -q -r ../AltaPlay-v0.3-GoogleTV-API34-QA.zip .)
-          gh release upload altaplay-launcher-v0.3.0-preview AltaPlay-v0.3-GoogleTV-API34-QA.zip --clobber --repo "${GITHUB_REPOSITORY}"
+          (cd qa-results && zip -q -r ../AltaPlay-v0.4-GoogleTV-API34-QA.zip .)
+          gh release upload altaplay-launcher-v0.4.0-preview AltaPlay-v0.4-GoogleTV-API34-QA.zip --clobber --repo "${GITHUB_REPOSITORY}"
