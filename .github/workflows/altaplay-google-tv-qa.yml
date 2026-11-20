@@ -1,0 +1,88 @@
+name: AltaPlay Launcher Google TV Emulator QA
+on:
+  push:
+    branches:
+      - feature/altaplay-launcher-cleanyourtv-build
+    paths:
+      - '.github/workflows/altaplay-google-tv-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  google-tv-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+      - name: Retrieve exact released AltaPlay v0.2 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p qa-results
+          gh release download altaplay-launcher-v0.2.0-preview --repo "${GITHUB_REPOSITORY}" --pattern 'AltaPlay-Launcher-v0.2-debug.apk' --dir qa-results
+          sha256sum qa-results/*.apk | tee qa-results/apk-sha256.txt
+      - name: Enable KVM on hosted runner if available
+        run: |
+          if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; ls -l /dev/kvm; else echo "KVM unavailable"; fi
+      - name: Run exact APK in Google TV Android 14 AVD
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google-tv
+          arch: x86
+          profile: tv_1080p
+          cores: 2
+          ram-size: 3072M
+          heap-size: 512M
+          disable-animations: true
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect
+          script: |
+            set -euo pipefail
+            mkdir -p qa-results
+            {
+              adb shell getprop ro.build.version.release
+              adb shell getprop ro.build.characteristics
+              adb shell getprop ro.product.model
+              adb shell pm list features | grep -E 'television|leanback' || true
+              adb shell pm list packages | grep -E 'google.tv|android.tv' || true
+            } | tee qa-results/device.txt
+            adb shell input keyevent KEYCODE_HOME || true
+            sleep 5
+            adb exec-out screencap -p > qa-results/01-google-tv-original-home.png || true
+            adb install -r -t qa-results/AltaPlay-Launcher-v0.2-debug.apk | tee qa-results/install.txt
+            adb shell pm path com.altaplay.launcher | tee qa-results/package.txt
+            adb shell am start -W -n com.altaplay.launcher/com.gathin.tvhome.MainActivity | tee qa-results/start.txt
+            sleep 9
+            adb exec-out screencap -p > qa-results/02-altaplay-first-launch-offline-zen.png || true
+            adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity|com.altaplay.launcher' | head -20 > qa-results/activity-before.txt || true
+            timeout 45s adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 && adb pull /sdcard/window.xml qa-results/first-window.xml >/dev/null || true
+            for key in KEYCODE_DPAD_DOWN KEYCODE_DPAD_RIGHT KEYCODE_DPAD_LEFT KEYCODE_DPAD_UP KEYCODE_DPAD_CENTER KEYCODE_BACK; do
+              adb shell input keyevent "${key}"
+              sleep 1
+            done
+            adb exec-out screencap -p > qa-results/03-altaplay-after-remote-navigation.png || true
+            adb shell cmd package set-home-activity com.altaplay.launcher/com.gathin.tvhome.MainActivity > qa-results/set-default-home.txt 2>&1 || true
+            adb shell input keyevent KEYCODE_HOME
+            sleep 5
+            adb exec-out screencap -p > qa-results/04-home-key-after-default.png || true
+            adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME > qa-results/resolved-home.txt 2>&1 || true
+            adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' > qa-results/focus.txt || true
+            adb logcat -d -v time > qa-results/logcat.txt || true
+            if grep -E -A22 'FATAL EXCEPTION|ANR in com.altaplay.launcher' qa-results/logcat.txt > qa-results/crashes.txt; then
+              echo 'CRASH/ANR FOUND' | tee qa-results/qa-summary.txt
+              exit 2
+            fi
+            if grep -q 'com.altaplay.launcher' qa-results/resolved-home.txt; then
+              echo 'PASS: APK installs, starts, and resolves as HOME; no detected Java crash/ANR. HDMI/Zen hardware not simulated.' | tee qa-results/qa-summary.txt
+            else
+              echo 'PARTIAL: APK installs and starts; HOME resolution inconclusive. HDMI/Zen hardware not simulated.' | tee qa-results/qa-summary.txt
+            fi
+      - name: Upload emulator screenshots and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AltaPlay-Google-TV-API34-QA
+          path: qa-results/
+          if-no-files-found: warn
