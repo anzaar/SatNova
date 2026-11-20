@@ -281,6 +281,17 @@ s=once(s,
     '.setNeutralButton("رمز الصوتيات",(d,w)->configureAudioKey())',
     "audio mapping entrypoint")
 s=once(s,
+    '.putString("hdmi_package",s).putBoolean("hdmi_remote_enabled",true).apply();',
+    '''.putString("hdmi_package",s).putBoolean("hdmi_remote_enabled",true).apply();
+                new AlertDialog.Builder(activity)
+                    .setTitle("السماح لتحكم Zen داخل HDMI")
+                    .setMessage("لازم تفعّل AltaPlay • Zen 4 HDMI Remote من إعدادات إمكانية الوصول يدوياً. التحكم يخدم غير مع تطبيق HDMI اللي حددتي، وما كيتدخلش فباقي التطبيقات.")
+                    .setPositiveButton("فتح إمكانية الوصول",(dialog,which)->{
+                        try{activity.startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));}
+                        catch(Exception e){Toast.makeText(activity,"افتح إعدادات النظام ثم إمكانية الوصول",Toast.LENGTH_LONG).show();}
+                    }).setNegativeButton("لاحقاً",null).show();''',
+    "explicit system consent for HDMI accessibility")
+s=once(s,
     '    private TextView title(String text,int size,int color){',
     '''    private void configureHijri(){
         final android.content.SharedPreferences p=activity.getSharedPreferences("altaplay_hijri",Context.MODE_PRIVATE);
