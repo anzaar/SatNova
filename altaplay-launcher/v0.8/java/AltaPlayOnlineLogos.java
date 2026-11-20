@@ -155,6 +155,12 @@ final class AltaPlayOnlineLogos {
             Bitmap bitmap=BitmapFactory.decodeFile(file.getAbsolutePath(),options);
             if(bitmap!=null){
                 target.setImageBitmap(bitmap);
+                // PNGs contain transparent pixels. The fallback channel text
+                // must be hidden, otherwise it bleeds through the logo.
+                if(target.getParent() instanceof android.widget.FrameLayout){
+                    android.widget.FrameLayout frame=(android.widget.FrameLayout)target.getParent();
+                    if(frame.getChildCount()>0)frame.getChildAt(0).setVisibility(android.view.View.INVISIBLE);
+                }
                 target.setScaleType(ImageView.ScaleType.FIT_CENTER);
                 target.setContentDescription("شعار القناة: "+target.getTag());
             }
