@@ -129,14 +129,21 @@ def main():
         # The official Secreto settings popup first row is just below the button.
         tap(int(.82*w),int(.255*h))
     nodes=stage("22_launcher_settings")
-    if not click(nodes,["Wallpaper Studio","Wallpaper","Wallpapers","Fond d’écran",
-                        "Fond d'ecran","Arrière-plan","Background"]):
-        # Some settings screens present categories after scrolling.
-        print("WALLPAPER NOT IN TOP SETTINGS; TEST DPAD DOWN",flush=True)
-        for i in range(3):
-            adb("shell","input","keyevent","KEYCODE_DPAD_DOWN")
-            nodes=ui("22_scroll"+str(i))
-            if click(nodes,["Wallpaper Studio","Wallpaper","Fond d'écran","Background"]): break
+    chosen=click(nodes,["Wallpaper Studio","Wallpaper","Wallpapers",
+                        "Fond d’écran","Fond d'ecran","Arrière-plan","Background"])
+    if not chosen:
+        for i in range(12):
+            print("SCROLL SETTINGS",i,flush=True)
+            adb("shell","input","swipe","1350","850","1350","220","350")
+            tick(1.0)
+            nodes=stage("22_scroll"+str(i))
+            if click(nodes,["Wallpaper Studio","Wallpaper","Wallpapers",
+                            "Fond d’écran","Fond d'ecran","Background"]):
+                chosen=True
+                print("FOUND WALLPAPER AT SCROLL",i,flush=True)
+                break
+    if not chosen:
+        print("FAILED TO LOCATE WALLPAPER STUDIO AFTER SCROLL",flush=True)
     nodes=stage("23_wallpaper_studio")
     # The original app offers "Personal Photo"/"Slideshow Photos" and built-in themes.
     # Try actual personal-photo path first (not developer override of preferences).
@@ -157,9 +164,20 @@ def main():
                         nodes=stage("27_wallpaper_applied")
                     break
         else:
-            print("PERSONAL WALLPAPER UI OPTION NOT VISIBLE: step",step,flush=True)
-            # No unbounded clicking; record diagnostic and stop instead of guessing.
-            break
+            print("PERSONAL WALLPAPER NOT VISIBLE: scroll",step,flush=True)
+            adb("shell","input","swipe","1350","850","1350","220","350")
+            tick(1)
+            nodes=stage("24_personal_scroll"+str(step))
+            if click(nodes,candidates):
+                tried=True
+                nodes=stage("25_personal_found"+str(step))
+                if click(nodes,["AltaPlay-Islamic.webp","AltaPlay-Islamic",
+                                "Pictures","Images","Downloads"]):
+                    nodes=stage("26_picker_start"+str(step))
+                    if click(nodes,["AltaPlay-Islamic.webp","AltaPlay-Islamic"]):
+                        nodes=stage("27_image_opened")
+                        click(nodes,["Use","Apply","Select","Choose","OK","Done"])
+                break
     (ROOT/"wallpaper-attempt.txt").write_text(
         "Personal wallpaper option found: "+str(tried)+"\n"
         "Selected saved Islamic image: see picker screen and screenshot evidence\n"
