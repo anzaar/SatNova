@@ -5,6 +5,7 @@ on:
       - feature/altaplay-launcher-cleanyourtv-build
     paths:
       - '.github/workflows/altaplay-google-tv-qa.yml'
+      - 'altaplay-launcher/qa/google-tv-smoke.sh'
   workflow_dispatch:
 concurrency:
   group: altaplay-cleanyourtv-google-tv-qa-${{ github.ref }}
@@ -51,47 +52,7 @@ jobs:
           disable-animations: true
           emulator-boot-timeout: 900
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -partition-size 1536 -gpu swiftshader_indirect -partition-size 1536
-          script: |
-            set -eu
-            mkdir -p qa-results
-            {
-              adb shell getprop ro.build.version.release
-              adb shell getprop ro.build.characteristics
-              adb shell getprop ro.product.model
-              adb shell pm list features | grep -E 'television|leanback' || true
-              adb shell pm list packages | grep -E 'google.tv|android.tv' || true
-            } | tee qa-results/device.txt
-            adb shell input keyevent KEYCODE_HOME || true
-            sleep 5
-            adb exec-out screencap -p > qa-results/01-google-tv-original-home.png || true
-            adb install -r -t qa-results/AltaPlay-Launcher-v0.2-debug.apk | tee qa-results/install.txt
-            adb shell pm path com.altaplay.launcher | tee qa-results/package.txt
-            adb shell am start -W -n com.altaplay.launcher/com.gathin.tvhome.MainActivity | tee qa-results/start.txt
-            sleep 9
-            adb exec-out screencap -p > qa-results/02-altaplay-first-launch-offline-zen.png || true
-            adb shell dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity|com.altaplay.launcher' | head -20 > qa-results/activity-before.txt || true
-            timeout 45s adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 && adb pull /sdcard/window.xml qa-results/first-window.xml >/dev/null || true
-            for key in KEYCODE_DPAD_DOWN KEYCODE_DPAD_RIGHT KEYCODE_DPAD_LEFT KEYCODE_DPAD_UP KEYCODE_DPAD_CENTER KEYCODE_BACK; do
-              adb shell input keyevent "${key}"
-              sleep 1
-            done
-            adb exec-out screencap -p > qa-results/03-altaplay-after-remote-navigation.png || true
-            adb shell cmd package set-home-activity com.altaplay.launcher/com.gathin.tvhome.MainActivity > qa-results/set-default-home.txt 2>&1 || true
-            adb shell input keyevent KEYCODE_HOME
-            sleep 5
-            adb exec-out screencap -p > qa-results/04-home-key-after-default.png || true
-            adb shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME > qa-results/resolved-home.txt 2>&1 || true
-            adb shell dumpsys window | grep -E 'mCurrentFocus|mFocusedApp' > qa-results/focus.txt || true
-            adb logcat -d -v time > qa-results/logcat.txt || true
-            if grep -E -A22 'FATAL EXCEPTION|ANR in com.altaplay.launcher' qa-results/logcat.txt > qa-results/crashes.txt; then
-              echo 'CRASH/ANR FOUND' | tee qa-results/qa-summary.txt
-              exit 2
-            fi
-            if grep -q 'com.altaplay.launcher' qa-results/resolved-home.txt; then
-              echo 'PASS: APK installs, starts, and resolves as HOME; no detected Java crash/ANR. HDMI/Zen hardware not simulated.' | tee qa-results/qa-summary.txt
-            else
-              echo 'PARTIAL: APK installs and starts; HOME resolution inconclusive. HDMI/Zen hardware not simulated.' | tee qa-results/qa-summary.txt
-            fi
+          script: bash altaplay-launcher/qa/google-tv-smoke.sh
       - name: Publish QA screenshots and diagnostics to private release (artifact quota independent)
         if: always()
         env:
