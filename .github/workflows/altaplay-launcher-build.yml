@@ -130,7 +130,7 @@ jobs:
           panel=(base/'AltaPlayZenPanel.java').read_text()
           service=(base/'AltaPlayHdmiRemoteService.java').read_text()
           hdmi=(base/'AltaPlayHdmi1.java').read_text()
-          assert 'client.tune(item);' in panel
+          assert 'client.tune(item, sent->' in panel
           assert 'AltaPlayHdmi1.open(activity)' in panel
           assert 'new Intent("com.android.tv.action.VIEW_INPUTS")' not in panel
           assert 'com.mediatek.tvinput/.hdmi.HDMIInputService/HW5' in hdmi
