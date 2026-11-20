@@ -1,0 +1,45 @@
+name: AltaPlay v0.6 real screenshot visual inspection
+on:
+  push:
+    branches: [feature/altaplay-launcher-cleanyourtv-build]
+    paths: ['.github/workflows/altaplay-visual-proof.yml']
+permissions:
+  contents: read
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Fetch verified v0.6 Google TV screenshots
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p preview
+          gh release download altaplay-launcher-v0.6.0-preview --repo "${GITHUB_REPOSITORY}" \
+            --pattern 'AltaPlay-v0.6-GoogleTV-API34-QA.zip' --dir preview
+          unzip -qq preview/AltaPlay-v0.6-GoogleTV-API34-QA.zip -d preview/images
+          find preview/images -maxdepth 2 -type f -printf '%p %s bytes\n' | head -35
+      - name: Prepare compact image previews for direct visual inspection
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          import base64,io
+          folder=Path('preview/images')
+          for name in ['02-altaplay-first-launch-offline-zen.png',
+                       '05-qa-simulated-zen4-connected.png',
+                       '03-altaplay-after-remote-navigation.png']:
+            p=folder/name
+            if not p.exists():
+              print('MISSING',name)
+              continue
+            image=Image.open(p).convert('RGB')
+            print('IMAGE',name,'ORIGINAL_SIZE',image.size)
+            image.thumbnail((1152,648))
+            out=io.BytesIO()
+            image.save(out,format='JPEG',quality=57,optimize=True)
+            print('BEGIN_IMAGE_BASE64',name)
+            print(base64.b64encode(out.getvalue()).decode('ascii'))
+            print('END_IMAGE_BASE64',name)
+          PY
