@@ -42,6 +42,15 @@ jobs:
               z.extractall(".")
           PY
           python3 AltaPlay-CleanYourTV-overlay/apply_overlay.py upstream
+      - name: Apply v0.3 official Habous prayer and Open-Meteo city integration
+        run: python3 altaplay-launcher/v0.3/apply_v03.py upstream
+      - name: Verify official Habous table parser without Android
+        run: |
+          mkdir -p /tmp/habous-tests
+          javac -encoding UTF-8 -d /tmp/habous-tests \
+            upstream/launcher/app/src/main/java/com/gathin/tvhome/HabousHtmlParser.java \
+            altaplay-launcher/v0.3/tests/HabousHtmlParserTest.java
+          java -cp /tmp/habous-tests com.gathin.tvhome.HabousHtmlParserTest
       - name: Test G-MScreen protocol
         run: bash AltaPlay-CleanYourTV-overlay/tests/run_protocol_tests.sh
       - name: Build debug APK
@@ -52,20 +61,20 @@ jobs:
       - name: Stage APK
         run: |
           mkdir -p dist
-          cp upstream/launcher/app/build/outputs/apk/debug/app-debug.apk dist/AltaPlay-Launcher-v0.2-debug.apk
+          cp upstream/launcher/app/build/outputs/apk/debug/app-debug.apk dist/AltaPlay-Launcher-v0.3-debug.apk
           sha256sum dist/*.apk
       - name: Publish private GitHub prerelease APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="altaplay-launcher-v0.2.0-preview"
-          ASSET="dist/AltaPlay-Launcher-v0.2-debug.apk"
+          TAG="altaplay-launcher-v0.3.0-preview"
+          ASSET="dist/AltaPlay-Launcher-v0.3-debug.apk"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ASSET" --clobber
           else
             gh release create "$TAG" "$ASSET" \
               --target "$GITHUB_SHA" \
-              --title "AltaPlay Launcher v0.2 Preview" \
-              --notes "Android TV preview built from CleanYourTV with SatNova ZEN 4 controls. Test as app first; do not disable the stock launcher. Automatic HDMI remote forwarding and official adhan need real hardware verification." \
+              --title "AltaPlay Launcher v0.3 Preview" \
+              --notes "Android TV preview built from CleanYourTV with SatNova ZEN 4 controls. Test as app first; do not disable the stock launcher. Official Habous timetable is validated by date and city and cached locally. Open-Meteo weather uses the selected Moroccan city. Automatic HDMI remote forwarding and audio adhan still need hardware verification." \
               --prerelease
           fi
