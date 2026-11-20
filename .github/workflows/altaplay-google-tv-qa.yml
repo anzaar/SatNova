@@ -50,7 +50,7 @@ jobs:
           ram-size: 2048M
           disable-animations: true
           emulator-boot-timeout: 900
-          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -partition-size 1536 -gpu swiftshader_indirect
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -partition-size 1536 -gpu swiftshader_indirect -partition-size 1536
           script: |
             set -euo pipefail
             mkdir -p qa-results
