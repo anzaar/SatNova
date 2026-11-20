@@ -16,8 +16,8 @@ adb shell input keyevent KEYCODE_HOME
 sleep 5
 adb exec-out screencap -p > qa-results/01-google-tv-original-home.png
 
-echo 'Installing the released AltaPlay Launcher v0.2 APK...'
-adb install -r -t qa-results/AltaPlay-Launcher-v0.2-debug.apk | tee qa-results/install.txt
+echo 'Installing the released AltaPlay Launcher v0.3 APK...'
+adb install -r -t qa-results/AltaPlay-Launcher-v0.3-debug.apk | tee qa-results/install.txt
 adb shell pm path com.altaplay.launcher | tee qa-results/package.txt
 grep -q 'package:' qa-results/package.txt
 
