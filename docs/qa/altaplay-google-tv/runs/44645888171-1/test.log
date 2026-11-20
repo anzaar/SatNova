@@ -1,0 +1,51 @@
+Google TV Android API: 34
+Android product: sdk_google_atv_amati_x86
+-- Capture 00_stock_google_tv --
+      topResumedActivity=ActivityRecord{d85dc8 u0 com.google.android.apps.tv.launcherx/.home.HomeActivity t5}
+Serving...
+All files should be loaded. Notifying the device.
+Performing Incremental Install
+Success
+Install command complete in 2114 ms
+package:/data/app/~~nWAG-cAVw--QR0lb50SZhg==/com.altaplay.launcher-Us5BGRYvp98dHwQX_xKixg==/base.apk
+Launch original Secreto MainActivity (rebranded AltaPlay) explicitly.
+Starting: Intent { cmp=com.altaplay.launcher/com.gathin.tvhome.MainActivity }
+Status: ok
+LaunchState: COLD
+Activity: com.altaplay.launcher/com.gathin.tvhome.MainActivity
+TotalTime: 2279
+WaitTime: 2302
+Complete
+-- Capture 01_altaplay_original_home --
+    topResumedActivity=ActivityRecord{e32e64a u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t6}
+D-pad app navigation
+-- Capture 02_altaplay_down_apps --
+    topResumedActivity=ActivityRecord{e32e64a u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t6}
+Test HOME assignment without disabling the stock launcher
+Success
+-- Capture 03_altaplay_after_home --
+      topResumedActivity=ActivityRecord{d85dc8 u0 com.google.android.apps.tv.launcherx/.home.HomeActivity t5}
+Open Zen 4 settings (no physical Zen receiver present)
+Starting: Intent { cmp=com.altaplay.launcher/com.satnova.alpha.AltaPlayZenActivity }
+Status: ok
+LaunchState: WARM
+Activity: com.altaplay.launcher/com.satnova.alpha.AltaPlayZenActivity
+TotalTime: 477
+WaitTime: 502
+Complete
+-- Capture 04_zen_settings_offline --
+    topResumedActivity=ActivityRecord{b3c0873 u0 com.altaplay.launcher/com.satnova.alpha.AltaPlayZenActivity t6}
+Enable ADB-assisted Accessibility on disposable test emulator only
+-- Capture 05_altaplay_overlay_offline --
+    topResumedActivity=ActivityRecord{e32e64a u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t6}
+Test GUIDE channel selection, should not affect native HOME
+-- Capture 06_guide_zen_mode --
+    topResumedActivity=ActivityRecord{e32e64a u0 com.altaplay.launcher/com.gathin.tvhome.MainActivity t6}
+-- Capture 07_home_after_guide --
+      topResumedActivity=ActivityRecord{d85dc8 u0 com.google.android.apps.tv.launcherx/.home.HomeActivity t5}
+Reboot to verify HOME survives restart (AVD only)
+-- Capture 08_home_after_reboot --
+      topResumedActivity=ActivityRecord{e0fcee1 u0 com.google.android.apps.tv.launcherx/.home.HomeActivity t4}
+RESULT: No com.altaplay.launcher process crash in crash buffer
+RESULT: Captured 9 authentic emulator screenshots.
+RESULT: Physical Zen4 channel tuning and real HDMI remote are NOT emulated.

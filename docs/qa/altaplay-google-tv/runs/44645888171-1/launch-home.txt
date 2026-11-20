@@ -1,0 +1,7 @@
+Starting: Intent { cmp=com.altaplay.launcher/com.gathin.tvhome.MainActivity }
+Status: ok
+LaunchState: COLD
+Activity: com.altaplay.launcher/com.gathin.tvhome.MainActivity
+TotalTime: 2279
+WaitTime: 2302
+Complete
