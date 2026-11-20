@@ -296,11 +296,11 @@ s=once(s,
         EditText edit=new EditText(activity);
         edit.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_SIGNED);
         int old=activity.getSharedPreferences("altaplay_zen",Context.MODE_PRIVATE)
-            .getInt("zen_audio_key",-1);
+            .getInt("zen_audio_key",54);
         edit.setText(old<0?"":String.valueOf(old));
         edit.setHint("رمز Audio الحقيقي من مستقبل Zen");
         new AlertDialog.Builder(activity).setTitle("الزر الأزرق · المسارات الصوتية")
-            .setMessage("رمز Audio مختلف بين إصدارات الأجهزة. أدخل الرمز المجرب في SatNova، بلا تخمين.")
+            .setMessage("رمز Audio الافتراضي 54 مستعمل في أجهزة G-MScreen أخرى، ومازال خاصو تجربة على Zen 4. تقدر تبدلو أو تعطلو.")
             .setView(edit).setPositiveButton("حفظ",(d,w)->{
                 try{
                     int code=Integer.parseInt(edit.getText().toString().trim());
@@ -310,7 +310,7 @@ s=once(s,
                 }catch(Exception e){Toast.makeText(activity,"رمز غير صحيح",Toast.LENGTH_LONG).show();}
             }).setNeutralButton("تعطيل الصوتيات",(d,w)->
                 activity.getSharedPreferences("altaplay_zen",Context.MODE_PRIVATE)
-                    .edit().remove("zen_audio_key").apply())
+                    .edit().putInt("zen_audio_key",-1).apply())
             .setNegativeButton("إلغاء",null).show();
     }
     private TextView title(String text,int size,int color){''',
