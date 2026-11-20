@@ -49,3 +49,38 @@ else
   echo 'BUNDLED LOGO CACHE:'; cat qa-results/zen-logo-files.txt || true
   echo 'UI TEXT SAMPLE:'; grep -o -E '.{0,60}(Al Aoula|MBC|شعار القناة).{0,90}' qa-results/zen-connected-window.xml | head -8 || true
 fi
+
+# New regression: selecting an ungrouped real channel must actually emit
+# request 1000 to the simulated Zen receiver BEFORE HDMI is opened.
+# The v0.9 QA asserted only that HDMI input picker had disappeared.
+python3 - <<'PY'
+import xml.etree.ElementTree as E
+import re,subprocess
+from pathlib import Path
+nodes=E.parse("qa-results/zen-connected-window.xml").getroot().findall(".//node")
+target=None
+for node in nodes:
+    if node.get("clickable")!="true" or "Arryadia" not in node.get("content-desc",""):
+        continue
+    m=re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",node.get("bounds",""))
+    if not m:continue
+    x1,y1,x2,y2=map(int,m.groups())
+    if x2>x1 and y2>y1:
+        target=((x1+x2)//2,(y1+y2)//2)
+        break
+if not target:raise SystemExit("FAIL: no visible Arryadia channel tile to tap")
+subprocess.run(["adb","shell","input","tap",str(target[0]),str(target[1])],check=True)
+print("TAPPED real channel tile Arryadia",target)
+PY
+sleep 2
+adb exec-out screencap -p > qa-results/10-v010-tune-before-hdmi.png
+adb logcat -d -s AltaPlayZenTune:I > qa-results/v010-tune-logcat.txt || true
+if ! grep -Fq 'request 1000' qa-results/zen-qa-server.log; then
+  echo 'FAIL: channel click opened HDMI UI without sending request 1000 to receiver' | tee -a qa-results/qa-summary.txt
+  exit 3
+fi
+if ! grep -Fq 'request1000 written' qa-results/v010-tune-logcat.txt; then
+  echo 'FAIL: channel tune write not confirmed by application debug trace' | tee -a qa-results/qa-summary.txt
+  exit 3
+fi
+echo 'PASS: physical button tap on connected simulated Zen channel sent request1000 before switching HDMI' | tee -a qa-results/qa-summary.txt
