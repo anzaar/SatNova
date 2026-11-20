@@ -98,6 +98,39 @@ jobs:
           assert 'weatherText.setOnLongClickListener' in ui
           print("PASS: original Zen panel intact and weather error goes through Arabic-only localization")
           PY
+      - name: Apply v0.8 complete TV remote + prayer + logos integration
+        run: python3 altaplay-launcher/v0.8/apply_v08.py upstream
+      - name: Build verified external channel-logo URL index
+        run: python3 altaplay-launcher/v0.8/prepare_online_logo_index.py
+      - name: Test next Moroccan prayer and editable approximate Hijri
+        run: |
+          mkdir -p /tmp/altaplay-v08-tests
+          javac -encoding UTF-8 -d /tmp/altaplay-v08-tests \
+            altaplay-launcher/v0.8/java/NextPrayer.java \
+            altaplay-launcher/v0.8/java/MoroccanHijri.java \
+            altaplay-launcher/v0.8/tests/NextPrayerTest.java
+          java -cp /tmp/altaplay-v08-tests com.gathin.tvhome.NextPrayerTest
+      - name: Verify HDMI opt-in only, red/menu yellow/back blue/audio configurable and green/Shahid
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          base=Path("upstream/launcher/app/src/main")
+          remote=(base/"java/com/gathin/tvhome/AltaPlayRemoteKeys.java").read_text()
+          service=(base/"java/com/gathin/tvhome/AltaPlayHdmiRemoteService.java").read_text()
+          main=(base/"java/com/gathin/tvhome/MainActivity.java").read_text()
+          panel=(base/"java/com/gathin/tvhome/AltaPlayZenPanel.java").read_text()
+          assert "KEYCODE_PROG_GREEN" in remote and "shahid://" in remote
+          assert "KEYCODE_PROG_YELLOW" in remote and "KEYCODE_PROG_RED" in remote
+          assert 'getInt("zen_audio_key",-1)' in remote
+          assert 'expected.equals(activePackage)' in service and 'hdmi_remote_enabled' in service
+          assert 'if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) return AltaPlayZenPanel.focusTvRow(this);' in main
+          assert 'channelRow.setClipChildren(true)' in panel
+          assert 'AltaPlayOnlineLogos.fetchForVisible' in panel
+          assert 'MoroccanHijri.display' in panel
+          assert 'NextPrayer.display' in panel
+          assert (base/"assets/altaplay_logo_urls.tsv").stat().st_size>300
+          print("PASS v0.8: receiver key-code safety, HDMI package permission gate, DPAD channel focus, Hijri, tomorrow prayer and remote artwork")
+          PY
       - name: Bundle verified broadcaster logo PNGs for offline TV cards
         shell: bash
         run: python3 altaplay-launcher/v0.6/prepare_logos.py
@@ -143,20 +176,20 @@ jobs:
       - name: Stage APK
         run: |
           mkdir -p dist
-          cp upstream/launcher/app/build/outputs/apk/debug/app-debug.apk dist/AltaPlay-Launcher-v0.7-debug.apk
+          cp upstream/launcher/app/build/outputs/apk/debug/app-debug.apk dist/AltaPlay-Launcher-v0.8-debug.apk
           sha256sum dist/*.apk
       - name: Publish private GitHub prerelease APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="altaplay-launcher-v0.7.0-preview"
-          ASSET="dist/AltaPlay-Launcher-v0.7-debug.apk"
+          TAG="altaplay-launcher-v0.8.0-preview"
+          ASSET="dist/AltaPlay-Launcher-v0.8-debug.apk"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ASSET" --clobber
           else
             gh release create "$TAG" "$ASSET" \
               --target "$GITHUB_SHA" \
-              --title "AltaPlay Launcher v0.7 Preview" \
-              --notes "Android TV preview built from CleanYourTV with SatNova ZEN 4 controls. Test as app first; do not disable the stock launcher. Official certified monthly Habous timetable, shared Open-Meteo; Arabic ambient UI with nonoverlapping single app row and actual Zen channel cards. Includes curated broadcaster logos as PNGs with precise normalized channel-name matching, Moroccan clock/date + official prayer timetable, real channel IDs from connected hardware (demo only uses verified DVB SIDs), no fabricated EPG. Keeps stock HOME untouched. Open-Meteo weather for the selected Moroccan city with entirely Arabic network error text, bounded network retries and last 12h valid cache. Automatic HDMI remote forwarding and audio adhan still need hardware verification." \
+              --title "AltaPlay Launcher v0.8 Preview" \
+              --notes "Android TV preview built from CleanYourTV with SatNova ZEN 4 controls. Test as app first; do not disable the stock launcher. Official certified monthly Habous timetable, shared Open-Meteo; Arabic ambient UI with nonoverlapping single app row and actual Zen channel cards. Includes curated broadcaster logos as PNGs with precise normalized channel-name matching, Moroccan clock/date + official prayer timetable, real channel IDs from connected hardware (demo only uses verified DVB SIDs), no fabricated EPG. Keeps stock HOME untouched. Open-Meteo Arabic weather with stale-cache protection; v0.8 fixes channel DPAD, real remote broadcaster logo index with offline caching, next Habous prayer with tomorrow's Fajr, adjustable approximate Morocco Hijri under Gregorian, Shahid green key and opt-in HDMI package-scoped remote. Blue audio command is intentionally left unconfigured until tested on real receiver. Automatic HDMI remote forwarding and audio adhan still need hardware verification." \
               --prerelease
           fi
