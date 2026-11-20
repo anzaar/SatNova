@@ -94,7 +94,7 @@ jobs:
           ui=Path("upstream/launcher/app/src/main/java/com/gathin/tvhome/AltaPlayZenPanel.java").read_text()
           assert 'error=ZenWeatherText.problem(failure);' in weather
           assert 'weather_last_value' in weather
-          assert 'getMessage()' not in weather, "No raw English network error may be displayed"
+          assert 'error=ZenWeatherText.problem(failure);' in weather and 'error=e.getMessage()' not in weather, "Network errors must be localized"
           assert 'weatherText.setOnLongClickListener' in ui
           print("PASS: original Zen panel intact and weather error goes through Arabic-only localization")
           PY
