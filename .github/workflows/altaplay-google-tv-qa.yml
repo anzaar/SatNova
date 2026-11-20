@@ -10,6 +10,7 @@ on:
       - '.github/qa/connected_zen_test.sh'
       - '.github/qa/validate_layout.py'
       - '.github/qa/check_weather_ui.py'
+      - '.github/qa/v08_focus_test.sh'
   workflow_dispatch:
 concurrency:
   group: altaplay-cleanyourtv-google-tv-qa-${{ github.ref }}
@@ -23,17 +24,17 @@ jobs:
     steps:
       - name: Checkout branch
         uses: actions/checkout@v4
-      - name: Retrieve exact released AltaPlay v0.7 APK
+      - name: Retrieve exact released AltaPlay v0.8 APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p qa-results
-          gh release download altaplay-launcher-v0.7.0-preview --repo "${GITHUB_REPOSITORY}" --pattern 'AltaPlay-Launcher-v0.7-debug.apk' --dir qa-results
+          gh release download altaplay-launcher-v0.8.0-preview --repo "${GITHUB_REPOSITORY}" --pattern 'AltaPlay-Launcher-v0.8-debug.apk' --dir qa-results
           sha256sum qa-results/*.apk | tee qa-results/apk-sha256.txt
-      - name: Verify v0.7 final built APK checksum from successful build 44726775258
+      - name: Verify exact v0.8 APK hash from successful build 44760262529
         shell: bash
         run: |
-          echo '15d0e7620e671578555e3aa55c03b54a6b42733a5b0635f06cebc05285200bd0  qa-results/AltaPlay-Launcher-v0.7-debug.apk' | sha256sum -c -
+          echo '70fa57f8d5c0d4e3ac041fe4c8f98dfb80ffc2dad7842a3462fe00e9b40c8a93  qa-results/AltaPlay-Launcher-v0.8-debug.apk' | sha256sum -c -
       - name: Probe live official Habous city page and Open-Meteo sources
         shell: bash
         continue-on-error: true
@@ -62,11 +63,11 @@ jobs:
                 else: print("Sample:",body[:220])
             except Exception as exc:print(name,"ERROR",type(exc).__name__,str(exc)[:160])
           PY
-      - name: Point Google TV smoke test at the verified v0.6 release
+      - name: Point Google TV smoke test at the verified v0.8 release
         shell: bash
         run: |
-          sed -i 's/AltaPlay-Launcher-v0.3-debug.apk/AltaPlay-Launcher-v0.7-debug.apk/g' altaplay-launcher/qa/google-tv-smoke.sh
-          grep -Fq 'AltaPlay-Launcher-v0.7-debug.apk' altaplay-launcher/qa/google-tv-smoke.sh
+          sed -i 's/AltaPlay-Launcher-v0.3-debug.apk/AltaPlay-Launcher-v0.8-debug.apk/g' altaplay-launcher/qa/google-tv-smoke.sh
+          grep -Fq 'AltaPlay-Launcher-v0.8-debug.apk' altaplay-launcher/qa/google-tv-smoke.sh
       - name: Free only disposable runner toolchains and enable KVM
         shell: bash
         run: |
@@ -93,11 +94,26 @@ jobs:
           disable-animations: true
           emulator-boot-timeout: 900
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -partition-size 1536 -gpu swiftshader_indirect -partition-size 1536
-          script: bash altaplay-launcher/qa/google-tv-smoke.sh && bash .github/qa/connected_zen_test.sh
+          script: bash altaplay-launcher/qa/google-tv-smoke.sh && bash .github/qa/connected_zen_test.sh && bash .github/qa/v08_focus_test.sh
       - name: Verify clock and app selection geometry, with Arabic date and real logo controls
         if: always()
         run: |
           python3 .github/qa/validate_layout.py qa-results/zen-connected-window.xml | tee qa-results/layout-geometry.txt
+      - name: Confirm next prayer and Hijri appear in real UI
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          p=Path("qa-results/zen-connected-window.xml")
+          if not p.exists():raise SystemExit("FAIL: missing launcher UI hierarchy")
+          nodes=ET.parse(p).getroot().findall(".//node")
+          texts="\n".join(n.get("text","") for n in nodes)
+          assert "هـ" in texts, "Hijri date absent from Moroccan date header"
+          assert any(k in texts for k in ("الفجر","الظهر","العصر","المغرب","العشاء")), "No next prayer found in header"
+          assert "تقديري" in texts, "Hijri must be labelled estimated"
+          print("PASS: next actual prayer and approximate editable Hijri visible in Google TV")
+          PY
       - name: Confirm weather messages stay Arabic in real Google TV UI
         if: always()
         shell: bash
@@ -133,5 +149,5 @@ jobs:
           else
             echo 'No emulator screenshots produced; inspect boot failure logs.'
           fi
-          (cd qa-results && zip -q -r ../AltaPlay-v0.7-GoogleTV-API34-QA.zip .)
-          gh release upload altaplay-launcher-v0.7.0-preview AltaPlay-v0.7-GoogleTV-API34-QA.zip --clobber --repo "${GITHUB_REPOSITORY}"
+          (cd qa-results && zip -q -r ../AltaPlay-v0.8-GoogleTV-API34-QA.zip .)
+          gh release upload altaplay-launcher-v0.8.0-preview AltaPlay-v0.8-GoogleTV-API34-QA.zip --clobber --repo "${GITHUB_REPOSITORY}"
