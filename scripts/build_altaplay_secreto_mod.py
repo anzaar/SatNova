@@ -73,6 +73,26 @@ def patch(decoded: Path, repository: Path) -> None:
             <meta-data android:name="android.accessibilityservice"
                 android:resource="@xml/altaplay_zen_accessibility"/>
         </service>
+        <activity android:name="com.satnova.alpha.AltaPlayIslamicImagePickerActivity"
+            android:label="AltaPlay Islamic wallpaper"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.OPEN_DOCUMENT"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.OPENABLE"/>
+                <data android:mimeType="image/*"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.GET_CONTENT"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.OPENABLE"/>
+                <data android:mimeType="image/*"/>
+            </intent-filter>
+        </activity>
+        <provider android:name="com.satnova.alpha.AltaPlayIslamicWallpaperProvider"
+            android:authorities="com.altaplay.launcher.islamic"
+            android:grantUriPermissions="true"
+            android:exported="false"/>
         <activity android:name="com.satnova.alpha.AltaPlayZenActivity"
             android:label="AltaPlay · Zen 4"
             android:exported="true">

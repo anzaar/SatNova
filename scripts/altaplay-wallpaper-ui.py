@@ -152,7 +152,14 @@ def main():
     picker = click(nodes,["Choose image from device","Choose image","Import photo"])
     nodes=stage("25_device_picker_opened")
     selected=False
-    if picker:
+    # This TEST-only APK includes a self-contained file picker because the
+    # clean Android TV AVD has no DocumentsUI ("no app that can do this").
+    if click(nodes,["Use Islamic wallpaper"]):
+        selected=True
+        nodes=stage("26_islamic_import_returned")
+        if click(nodes,["Use saved selection","Apply wallpaper","Use photo","Apply"]):
+            nodes=stage("28_personal_wallpaper_applied")
+    if picker and not selected:
         for step in range(12):
             if click(nodes,["AltaPlay-Islamic.webp","AltaPlay-Islamic"]):
                 selected=True
