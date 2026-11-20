@@ -44,6 +44,46 @@ jobs:
           python3 AltaPlay-CleanYourTV-overlay/apply_overlay.py upstream
       - name: Apply v0.3 official Habous prayer and Open-Meteo city integration
         run: python3 altaplay-launcher/v0.3/apply_v03.py upstream
+      - name: Use certified Ministry monthly data and v0.4 reader
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --location --retry 3 --connect-timeout 12 \
+            https://www.habous.gov.ma/data/horaires-2026-11.js -o /tmp/habous-november-2026.js
+          echo '17f3372351fc53c1bcf22d0bb32ffee5b0e13592c8e0950b6710a5150a63c9eb  /tmp/habous-november-2026.js' | sha256sum -c -
+          python3 - <<'PY'
+          import json,pathlib
+          raw=pathlib.Path("/tmp/habous-november-2026.js").read_text(encoding="utf-8")
+          monthly=json.loads(raw[raw.index("{"):raw.rindex("}")+1])
+          assert monthly["annee"]==2026 and monthly["mois"]==11 and monthly["fuseau"]=="GMT"
+          assert len(monthly["villes"])==190
+          khemisset=next(c for c in monthly["villes"] if c["c"]==2)
+          assert khemisset["n"]=="الخميسات" and khemisset["h"][19]==["05:29","06:56","12:15","14:59","17:24","18:40"]
+          assert all(len(c["h"])==30 for c in monthly["villes"])
+          assets=pathlib.Path("upstream/launcher/app/src/main/assets")
+          assets.mkdir(parents=True,exist_ok=True)
+          (assets/"altaplay_habous_2026-11.json").write_text(json.dumps(monthly,ensure_ascii=False,separators=(',',':')),encoding="utf-8")
+          previous=json.loads((assets/"altaplay_habous_cities.json").read_text(encoding="utf-8"))
+          french={int(c["id"]):c.get("fr",c["ar"]) for c in previous["cities"]}
+          official={"source":"https://www.habous.gov.ma/data/horaires-2026-11.js",
+                  "cities":[{"id":c["c"],"ar":c["n"],"fr":french.get(c["c"],c["n"])} for c in monthly["villes"]]}
+          (assets/"altaplay_habous_cities.json").write_text(json.dumps(official,ensure_ascii=False),encoding="utf-8")
+          print("PACKAGED: certified official data (190 cities, 30 days), November 2026, including 20 Nov Khemisset")
+          PY
+          cp altaplay-launcher/v0.4/java/HabousPrayerSchedule.java \
+            upstream/launcher/app/src/main/java/com/gathin/tvhome/HabousPrayerSchedule.java
+          cp altaplay-launcher/v0.4/java/HabousMonthlyParser.java \
+            upstream/launcher/app/src/main/java/com/gathin/tvhome/HabousMonthlyParser.java
+      - name: Test exact Ministry published daily values
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/altaplay-habous-v04
+          javac -encoding UTF-8 -d /tmp/altaplay-habous-v04 \
+            altaplay-launcher/v0.4/java/HabousMonthlyParser.java \
+            altaplay-launcher/v0.4/tests/HabousMonthlyParserTest.java
+          java -cp /tmp/altaplay-habous-v04 com.gathin.tvhome.HabousMonthlyParserTest \
+            /tmp/habous-november-2026.js
       - name: Verify official Habous table parser without Android
         run: |
           mkdir -p /tmp/habous-tests
@@ -61,20 +101,20 @@ jobs:
       - name: Stage APK
         run: |
           mkdir -p dist
-          cp upstream/launcher/app/build/outputs/apk/debug/app-debug.apk dist/AltaPlay-Launcher-v0.3-debug.apk
+          cp upstream/launcher/app/build/outputs/apk/debug/app-debug.apk dist/AltaPlay-Launcher-v0.4-debug.apk
           sha256sum dist/*.apk
       - name: Publish private GitHub prerelease APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="altaplay-launcher-v0.3.0-preview"
-          ASSET="dist/AltaPlay-Launcher-v0.3-debug.apk"
+          TAG="altaplay-launcher-v0.4.0-preview"
+          ASSET="dist/AltaPlay-Launcher-v0.4-debug.apk"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ASSET" --clobber
           else
             gh release create "$TAG" "$ASSET" \
               --target "$GITHUB_SHA" \
-              --title "AltaPlay Launcher v0.3 Preview" \
-              --notes "Android TV preview built from CleanYourTV with SatNova ZEN 4 controls. Test as app first; do not disable the stock launcher. Official Habous timetable is validated by date and city and cached locally. Open-Meteo weather uses the selected Moroccan city. Automatic HDMI remote forwarding and audio adhan still need hardware verification." \
+              --title "AltaPlay Launcher v0.4 Preview" \
+              --notes "Android TV preview built from CleanYourTV with SatNova ZEN 4 controls. Test as app first; do not disable the stock launcher. Certified www.habous.gov.ma monthly dataset shipped offline for November 2026, HTTPS automatic updates, 190 official cities; source SHA-256 pinned. Open-Meteo weather uses the selected Moroccan city. Automatic HDMI remote forwarding and audio adhan still need hardware verification." \
               --prerelease
           fi
