@@ -1,4 +1,4 @@
-name: AltaPlay v0.7 real screenshot visual inspection
+name: AltaPlay v0.8 real screenshot visual inspection
 on:
   push:
     branches: [feature/altaplay-launcher-cleanyourtv-build]
@@ -10,15 +10,32 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 8
     steps:
-      - name: Fetch verified v0.7 Google TV screenshots
+      - name: Fetch verified v0.8 Google TV screenshots
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p preview
-          gh release download altaplay-launcher-v0.7.0-preview --repo "${GITHUB_REPOSITORY}" \
-            --pattern 'AltaPlay-v0.7-GoogleTV-API34-QA.zip' --dir preview
-          unzip -qq preview/AltaPlay-v0.7-GoogleTV-API34-QA.zip -d preview/images
+          gh release download altaplay-launcher-v0.8.0-preview --repo "${GITHUB_REPOSITORY}" \
+            --pattern 'AltaPlay-v0.8-GoogleTV-API34-QA.zip' --dir preview
+          unzip -qq preview/AltaPlay-v0.8-GoogleTV-API34-QA.zip -d preview/images
           find preview/images -maxdepth 2 -type f -printf '%p %s bytes\n' | head -35
+      - name: Diagnose actual AVD focused view ancestors before and after DOWN
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as E
+          for fn in ("v08-before.xml","v08-after-down.xml","v08-radio.xml","v08-return-apps.xml"):
+            p=Path("preview/images")/fn
+            if not p.exists():continue
+            root=E.parse(p).getroot()
+            def visit(n,path):
+              label=(n.get("class","")+" id="+n.get("resource-id","")+" text="+n.get("text","")[:80]+" desc="+n.get("content-desc","")[:70]+" bounds="+n.get("bounds",""))
+              here=path+[label]
+              if n.get("focused")=="true":
+                print("FOCUS",fn,"\n" + "\n".join(here[-12:]))
+              for child in n:visit(child,here)
+            visit(root,[])
+          PY
       - name: Prepare compact image previews for direct visual inspection
         shell: bash
         run: |
