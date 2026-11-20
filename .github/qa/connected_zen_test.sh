@@ -79,6 +79,10 @@ if ! grep -Fq 'request 1000' qa-results/zen-qa-server.log; then
   echo 'FAIL: channel click opened HDMI UI without sending request 1000 to receiver' | tee -a qa-results/qa-summary.txt
   exit 3
 fi
+if ! grep -Fq 'tune target 13 state 0' qa-results/zen-qa-server.log; then
+  echo 'FAIL: transmitted wrong identifier; receiver requires ProgramId=13 for QA Arryadia' | tee -a qa-results/qa-summary.txt
+  exit 3
+fi
 if ! grep -Fq 'request1000 written' qa-results/v010-tune-logcat.txt; then
   echo 'FAIL: channel tune write not confirmed by application debug trace' | tee -a qa-results/qa-summary.txt
   exit 3
