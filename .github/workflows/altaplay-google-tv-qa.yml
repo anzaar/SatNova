@@ -29,6 +29,10 @@ jobs:
           mkdir -p qa-results
           gh release download altaplay-launcher-v0.6.0-preview --repo "${GITHUB_REPOSITORY}" --pattern 'AltaPlay-Launcher-v0.6-debug.apk' --dir qa-results
           sha256sum qa-results/*.apk | tee qa-results/apk-sha256.txt
+      - name: Verify final built APK checksum from successful build 44678824749
+        shell: bash
+        run: |
+          echo 'a2357b16bbd24a1d91e3c4c1a08e1b4e2bf3393c8eefff1c2abc55be52282c22  qa-results/AltaPlay-Launcher-v0.6-debug.apk' | sha256sum -c -
       - name: Probe live official Habous city page and Open-Meteo sources
         shell: bash
         continue-on-error: true
