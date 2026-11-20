@@ -91,7 +91,7 @@ jobs:
           assert '<bool name="single_row">true</bool>' in cfg
           assert '<bool name="dock_title">false</bool>' in cfg
           assert '<bool name="dock_band_all">true</bool>' in cfg
-          assert 'new LinearLayout.LayoutParams(-1,dp(242))' in j
+          assert 'new LinearLayout.LayoutParams(-1,dp(211))' in j
           logos=list(Path("upstream/launcher/app/src/main/assets/altaplay_channel_logos").glob("*.png"))
           assert len(logos)>=3
           print("PASS single app row, no floating hero, measured full panel and",len(logos),"real logo images")
