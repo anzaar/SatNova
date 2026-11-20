@@ -152,6 +152,12 @@ def main():
     picker = click(nodes,["Choose image from device","Choose image","Import photo"])
     nodes=stage("25_device_picker_opened")
     selected=False
+    # Emulator has an internal Activity Stub, so Android first shows its
+    # intent chooser. Select our own legitimate test photo-picker handler.
+    if click(nodes,["AltaPlay Islamic wallpaper"]):
+        nodes=stage("25_altaplay_handler_chosen")
+        if click(nodes,["Just once","Always"]):
+            nodes=stage("25_altaplay_picker_dialog")
     # This TEST-only APK includes a self-contained file picker because the
     # clean Android TV AVD has no DocumentsUI ("no app that can do this").
     if click(nodes,["Use Islamic wallpaper"]):
