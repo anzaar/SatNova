@@ -24,11 +24,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
       - name: Install Android 34 platform
         run: |
-          sdkmanager --install 'platforms;android-34' 'build-tools;34.0.0'
+          SDK_MANAGER="${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools/16.0/bin/sdkmanager"
+          "$SDK_MANAGER" --install 'platforms;android-34' 'build-tools;34.0.0'
       - name: Download CleanYourTV upstream source
         run: git clone --depth 1 https://github.com/Gathin23/cleanyourtv.git upstream
       - name: Apply AltaPlay source overlay
