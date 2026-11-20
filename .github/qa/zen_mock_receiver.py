@@ -83,9 +83,18 @@ def serve(sock):
         elif kind==19:
             respond(sock,kind,{"array":[{"TvProgramCount":str(len(RECORDS))}]})
         elif kind==0:
-            result=[{"ProgramId":str(row["sid"]),"ServiceName":row["name"],"TvState":str(row["tv"])} for row in RECORDS]
+            # A QA-only mismatch makes it impossible for launcher to select ServiceID
+            # when ProgramId is required for actual Zen request 1000. Synthetic
+            # ServiceID is NOT any real satellite transmission identifier.
+            result=[{"ServiceID":str(row["sid"]+1000000),"ProgramId":str(row["sid"]),
+                     "ServiceName":row["name"],"TvState":str(row["tv"])} for row in RECORDS]
             respond(sock,0,{"array":result})
-        elif kind in (3,1040,1000):
+        elif kind==1000:
+            payload=json.loads(req)
+            ch=payload.get("array",[{}])[0]
+            print("tune target",ch.get("ProgramId"),"state",ch.get("TvState"),flush=True)
+            respond(sock,kind,{"array":[]})
+        elif kind in (3,1040):
             respond(sock,kind,{"array":[]})
         else:
             respond(sock,kind,{"array":[]})
