@@ -1,0 +1,4 @@
+VISUAL_CHANGE_FOUND_NOT_PROOF_OF_CORRECT_IMAGE
+Studio personal photo selected: True
+Device chooser opened: True
+Exact AltaPlay Islamic image selected: False

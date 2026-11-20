@@ -1,0 +1,3 @@
+Studio personal photo selected: True
+Device chooser opened: True
+Exact AltaPlay Islamic image selected: False
