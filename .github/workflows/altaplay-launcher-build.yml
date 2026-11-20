@@ -76,6 +76,26 @@ jobs:
             upstream/launcher/app/src/main/java/com/gathin/tvhome/HabousMonthlyParser.java
       - name: Apply v0.5 native connected Zen 4 Arabic UI
         run: python3 altaplay-launcher/v0.5/apply_v05.py upstream
+      - name: Apply v0.6 layout, Casablanca clock and real logo matcher
+        run: python3 altaplay-launcher/v0.6/apply_v06.py upstream
+      - name: Bundle verified broadcaster logo PNGs for offline TV cards
+        shell: bash
+        run: python3 altaplay-launcher/v0.6/prepare_logos.py
+      - name: Verify logo assets and no fabricated demo channel names in actual APK source
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          j=Path("upstream/launcher/app/src/main/java/com/gathin/tvhome/AltaPlayZenPanel.java").read_text()
+          assert "zen_mock_receiver" not in j and "قناة تجريبية" not in j
+          cfg=Path("upstream/launcher/app/src/main/res/values/config.xml").read_text()
+          assert '<bool name="single_row">true</bool>' in cfg
+          assert '<bool name="dock_title">false</bool>' in cfg
+          assert '<bool name="dock_band_all">true</bool>' in cfg
+          assert 'new LinearLayout.LayoutParams(-1,dp(242))' in j
+          logos=list(Path("upstream/launcher/app/src/main/assets/altaplay_channel_logos").glob("*.png"))
+          assert len(logos)>=3
+          print("PASS single app row, no floating hero, measured full panel and",len(logos),"real logo images")
+          PY
       - name: Test exact Ministry published daily values
         shell: bash
         run: |
@@ -103,20 +123,20 @@ jobs:
       - name: Stage APK
         run: |
           mkdir -p dist
-          cp upstream/launcher/app/build/outputs/apk/debug/app-debug.apk dist/AltaPlay-Launcher-v0.5-debug.apk
+          cp upstream/launcher/app/build/outputs/apk/debug/app-debug.apk dist/AltaPlay-Launcher-v0.6-debug.apk
           sha256sum dist/*.apk
       - name: Publish private GitHub prerelease APK
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG="altaplay-launcher-v0.5.0-preview"
-          ASSET="dist/AltaPlay-Launcher-v0.5-debug.apk"
+          TAG="altaplay-launcher-v0.6.0-preview"
+          ASSET="dist/AltaPlay-Launcher-v0.6-debug.apk"
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$ASSET" --clobber
           else
             gh release create "$TAG" "$ASSET" \
               --target "$GITHUB_SHA" \
-              --title "AltaPlay Launcher v0.5 Preview" \
-              --notes "Android TV preview built from CleanYourTV with SatNova ZEN 4 controls. Test as app first; do not disable the stock launcher. Official certified monthly Habous timetable, shared Open-Meteo; Arabic ambient UI with Zen connection pill, real channel and radio catalogue, grouped HD/SD, no fabricated EPG. Keeps stock HOME untouched. Open-Meteo weather uses the selected Moroccan city. Automatic HDMI remote forwarding and audio adhan still need hardware verification." \
+              --title "AltaPlay Launcher v0.6 Preview" \
+              --notes "Android TV preview built from CleanYourTV with SatNova ZEN 4 controls. Test as app first; do not disable the stock launcher. Official certified monthly Habous timetable, shared Open-Meteo; Arabic ambient UI with nonoverlapping single app row and actual Zen channel cards. Includes curated broadcaster logos as PNGs with precise normalized channel-name matching, Moroccan clock/date + official prayer timetable, real channel IDs from connected hardware (demo only uses verified DVB SIDs), no fabricated EPG. Keeps stock HOME untouched. Open-Meteo weather uses the selected Moroccan city. Automatic HDMI remote forwarding and audio adhan still need hardware verification." \
               --prerelease
           fi
