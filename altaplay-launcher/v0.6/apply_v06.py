@@ -42,12 +42,38 @@ s=once(s,
         selectedApp.setEllipsize(TextUtils.TruncateAt.END);
         selectedApp.setPadding(dp(14),0,0,0);
         shell.addView(selectedApp,shell.indexOfChild(wrapper),
-            new LinearLayout.LayoutParams(-1,dp(30)));""",
+            new LinearLayout.LayoutParams(-1,dp(25)));""",
     "selected app")
 s=once(s,
     "shell.addView(panel,index+1,new LinearLayout.LayoutParams(-1,dp(219)));",
-    "shell.addView(panel,index+1,new LinearLayout.LayoutParams(-1,dp(242)));",
+    "shell.addView(panel,index+1,new LinearLayout.LayoutParams(-1,dp(211)));",
     "panel height")
+# Compact internals of lower panel so BOTH TV and radio shelves fit vertically.
+# Previously their child heights exceeded panel height and clipped radio cards.
+for old,new in [
+    ('header.addView(connection,new LinearLayout.LayoutParams(0,dp(27),1));',
+     'header.addView(connection,new LinearLayout.LayoutParams(0,dp(25),1));'),
+    ('panel.addView(meta,new LinearLayout.LayoutParams(-1,dp(20)));',
+     'panel.addView(meta,new LinearLayout.LayoutParams(-1,dp(18)));'),
+    ('panel.addView(tvLabel,new LinearLayout.LayoutParams(-1,dp(20)));',
+     'panel.addView(tvLabel,new LinearLayout.LayoutParams(-1,dp(16)));'),
+    ('panel.addView(scroll,new LinearLayout.LayoutParams(-1,dp(106)));',
+     'panel.addView(scroll,new LinearLayout.LayoutParams(-1,dp(87)));'),
+    ('panel.addView(radioLabel,new LinearLayout.LayoutParams(-1,dp(17)));',
+     'panel.addView(radioLabel,new LinearLayout.LayoutParams(-1,dp(16)));'),
+    ('panel.addView(radioScroll,new LinearLayout.LayoutParams(-1,dp(36)));',
+     'panel.addView(radioScroll,new LinearLayout.LayoutParams(-1,dp(34)));'),
+    ('new LinearLayout.LayoutParams(dp(119),dp(53))',
+     'new LinearLayout.LayoutParams(dp(119),dp(40))'),
+    ('new LinearLayout.LayoutParams(-1,dp(24))',
+     'new LinearLayout.LayoutParams(-1,dp(19))'),
+    ('new LinearLayout.LayoutParams(-1,dp(15))',
+     'new LinearLayout.LayoutParams(-1,dp(13))'),
+    ('radio?dp(31):dp(103)',
+     'radio?dp(31):dp(82)'),
+]:
+    if old not in s:raise RuntimeError("Missing compact panel anchor "+old)
+    s=s.replace(old,new)
 start=s.index("        TextClock date=activity.findViewById(R.id.date);")
 end=s.index("\n        TextView originalWifi=",start)
 if start<0 or end<0: raise RuntimeError("header placement anchors changed")
@@ -154,6 +180,35 @@ s=once(s,
             ((TextView)altaplaySelected).setText(adapter.labelAt(position));
         }""",
     "selected app dynamic title")
+# CleanYourTV pads a single row by 29dp to accommodate its floating hero.
+# AltaPlay uses a separate measured 25dp selected-app label instead.
+s=main.read_text(encoding="utf-8")
+s=once(s,
+    'if (singleRow && !cfg.alwaysShowNames) want += (int) (29 * density);',
+    'if (singleRow && !cfg.alwaysShowNames) want += (int) (4 * density);',
+    "remove former floating-hero padding")
+main.write_text(s,encoding="utf-8")
+
+# A single row never needs the invisible 22dp label under each tile.
+# Make its cells fit the measured grid height, including at TV 720p.
+adapter=java/"AppAdapter.java"
+s=adapter.read_text(encoding="utf-8")
+s=once(s,'static final float ITEM_EXTRA_DP = 45;',
+    'static final float ITEM_EXTRA_DP = 15;', 'tile extras')
+s=once(s,
+    'h.name.setVisibility(dockKind && restNameAlpha == 0f ? View.INVISIBLE : View.VISIBLE);',
+    'h.name.setVisibility(singleRow && restNameAlpha == 0f ? View.GONE : (dockKind && restNameAlpha == 0f ? View.INVISIBLE : View.VISIBLE));',
+    "hide single row phantom labels")
+key='int w = tileWidthPx(innerWidthPx, columns, density);'
+replace='''int w = tileWidthPx(innerWidthPx, columns, density);
+        if(gridHeightPx>0 && rowsBelowDock==0 && !dockTitle && dockRow){
+            // Actual screen-space cap instead of clipping the app cards.
+            float freeHeight=gridHeightPx/density-ITEM_EXTRA_DP-DOCK_EXTRA_DP-7f;
+            int byHeight=Math.round(freeHeight * DESIGN_W_DP / DESIGN_H_DP * density);
+            w=Math.max(Math.round(80*density),Math.min(w,byHeight));
+        }'''
+s=once(s,key,replace,"responsive dock sizing")
+adapter.write_text(s,encoding="utf-8")
 main.write_text(s,encoding="utf-8")
 
 s=config.read_text(encoding="utf-8")
