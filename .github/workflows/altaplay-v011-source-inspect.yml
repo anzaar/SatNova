@@ -1,0 +1,26 @@
+name: AltaPlay v0.11 Source Diagnostic
+on:
+  push:
+    branches:
+      - feature/altaplay-v011-ui-zen-reconnect-20261121
+    paths:
+      - .github/workflows/altaplay-v011-source-inspect.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract base Zen client for reconnect analysis
+        run: |
+          python3 - <<'PY'
+          import base64,zipfile,io,pathlib
+          raw=base64.b64decode(''.join(pathlib.Path('altaplay-launcher/overlay-v0.1.zip.base64.txt').read_text().split()))
+          with zipfile.ZipFile(io.BytesIO(raw)) as z:
+              for p in ['AltaPlay-CleanYourTV-overlay/overlay/java/com/gathin/tvhome/ZenClient.java','AltaPlay-CleanYourTV-overlay/overlay/java/com/gathin/tvhome/ZenProtocol.java']:
+                  print('\n====== '+p+' ======')
+                  for i,line in enumerate(z.read(p).decode().splitlines(),1):
+                      print(f'{i:04} {line}')
+          PY
