@@ -57,8 +57,13 @@ wizard.write_text(s,encoding="utf8")
 
 s=panel.read_text(encoding="utf8")
 start=s.index("    private void configureRemote(){")
-end=s.index("    private TextView title(",start)
-if start<0 or end<=start:raise RuntimeError("Cannot isolate legacy ADB configuration")
+# Replace only this method; later patches add configureHijri() and other
+# methods between configureRemote() and title(). Never swallow those methods.
+import re
+endmatch=re.search(r"(?m)^    }\n",s[start:])
+if endmatch is None:raise RuntimeError("Cannot find configureRemote closing brace")
+end=start+endmatch.end()
+if end<=start:raise RuntimeError("Invalid configureRemote bounds")
 s=s[:start]+'''    private void configureRemote(){
         // No ADB, no Android package names typed by the customer.
         // Show only OS-discovered TV HDMI viewer candidates and require
