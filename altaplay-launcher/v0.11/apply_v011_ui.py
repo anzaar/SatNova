@@ -52,8 +52,10 @@ once('if(clock!=null)clock.setTimeZone(MOROCCO.getId());',
 once('if(ampm!=null)ampm.setTimeZone(MOROCCO.getId());',
      'if(ampm!=null)ampm.setTimeZone(null);',"ampm follows system")
 s=s.replace("LocalDate.now(MOROCCO)", "LocalDate.now()")  # Gregorian + Hijri calendar date follows system
-once('greetingForHour(LocalTime.now(MOROCCO).getHour())',
-     'greetingForHour(LocalTime.now().getHour())',"greeting local clock")
+count=s.count('greetingForHour(LocalTime.now(MOROCCO).getHour())')
+if count!=2: raise RuntimeError("unexpected greeting call count "+str(count))
+s=s.replace('greetingForHour(LocalTime.now(MOROCCO).getHour())',
+            'greetingForHour(LocalTime.now().getHour())')
 # Keep Hijri and prayer timetable for the selected Morocco city.
 # Date language follows user's chosen language if selected.
 once('DateTimeFormatter.ofPattern("EEEE، d MMMM",AR_MA)',
