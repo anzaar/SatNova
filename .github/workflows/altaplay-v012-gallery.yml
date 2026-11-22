@@ -2,7 +2,7 @@ name: AltaPlay v0.12 Full Screenshot Gallery
 on:
   push:
     branches:
-      - feature/altaplay-v012-ui-zen-reconnect-20261121
+      - feature/altaplay-v012-multilingual-safe-ui-20261122
     paths:
       - '.github/workflows/altaplay-v012-gallery.yml'
       - '.github/qa/v012_capture_screens.py'
