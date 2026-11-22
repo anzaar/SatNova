@@ -129,7 +129,8 @@ def png(path,r,g,b):
 REPORT.append("Emulator model: "+adb("shell","getprop","ro.product.model").strip())
 REPORT.append("TV version: "+adb("shell","getprop","ro.build.version.release").strip())
 apk="qa-results/AltaPlay-Launcher-v0.12-debug.apk"
-REPORT.append("INSTALL: "+adb("install","-r","-t",apk,timeout=90).strip())
+install_output=adb("install","-r","-t",apk,timeout=90).strip()
+REPORT.append("INSTALL: Success" if re.search(r"(?m)^Success\\s*$",install_output) else "INSTALL: FAIL "+install_output.replace("\\n"," | "))
 launch()
 shot("01-offline-home-default-wallpaper")
 root=tree("01-offline-ui")
