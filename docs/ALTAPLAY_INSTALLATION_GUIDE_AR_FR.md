@@ -31,7 +31,7 @@ Les réglages disponibles dans l'écran du lanceur comprennent :
 Le menu principal donne aussi accès aux paramètres système, à la langue et aux réglages Zen 4. Les réglages Android (Wi-Fi, HOME et Accessibilité) restent gérés par Android.
 
 ### 4. Zen 4
-Dans **Paramètres > Réglages Zen 4**, l'utilisateur peut consulter le diagnostic, relancer la connexion, lancer une recherche sur le réseau local, saisir une adresse IP de secours, actualiser les chaînes et accéder aux réglages de télécommande. La perte de connexion ne doit pas effacer les chaînes, favoris ou logos en cache.
+Dans **Paramètres > Réglages Zen 4**, l'utilisateur peut consulter le diagnostic, relancer la connexion, lancer une recherche sur le réseau local, saisir une adresse IP de secours, actualiser les chaînes et accéder aux réglages de télécommande. Pour personnaliser une chaîne, maintenir OK sur sa vignette : renommer, importer un logo par URL/FTP ou restaurer le logo automatique. Le catalogue reste celui réellement fourni par le récepteur; le launcher ne crée pas de faux identifiant de chaîne. La perte de connexion ne doit pas effacer les chaînes, favoris ou logos en cache.
 
 ### 5. Sécurité et retour arrière
 - AltaPlay ne désactive pas Google TV et ne force pas le rôle HOME.
@@ -70,7 +70,7 @@ Dans **Paramètres > Réglages Zen 4**, l'utilisateur peut consulter le diagnost
 يمكن من القائمة نفسها الوصول إلى إعدادات النظام واللغة وإعدادات Zen 4. إعدادات Wi-Fi وHOME وإمكانية الوصول تبقى تحت تحكم Android.
 
 ### 4. إعداد جهاز Zen 4
-من **الإعدادات > إعدادات Zen 4** يمكن عرض تشخيص الاتصال، إعادة الاتصال، البحث التلقائي داخل الشبكة المحلية، إدخال IP احتياطي، تحديث القنوات وفتح إعدادات التيليكوموند. انقطاع الاتصال لا ينبغي أن يمسح القنوات أو المفضلة أو الشعارات المحفوظة.
+من **الإعدادات > إعدادات Zen 4** يمكن عرض تشخيص الاتصال، إعادة الاتصال، البحث التلقائي داخل الشبكة المحلية، إدخال IP احتياطي، تحديث القنوات وفتح إعدادات التيليكوموند. لتخصيص قناة، اضغط مطولاً على OK فوق بطاقتها: تغيير الاسم، إضافة لوغو عبر رابط URL/FTP، أو استرجاع اللوغو التلقائي. لائحة القنوات مصدرها جهاز الاستقبال نفسه؛ لا ينشئ اللانشر رقماً وهمياً لقناة غير موجودة في قائمته. انقطاع الاتصال لا ينبغي أن يمسح القنوات أو المفضلة أو الشعارات المحفوظة.
 
 ### 5. السلامة والرجوع
 - لا يعطّل AltaPlay واجهة Google TV ولا يفرض HOME دون موافقة.
