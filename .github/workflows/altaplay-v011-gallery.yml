@@ -1,0 +1,65 @@
+name: AltaPlay v0.11 Full Screenshot Gallery
+on:
+  push:
+    branches:
+      - feature/altaplay-v011-ui-zen-reconnect-20261121
+    paths:
+      - '.github/workflows/altaplay-v011-gallery.yml'
+      - '.github/qa/v011_capture_screens.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  screenshot-gallery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 38
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact tested AltaPlay v0.11 release APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p qa-results
+          gh release download altaplay-launcher-v0.11.0-preview --repo "${GITHUB_REPOSITORY}" --pattern 'AltaPlay-Launcher-v0.11-debug.apk' --dir qa-results
+          sha256sum qa-results/*.apk
+      - name: Prepare Google TV emulator
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /opt/hostedtoolcache/CodeQL /usr/local/lib/android/sdk/ndk /usr/local/lib/android/sdk/cmake /usr/local/share/powershell || true
+          sudo apt-get clean
+          if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+      - name: Capture actual screenshot gallery on Google TV 14
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google-tv
+          arch: x86
+          profile: tv_1080p
+          cores: 2
+          disk-size: 1536M
+          ram-size: 2048M
+          disable-animations: true
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -partition-size 1536 -gpu swiftshader_indirect
+          script: python3 .github/qa/v011_capture_screens.py
+      - name: Confirm capture files and failures
+        if: always()
+        run: |
+          ls -lah qa-results/v011-gallery || true
+          cat qa-results/v011-gallery/qa-capture-report.txt 2>/dev/null || true
+          python3 - <<'PY'
+          from pathlib import Path
+          path=Path('qa-results/v011-gallery')
+          shots=list(path.glob('*.png'))
+          print('Real emulator screenshot count:',len(shots))
+          if len(shots)<3:
+              print('INCOMPLETE: fewer than 3 screenshots')
+          PY
+      - name: Publish gallery to AltaPlay private GitHub release
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test -d qa-results/v011-gallery || mkdir -p qa-results/v011-gallery
+          (cd qa-results && zip -q -r ../AltaPlay-v0.11-Full-GoogleTV-Screenshots.zip v011-gallery)
+          gh release upload altaplay-launcher-v0.11.0-preview AltaPlay-v0.11-Full-GoogleTV-Screenshots.zip --clobber --repo "${GITHUB_REPOSITORY}"
