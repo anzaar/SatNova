@@ -17,7 +17,11 @@ ROOT=Path("qa-results/v011-reboot-visual-audit")
 ROOT.mkdir(parents=True,exist_ok=True)
 PKG="com.altaplay.launcher"
 HOME=PKG+"/com.gathin.tvhome.MainActivity"
-GOOGLE="com.google.android.tvlauncher"
+# Google TV OEMs and the emulator expose different stock HOME packages.
+GOOGLE_PACKAGES=("com.google.android.tvlauncher","com.google.android.apps.tv.launcherx")
+def google_launcher_enabled():
+    enabled=adb("shell","pm","list","packages","-e")
+    return any(("package:"+name) in enabled for name in GOOGLE_PACKAGES)
 events=[]
 results={"purpose":"TV UI audit, Android Settings Home confirmation with stock Google Launcher enabled, then reboot",
          "qa":"emulated Google TV 14 x86 / 1080p", "sections":{},"boot_cases":{}}
@@ -284,7 +288,7 @@ def state(prefix):
         "google_enabled":adb("shell","pm","list","packages","-e"),
         "packages_disabled":adb("shell","pm","list","packages","-d"),
         "altaplay_process":adb("shell","pidof",PKG),
-        "receiver_process":adb("shell","pidof",GOOGLE),
+        "receiver_process":" | ".join(adb("shell","pidof",name).strip() for name in GOOGLE_PACKAGES),
         "boot_uptime":adb("shell","cat","/proc/uptime")
     }
     folder=ROOT/"system";folder.mkdir(exist_ok=True)
@@ -357,7 +361,7 @@ def capture_accessibility_remote_state(label):
         "accessibility_details":adb("shell","dumpsys","accessibility",timeout=55),
         "hdmi_remote_declarations":adb("shell","dumpsys","package",PKG,timeout=45),
         "last_hdmi_input":adb("shell","dumpsys","tv_input",timeout=45),
-        "default_home_role":adb("shell","cmd","role","holders","android.app.role.HOME"),
+        "default_home_role":adb("shell","cmd","role","get-role-holders","android.app.role.HOME"),
         "foreground_window":adb("shell","dumpsys","window","windows",timeout=45),
     }
     for name,value in probes.items():
@@ -377,7 +381,7 @@ def capture_accessibility_remote_state(label):
     return info
 
 def is_altaplay_default():
-    roles=adb("shell","cmd","role","holders","android.app.role.HOME")
+    roles=adb("shell","cmd","role","get-role-holders","android.app.role.HOME")
     preferred=adb("shell","cmd","package","resolve-activity","--brief","-a",
                   "android.intent.action.MAIN","-c","android.intent.category.HOME")
     return PKG in roles or (PKG in preferred and
@@ -392,10 +396,23 @@ def choose_home_with_system_approval():
     if settings is None:
         record("HOME SELECTION","Blocked: AltaPlay Settings entry unavailable")
         return details
-    if not touch(settings,["تعيين AltaPlay كواجهة رئيسية",
-                           "Définir AltaPlay comme écran d'accueil",
-                           "Set AltaPlay as default Home"]):
-        record("HOME SELECTION","No explicit option to handoff to system Home selector")
+    # Android TV dialogs can virtualize off-screen Settings entries.
+    terms=["تعيين AltaPlay كواجهة رئيسية",
+           "Définir AltaPlay comme écran d'accueil",
+           "Set AltaPlay as default Home"]
+    found=False
+    for attempt in range(6):
+        if touch(settings,terms):
+            found=True
+            break
+        if attempt==5: break
+        adb("shell","input","swipe","960","750","960","325","520")
+        sleep(0.65)
+        settings=xml("60-home-settings-scroll-"+str(attempt+1))
+        shot("60-home-settings-scroll-"+str(attempt+1))
+    if not found:
+        record("HOME SELECTION","No Home entry after five real dialog scrolls")
+        details["reason"]="HOME option not exposed by visible UI or APK stale"
         return details
     sleep(1.8)
     details["selection_through_system"]=True
@@ -422,7 +439,7 @@ def choose_home_with_system_approval():
                     root=xml("63-home-dialog-"+str(i))
                 else:break
     details["verified_default"]=is_altaplay_default()
-    details["google_still_enabled"]=GOOGLE in adb("shell","pm","list","packages","-e")
+    details["google_still_enabled"]=google_launcher_enabled()
     record("HOME SELECTION RESULT",details)
     shot("64-after-system-Home-selection")
     return details
@@ -444,8 +461,7 @@ def test_boot():
     results["boot_cases"]["after_user_approved_home"]=reboot_case("google-enabled-user-approved-altaplay-home")
     results["boot_cases"]["services_after"]=capture_accessibility_remote_state("after-reboot")
     results["boot_cases"]["default_persisted"]=is_altaplay_default()
-    results["boot_cases"]["google_launcher_remained_enabled"]=(GOOGLE in
-        adb("shell","pm","list","packages","-e"))
+    results["boot_cases"]["google_launcher_remained_enabled"]=google_launcher_enabled()
     shot("65-after-reboot-Home-with-stock-launcher-enabled")
 
 def main():
