@@ -1,10 +1,12 @@
-name: AltaPlay v0.11 wallpaper, settings, location and reboot visual audit
+name: AltaPlay v0.11 user-approved HOME and reboot persistence QA
 on:
   push:
     branches:
       - feature/altaplay-v011-ui-zen-reconnect-20261121
     paths:
       - '.github/workflows/altaplay-v011-boot-visual-audit.yml'
+      - '.github/qa/v011_boot_visual_audit.py'
+      - 'altaplay-launcher/v0.11/apply_v011_home_opt_in.py'
   workflow_dispatch:
 permissions:
   contents: write
@@ -27,7 +29,7 @@ jobs:
           sudo apt-get clean
           python3 -m pip install --quiet pillow
           if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
-      - name: Audit all real TV pages BEFORE any Google Launcher disable and reboot
+      - name: Audit pages, approve Android system HOME, reboot; keep Google Launcher enabled
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -41,7 +43,7 @@ jobs:
           emulator-boot-timeout: 900
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -partition-size 1536 -gpu swiftshader_indirect
           script: python3 .github/qa/v011_boot_visual_audit.py
-      - name: Report exact completeness and black-screen measurements
+      - name: Report home approval, accessibility persistence and black-screen observations
         if: always()
         run: |
           python3 - <<'PY'
@@ -53,6 +55,8 @@ jobs:
               raise SystemExit(1)
           data=json.loads(p.read_text())
           print('REVIEW GATE:',data.get('sections',{}).get('review_gate'))
+          print('SYSTEM APPROVAL:',data.get('sections',{}).get('default_home_selection'))
+          print('ACCESSIBILITY/HDMI REBOOT:',data.get('boot_cases',{}).get('services_after'))
           print('BOOT RESULTS:',json.dumps(data.get('boot_cases',{}),indent=2)[:5500])
           images=list(p.parent.rglob('*.png'))
           print('Real emulator PNG screenshots:',len(images))
