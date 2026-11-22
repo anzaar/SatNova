@@ -62,8 +62,9 @@ jobs:
           print('Real emulator PNG screenshots:',len(images))
           print('Missing pages are a FAIL or INCONCLUSIVE, not mocked as successful.')
           PY
-      - name: Upload raw PNG and XML evidence
+      - name: Upload raw PNG and XML evidence (optional; release ZIP is canonical)
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: AltaPlay-v011-wallpaper-location-boot-visual-audit
