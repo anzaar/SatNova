@@ -274,6 +274,7 @@ patch_file(clock_activity,
     'ClockFormat.apply(getWindow().getDecorView(), "system");',"ClockActivity formatter")
 settings=java/"LauncherSettingsActivity.java"
 patch_file(settings,'        clockFormat = config.clockFormat;','        clockFormat = "system";',"settings selection")
+patch_file(settings,'            clockFormat = current.clockFormat;','            clockFormat = "system";',"follow-theme clock selection")
 patch_file(settings,
     '        // Mirror text alignment without globally opting the launcher into RTL.',
     '        // Only Android System clock is available; hide launcher-owned 12/24 overrides.\n        clockChoices[1].setVisibility(View.GONE);\n        clockChoices[2].setVisibility(View.GONE);\n        // Mirror text alignment without globally opting the launcher into RTL.',
