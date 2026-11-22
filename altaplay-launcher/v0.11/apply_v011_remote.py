@@ -42,4 +42,6 @@ service=(java/"AltaPlayHdmiRemoteService.java").read_text(encoding="utf-8")
 assert "KEYCODE_VOLUME_UP" in service and "KEYCODE_VOLUME_DOWN" in service
 assert "AltaPlayRemoteKeys.zenCode(this,code)<0" in service
 assert "prefs.getBoolean" in service
-assert "KEYCODE_0" in src and "KEYCODE_NUMPAD_9" in src\nprint("PASS v0.11 Page up/down -> 35/36 and HDMI digits 0..9 -> 12..21; other TV keys unchanged")
+# These are standard remote key injection codes, not direct channel tuning.
+assert "KEYCODE_0" in src and "KEYCODE_NUMPAD_9" in src
+print("PASS v0.11 Page up/down -> 35/36 and HDMI digits 0..9 -> 12..21; other TV keys unchanged")
