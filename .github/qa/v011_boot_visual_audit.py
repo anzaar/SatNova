@@ -349,9 +349,10 @@ def main():
     # but do not disable Google TV launcher on a configuration that did not
     # pass preliminary UI readiness checks.
     gate=results["sections"]["review_gate"]
+    location_entry=results["sections"].get("location_settings",{})
     if not (gate["wallpapers"] and gate["languages"] and gate["device_settings"] and
             isinstance(gate["location"],dict) and
-            gate["location_settings"]["has_country_city_entry"] if "location_settings" in gate else False):
+            location_entry.get("has_country_city_entry",False)):
         record("BOOT BLOCKED","UI prerequisites incomplete; do not disable Google TV launcher.")
         results["boot_cases"]["not_run"]="Precondition failed: missing wallpaper/language/location/device-settings functionality"
         return
