@@ -64,6 +64,14 @@ jobs:
           ! grep -q 'COMMAND EXCEPTION' "$path/qa-capture-report.txt"
           ! grep -q '^COMMAND ERR' "$path/qa-capture-report.txt"
           echo "Evidence gate passed. This confirms emulator capture only; Zen mock is not real Zen 4/HDMI validation."
+      - name: Preserve diagnostic screenshots and QA report even when validation fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: altaplay-v012-qa-diagnostics
+          path: qa-results/v012-gallery/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Publish gallery to AltaPlay private GitHub release
         if: success()
         env:
