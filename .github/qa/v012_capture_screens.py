@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Capture *real* Google TV 14 emulator screenshots for AltaPlay v0.12.
 
-Not a mockup. Uses ADB screenshot+UI hierarchy, taps only actual visible
-controls identified in hierarchy (not guessed coordinates). The network
-receiver is a localhost G-MScreen QA simulator; real HDMI1 hardware absent.
+Real Google TV 14 emulator QA. Navigation is driven by virtual remote DPAD,
+HOME, BACK and ENTER keys; screenshots and UI hierarchy infer results. Zen is
+a local protocol simulator; this does not certify real HDMI hardware.
 """
 import os, re, struct, zlib, time, hashlib, subprocess
 from pathlib import Path
@@ -83,6 +83,21 @@ def long_click(root,keys):
 def back(n=1):
     for _ in range(n):adb("shell","input","keyevent","KEYCODE_BACK");time.sleep(0.5)
 
+def key(name,delay=0.65):
+    adb("shell","input","keyevent",name);time.sleep(delay)
+
+def remote_sequence(label,keys,delay=0.7):
+    REPORT.append("REMOTE SEQUENCE "+label+" "+repr(keys))
+    for k in keys:key(k,delay)
+    shot(label)
+    return tree(label)
+
+def focus_report(label,root):
+    if root is None:
+        REPORT.append("FOCUS "+label+": hierarchy unavailable");return
+    focused=[n.attrib for n in root.findall(".//node") if n.get("focused")=="true"]
+    REPORT.append("FOCUS "+label+": "+repr(focused[:8]))
+
 def launch():
     adb("shell","am","start","-W","-n",PKG+"/com.gathin.tvhome.MainActivity",timeout=70)
     time.sleep(2)
@@ -118,6 +133,33 @@ REPORT.append("INSTALL: "+adb("install","-r","-t",apk,timeout=90).strip())
 launch()
 shot("01-offline-home-default-wallpaper")
 root=tree("01-offline-ui")
+
+# Virtual-remote journey: HOME, Apps, enter/exit launcher, return HOME.
+key("KEYCODE_HOME",1.2)
+remote_sequence("17-google-tv-home",["KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_DOWN"])
+focus_report("Google TV home focus",tree("17-google-tv-focus"))
+root=tree("17-apps-entry")
+if click(root,["Apps","التطبيقات"],clickable=True):
+    shot("18-google-tv-apps-screen")
+    apps=tree("18-apps-hierarchy")
+    focus_report("Apps screen",apps)
+    if find(apps,["AltaPlay"],clickable=True):
+        click(apps,["AltaPlay"],clickable=True)
+        time.sleep(2);shot("19-launcher-opened-from-apps")
+        remote_sequence("20-launcher-dpad-navigation",["KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_LEFT","KEYCODE_DPAD_DOWN","KEYCODE_DPAD_UP"])
+        back();shot("21-exit-launcher-back")
+key("KEYCODE_HOME",1.5)
+shot("22-home-key-default-resolution")
+focus_report("default HOME after key",tree("22-home-key-hierarchy"))
+key("KEYCODE_HOME",1)
+shot("23-home-resolver-or-default")
+resolver=tree("23-home-resolver")
+labels=[n.get("text","") for n in resolver.findall(".//node")] if resolver is not None else []
+REPORT.append("HOME RESOLVER LABELS "+repr([x for x in labels if x]))
+if any("AltaPlay" in x or "Google TV" in x for x in labels):
+    REPORT.append("HOME chooser presented; inspect options and persistence after emulator reboot")
+else:
+    REPORT.append("No HOME chooser surfaced; default launcher selection not proven")
 
 # Header -> Zen menu -> Connection diagnosis
 menu=open_zen("02-zen-settings-disconnected")
@@ -174,6 +216,8 @@ try:
     time.sleep(7)
     shot("07-simulated-zen-connected-home")
     chan=tree("07-simulated-zen-channels")
+    remote_sequence("07a-channel-dpad-traverse",["KEYCODE_DPAD_DOWN","KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_LEFT","KEYCODE_DPAD_UP","KEYCODE_ENTER"])
+    focus_report("channel traversal",tree("07a-channel-dpad-traverse"))
     if long_click(chan,["Arryadia","Al Aoula","MBC","Aljazeera"]):
         shot("08-long-press-channel-menu")
         cm=tree("08-channel-menu")
