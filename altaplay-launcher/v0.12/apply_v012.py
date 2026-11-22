@@ -146,6 +146,21 @@ s=s.replace('.setNegativeButton("إلغاء",null).show();',
             '.setNegativeButton(tr("إلغاء","Annuler","Cancel"),null).show();')
 panel.write_text(s,encoding="utf-8")
 
+# CleanYourTV's original periodic greeting can overwrite the localized
+# Settings header after a language switch. Keep the header translated on
+# every clock tick, not just when the app first opens.
+main=java/"MainActivity.java"
+m=main.read_text(encoding="utf-8")
+legacy='greeting.setText(AltaPlayZenPanel.greetingForHour(hour));'
+if legacy in m:
+    m=once(m,legacy,
+        '''String headerLang=getSharedPreferences("altaplay_ui",MODE_PRIVATE)
+            .getString("language","ar");
+        greeting.setText("fr".equals(headerLang)?"Paramètres":
+            ("en".equals(headerLang)?"Settings":"الإعدادات"));''',
+        "prevent Arabic-only greeting in FR/EN refresh")
+    main.write_text(m,encoding="utf-8")
+
 # Keep app tiles and all focus affordances intact, just lighten the visible
 # dock BAND rather than making its clickable cards unreadable.
 d=dock.read_text(encoding="utf-8")
