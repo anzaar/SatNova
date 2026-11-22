@@ -48,9 +48,9 @@ once("if(key==KeyEvent.KEYCODE_DPAD_DOWN&&!radio)return focusRadioRow(activity);
 # Restore the system timezone for the wall CLOCK only; Ministry prayer times
 # remain attached to the Moroccan city and Casablanca timezone.
 once('if(clock!=null)clock.setTimeZone(MOROCCO.getId());',
-     'if(clock!=null)clock.setTimeZone(null);',"clock follows system")
+     'if(clock!=null){clock.setTimeZone(null);clock.setFormat12Hour(null);clock.setFormat24Hour(null);}',"clock follows system timezone and 12/24 preference")
 once('if(ampm!=null)ampm.setTimeZone(MOROCCO.getId());',
-     'if(ampm!=null)ampm.setTimeZone(null);',"ampm follows system")
+     'if(ampm!=null){ampm.setTimeZone(null);ampm.setFormat12Hour(null);ampm.setFormat24Hour(null);}',"AM/PM follows system timezone and 12/24 preference")
 s=s.replace("LocalDate.now(MOROCCO)", "LocalDate.now()")  # Gregorian + Hijri calendar date follows system
 count=s.count('greetingForHour(LocalTime.now(MOROCCO).getHour())')
 if count!=2: raise RuntimeError("unexpected greeting call count "+str(count))
