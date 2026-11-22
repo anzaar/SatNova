@@ -19,11 +19,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           mkdir -p qa-results
           gh release download altaplay-launcher-v0.12.0-preview --repo "${GITHUB_REPOSITORY}" --pattern 'AltaPlay-Launcher-v0.12-debug.apk' --dir qa-results
+          test -s qa-results/AltaPlay-Launcher-v0.12-debug.apk
           sha256sum qa-results/*.apk
       - name: Prepare Google TV emulator
         run: |
+          set -euo pipefail
           df -h /
           sudo rm -rf /usr/share/dotnet /opt/hostedtoolcache/CodeQL /usr/local/lib/android/sdk/ndk /usr/local/lib/android/sdk/cmake /usr/local/share/powershell || true
           sudo apt-get clean
@@ -42,27 +45,30 @@ jobs:
           emulator-boot-timeout: 900
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -partition-size 1536 -gpu swiftshader_indirect
           script: python3 .github/qa/v012_capture_screens.py
-      - name: Confirm capture files and failures
+      - name: Validate evidence and fail closed
         if: always()
         run: |
-          ls -lah qa-results/v012-gallery || true
-          cat qa-results/v012-gallery/qa-capture-report.txt 2>/dev/null || true
-          python3 - <<'PY'
-          from pathlib import Path
-          path=Path('qa-results/v012-gallery')
-          shots=list(path.glob('*.png'))
-          print('Real emulator screenshot count:',len(shots))
-          if len(shots)<3:
-              print('INCOMPLETE: fewer than 3 screenshots')
-          PY
+          set -euo pipefail
+          path=qa-results/v012-gallery
+          test -s "$path/qa-capture-report.txt"
+          cat "$path/qa-capture-report.txt"
+          count=$(find "$path" -maxdepth 1 -type f -name '*.png' | wc -l)
+          echo "Real Google TV emulator screenshots: $count"
+          # A handful of screenshots is not a completed gallery. Require a broad
+          # evidence set and verify the emulator/API and APK installation report.
+          test "$count" -ge 12
+          grep -Eq '^TV version: 14([.]0)?$' "$path/qa-capture-report.txt"
+          grep -q '^Emulator model: ' "$path/qa-capture-report.txt"
+          grep -q 'INSTALL: Success' "$path/qa-capture-report.txt"
+          ! grep -q 'SCREENSHOT FAILED' "$path/qa-capture-report.txt"
+          ! grep -q 'COMMAND EXCEPTION' "$path/qa-capture-report.txt"
+          echo "Evidence gate passed. This confirms emulator capture only; Zen mock is not real Zen 4/HDMI validation."
       - name: Publish gallery to AltaPlay private GitHub release
-        if: always()
+        if: success()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [ -d qa-results/v012-gallery ] && [ "$(find qa-results/v012-gallery -name '*.png' | wc -l)" -ge 3 ]; then
-            (cd qa-results && zip -q -r ../AltaPlay-v0.12-Full-GoogleTV-Screenshots.zip v012-gallery)
-            gh release upload altaplay-launcher-v0.12.0-preview AltaPlay-v0.12-Full-GoogleTV-Screenshots.zip --clobber --repo "${GITHUB_REPOSITORY}"
-          else
-            echo "No genuine emulator screenshots; evidence archive will not be published."
-          fi
+          set -euo pipefail
+          test "$(find qa-results/v012-gallery -maxdepth 1 -type f -name '*.png' | wc -l)" -ge 12
+          (cd qa-results && zip -q -r ../AltaPlay-v0.12-Full-GoogleTV-Screenshots.zip v012-gallery)
+          gh release upload altaplay-launcher-v0.12.0-preview AltaPlay-v0.12-Full-GoogleTV-Screenshots.zip --clobber --repo "${GITHUB_REPOSITORY}"
