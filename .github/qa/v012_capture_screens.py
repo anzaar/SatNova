@@ -188,7 +188,7 @@ for step in range(2,6):
     time.sleep(1.2)
     shot("0"+str(3+step)+"-first-run-step-"+str(step+1))
     setup=tree("first-run-after-"+str(step))
-wizard_visible=setup is not None and any(re.search(r"\\b[1-5]/5\\b",(n.get("text") or "")) for n in setup.findall(".//node"))
+wizard_visible=setup is not None and any(re.search(r"\b[1-5]/5\b",(n.get("text") or "")) for n in setup.findall(".//node"))
 REPORT.append("FIRST-RUN FINAL STATE: "+("wizard remains visible" if wizard_visible else "wizard not detected"))
 
 # Virtual-remote journey: HOME, Apps, enter/exit launcher, return HOME.
