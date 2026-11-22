@@ -120,6 +120,53 @@ def picker(prefix):
         r=xml(prefix+"-scroll"+str(attempt+1))
     return r
 
+def verify_first_run_guide():
+    # User-facing flow: no ADB setup of roles or accessibility flags.
+    sleep(2.9)
+    modal=xml("00-setup-language")
+    found=find(modal,["العربية","Français","English"])
+    if found is None:
+        results["sections"]["first_run_guide"]="INCONCLUSIVE setup dialog not visible"
+        record("SETUP INCOMPLETE","No first-run language dialog")
+        return
+    images=[shot("00-setup-choose-language")]
+    if not touch(modal,["العربية"]):
+        results["sections"]["first_run_guide"]="FAIL select Arabic"
+        return
+    images.append(shot("00-setup-Home-approval-explanation"))
+    homepage=xml("00-setup-Home-options")
+    # At this point show the legitimate Android Home approval option, but
+    # don't select HOME in this first-run walkthrough; the separate reboot
+    # scenario will exercise the real system picker as a conscious action.
+    if not touch(homepage,["تجاوز دابا","Ignorer","Skip for now"]):
+        results["sections"]["first_run_guide"]="FAIL cannot skip Home"
+        return
+    images.append(shot("00-setup-receiver-selection"))
+    receiver=xml("00-setup-receiver-options")
+    if not touch(receiver,["نعم، بحث تلقائي","Oui, recherche auto",
+                           "Yes, find automatically"]):
+        results["sections"]["first_run_guide"]="FAIL receiver auto-discovery button absent"
+        return
+    images.append(shot("00-setup-Accessibility-opt-in"))
+    access=xml("00-setup-accessibility-options")
+    if not touch(access,["تجاوز مؤقتاً","Ignorer","Skip for now"]):
+        results["sections"]["first_run_guide"]="FAIL cannot defer Accessibility"
+        return
+    images.append(shot("00-setup-finished"))
+    finished=xml("00-setup-complete")
+    if not touch(finished,["دخول للواجهة","Ouvrir AltaPlay","Open AltaPlay"]):
+        results["sections"]["first_run_guide"]="FAIL completion action absent"
+        return
+    pref=adb("shell","run-as",PKG,"cat","shared_prefs/altaplay_setup.xml")
+    complete='name="completed" value="true"' in pref
+    results["sections"]["first_run_guide"]={
+        "completed_via_UI":complete,
+        "steps":["language","Android HOME (skipped by user)",
+                 "Zen auto-discovery","Accessibility (skipped by user)","finish"],
+        "real_screenshots":sum(x is not None for x in images),
+        "no_adb_setting_changes":True}
+    record("SETUP",results["sections"]["first_run_guide"])
+
 def prep_wallpapers():
     # Non-production test fixtures with easily visible wallpaper colors.
     folder=ROOT/"fixtures";folder.mkdir(exist_ok=True)
@@ -195,7 +242,7 @@ def check_languages():
         home()
         image=shot("21-"+label+"-home")
         pref=adb("shell","run-as",PKG,"cat","shared_prefs/altaplay_ui.xml")
-        res[label]={"selected_saved":('"'+{"english":"en","french":"fr","arabic":"ar"}[label]+'"' in pref),
+        res[label]={"selected_saved":('<string name="language">'+{"english":"en","french":"fr","arabic":"ar"}[label]+'</string>' in pref),
                     "screen":image}
     results["sections"]["languages"]=res
 
@@ -407,6 +454,7 @@ def main():
     results["install_result"]=adb("install","-r","-t",apk,timeout=100).strip()
     home()
     shot("01-Home-default")
+    verify_first_run_guide()
     names=prep_wallpapers()
     check_device_settings()
     check_receiver()
