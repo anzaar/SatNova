@@ -111,6 +111,36 @@ jobs:
         run: python3 altaplay-launcher/v0.11/apply_v011_zen.py upstream
       - name: Apply v0.11 light UI, Zen settings, languages and manual channel logos
         run: python3 altaplay-launcher/v0.11/apply_v011_ui.py upstream
+      - name: Apply v0.11 RTL+LTR layout and remove extra app-TV text
+        run: python3 altaplay-launcher/v0.11/apply_v011_rtl.py upstream
+      - name: Apply v0.11 Page plus/minus and digit keys for HDMI Zen receiver
+        run: python3 altaplay-launcher/v0.11/apply_v011_remote.py upstream
+      - name: Apply v0.11 fast wallpaper cold-start
+        run: python3 altaplay-launcher/v0.11/apply_v011_startup.py upstream
+      - name: Validate v0.11 remote key invariants, RTL and wallpaper startup
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          base=Path("upstream/launcher/app/src/main")
+          java=base/"java/com/gathin/tvhome"
+          remote=(java/"AltaPlayRemoteKeys.java").read_text()
+          service=(java/"AltaPlayHdmiRemoteService.java").read_text()
+          panel=(java/"AltaPlayZenPanel.java").read_text()
+          main=(java/"MainActivity.java").read_text()
+          wallpaper=(java/"WallpaperPlayer.java").read_text()
+          assert 'KEYCODE_PAGE_UP:return 35' in remote
+          assert 'KEYCODE_PAGE_DOWN:return 36' in remote
+          assert 'KEYCODE_0' in remote and 'KEYCODE_NUMPAD_9' in remote
+          assert 'KEYCODE_CHANNEL_UP:return 69' in remote
+          assert 'KEYCODE_CHANNEL_DOWN:return 70' in remote
+          assert 'KEYCODE_VOLUME_UP' in service and 'KEYCODE_VOLUME_DOWN' in service
+          assert 'getBoolean("hdmi_remote_enabled",true)' in service
+          assert 'View.LAYOUT_DIRECTION_RTL' in main and 'View.LAYOUT_DIRECTION_LTR' in main
+          assert 'supportsRtl="true"' in (base/"AndroidManifest.xml").read_text()
+          assert 'decoder.execute(() -> {' in wallpaper and 'showFirst();' in wallpaper
+          assert 'shelfLayout.topMargin=dp(23)' in panel
+          print('PASS v0.11 digits, page volume, other keys preserved, language RTL/LTR, no black splash')
+          PY
       - name: Validate v0.10 connected tuning delivery
         run: |
           python3 - <<'PY'
@@ -191,10 +221,10 @@ jobs:
           assert '<bool name="single_row">true</bool>' in cfg
           assert '<bool name="dock_title">false</bool>' in cfg
           assert '<bool name="dock_band_all">true</bool>' in cfg
-          assert 'new LinearLayout.LayoutParams(-1,dp(211))' in j
+          assert 'shelfLayout.topMargin=dp(23)' in j
           logos=list(Path("upstream/launcher/app/src/main/assets/altaplay_channel_logos").glob("*.png"))
           assert len(logos)>=3
-          print("PASS single app row, no floating hero, measured full panel and",len(logos),"real logo images")
+          print("PASS single app row, transparent channel shelf, 23dp wallpaper gap and",len(logos),"real logo images")
           PY
       - name: Test exact Ministry published daily values
         shell: bash
