@@ -239,7 +239,7 @@ s=s.replace('title(client.isOnline()?"مباشر":"محفوظة",10,0xB4D8ECDA)'
 # Android AlertDialog list and message are mutually exclusive. Keep the
 # diagnostics in the dedicated first item; otherwise the language/Zen menu
 # is silently hidden on Google TV.
-once('            .setMessage(client.diagnostics())\\n            .setItems(choices,',
+once('            .setMessage(client.diagnostics())\n            .setItems(choices,',
      '            .setItems(choices,',
      "Zen settings must display selectable menu items")
 panel.write_text(s,encoding="utf-8")
