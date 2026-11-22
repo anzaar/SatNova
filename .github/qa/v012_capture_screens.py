@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Capture *real* Google TV 14 emulator screenshots for AltaPlay v0.12.
+"""Capture Google TV 14 emulator screenshots for AltaPlay v0.12 (no receiver).
 
 Real Google TV 14 emulator QA. Navigation is driven by virtual remote DPAD,
 HOME, BACK and ENTER keys; screenshots and UI hierarchy infer results. Zen is
@@ -224,94 +224,32 @@ if any("AltaPlay" in x or "Google TV" in x for x in labels):
 else:
     REPORT.append("No HOME chooser surfaced; default launcher selection not proven")
 
-# Header -> Zen menu -> Connection diagnosis
-menu=open_zen("02-zen-settings-disconnected")
-if menu is not None:
-    if click(menu,["تشخيص الاتصال","Diagnostic de connexion","Connection diagnostics"]):
-        shot("03-zen-connection-diagnostics")
-        back()
-    # Language controls shown from Zen menu.
-    back()
+# Receiver-independent app coverage only.
+# This CI pass deliberately does not start a Zen simulator, inject receiver
+# preferences, open Zen menus, scan the network, or issue receiver commands.
+# Receiver/HDMI validation is reserved for a separately authorized hardware pass.
 
-# Capture language picker and English/French/Arabic header; these are
-# independent UI interactions and can be verified by text in XML.
-for lang,findword,option in [
-  ("english",["اللغة","Langue","Language"],["English"]),
-  ("french",["اللغة","Langue","Language"],["Français"]),
-  ("arabic",["اللغة","Langue","Language"],["العربية"]),
-]:
-    menu=open_zen("04-"+lang+"-zen-settings")
-    if menu is not None and click(menu,findword):
-        shot("05-"+lang+"-language-picker")
-        langtree=tree("05-"+lang+"-language-list")
-        if click(langtree,option):
-            time.sleep(2)
-            shot("06-"+lang+"-home")
-            current=tree("06-"+lang+"-home")
-            if current is not None:
-                labels=[n.get("text","") for n in current.findall(".//node")]
-                labels=[x for x in labels if x]
-                (OUT/("06-"+lang+"-visible-text.txt")).write_text("\\n".join(labels),encoding="utf-8")
-                if lang in ("english","french"):
-                    # UI must not show Arabic-only prayer/weather prose in LTR.
-                    # Hijri and broadcaster names are allowed as proper names.
-                    bad=["مواقيت الصلاة الرسمية", "الفجر ", "الطقس غير متاح", "سماء صافية نسبياً"]
-                    found=[x for x in bad if any(x in t for t in labels)]
-                    REPORT.append("LTR localization "+lang+": "+("FAIL unexpected Arabic prose "+str(found) if found else "PASS no Arabic-only ambient prose"))
-                else:
-                    REPORT.append("RTL language: Arabic chosen; check screenshot for mirrored controls")
-        else:back(2)
-
-# Simulated connected ZEN: source contains channel IDs but never hardware HDMI.
-sim=subprocess.Popen(["python3",".github/qa/zen_mock_receiver.py"],
-                     stdout=(OUT/"simulated-zen.log").open("wb"),
-                     stderr=subprocess.STDOUT)
-try:
-    for i in range(35):
-        time.sleep(0.3)
-        if "receiver ready on 20000" in (OUT/"simulated-zen.log").read_text(errors="replace"):
-            break
-    adb("shell","am","force-stop",PKG)
-    pref=b"<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map><string name='zen_ip'>10.0.2.2</string></map>"
-    # run-as starts in the app-private data directory. Create the prefs
-    # folder as a separate argv command, then stream the XML to a relative path.
-    # Avoid shell parsing of an absolute /data/user/0/... path.
-    mkdir_out=cmd("adb","shell","run-as",PKG,"mkdir","-p","shared_prefs")
-    write_out=cmd("adb","shell","run-as",PKG,"sh","-c","cat > shared_prefs/altaplay_zen.xml",stdin=pref)
-    verify=cmd("adb","shell","run-as",PKG,"sh","-c","test -s shared_prefs/altaplay_zen.xml && cat shared_prefs/altaplay_zen.xml")
-    if "zen_ip" in verify and "10.0.2.2" in verify:
-        REPORT.append("ZEN MOCK PREF: verified app-private preference file")
-    else:
-        REPORT.append("ZEN MOCK PREF: FAILED verification "+verify[-300:])
-    launch()
-    time.sleep(7)
-    shot("07-simulated-zen-connected-home")
-    chan=tree("07-simulated-zen-channels")
-    remote_sequence("07a-channel-dpad-traverse",["KEYCODE_DPAD_DOWN","KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_LEFT","KEYCODE_DPAD_UP","KEYCODE_ENTER"])
-    focus_report("channel traversal",tree("07a-channel-dpad-traverse"))
-    if long_click(chan,["Arryadia","Al Aoula","MBC","Aljazeera"]):
-        shot("08-long-press-channel-menu")
-        cm=tree("08-channel-menu")
-        if click(cm,["لوغو يدوي","Logo via URL","Manual logo"]):
-            shot("09-manual-logo-url-or-ftp")
-            back()
-        back()
-        chan=tree("08-channel-menu-return")
-        if long_click(chan,["Arryadia","Al Aoula","MBC","Aljazeera"]):
-            cm=tree("08-channel-menu-rename")
-            if click(cm,["تغيير اسم القناة","Renommer","Rename"]):
-                shot("10-rename-channel-dialog")
-                back(2)
-    menu=open_zen("11-zen-settings-connected")
-    if menu:
-        if click(menu,["اللغة","Langue","Language"]):
-            shot("12-language-choices-connected")
-            back()
-        back()
-finally:
-    sim.terminate()
-    try:sim.wait(timeout=5)
-    except Exception:sim.kill()
+# Re-open the launcher after HOME testing and capture its offline state.
+launch()
+shot("04-launcher-offline-home")
+offline=tree("04-launcher-offline-hierarchy")
+focus_report("offline launcher initial focus",offline)
+remote_sequence("05-offline-dpad-right",["KEYCODE_DPAD_RIGHT"])
+remote_sequence("06-offline-dpad-down",["KEYCODE_DPAD_DOWN"])
+remote_sequence("07-offline-dpad-left",["KEYCODE_DPAD_LEFT"])
+remote_sequence("08-offline-dpad-up",["KEYCODE_DPAD_UP"])
+key("KEYCODE_BACK",0.8)
+shot("09-offline-back-navigation")
+key("KEYCODE_HOME",1.0)
+shot("10-google-tv-home-return")
+launch()
+shot("11-launcher-reopen-after-home")
+# Verify the launcher can be backgrounded and restored without changing the
+# system HOME role. Do not tap any HOME resolver's "Always" choice.
+key("KEYCODE_HOME",1.0)
+shot("12-home-key-does-not-force-default")
+launch()
+shot("13-launcher-restored-after-home")
 
 # Actual two-image wallpaper picker test: add user-selectable images to
 # emulator's own app external-file collection. No installed TV is touched.
