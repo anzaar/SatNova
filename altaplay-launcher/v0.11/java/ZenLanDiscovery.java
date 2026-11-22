@@ -66,23 +66,39 @@ final class ZenLanDiscovery {
                 String name=nif.getName();
                 if(name!=null && !(name.startsWith("wlan")||name.startsWith("eth")||
                     name.startsWith("en")||name.startsWith("ap")||name.startsWith("wifi")))continue;
-                Enumeration<InetAddress> ipList=nif.getInetAddresses();
-                while(ipList.hasMoreElements()){
-                    InetAddress addr=ipList.nextElement();
+                for(java.net.InterfaceAddress ifaceAddress:nif.getInterfaceAddresses()){
+                    InetAddress addr=ifaceAddress.getAddress();
                     if(!(addr instanceof Inet4Address))continue;
                     String ip=addr.getHostAddress();
                     if(!ZenProtocol.privateAddress(ip))continue;
-                    int pos=ip.lastIndexOf('.');
-                    if(pos<0)continue;
-                    String subnet=ip.substring(0,pos+1);
-                    for(int i=1;i<=254;i++){
-                        String candidate=subnet+i;
-                        if(!candidate.equals(ip))addresses.add(candidate);
+
+                    // Respect the actual IPv4 subnet mask instead of assuming
+                    // every home LAN is /24. Scan /16-/22 networks through the
+                    // local /24 window to keep discovery bounded and harmless.
+                    int prefix=ifaceAddress.getNetworkPrefixLength();
+                    if(prefix<1 || prefix>30)continue;
+                    byte[] raw=addr.getAddress();
+                    long numeric=((raw[0]&255L)<<24)|((raw[1]&255L)<<16)|
+                        ((raw[2]&255L)<<8)|(raw[3]&255L);
+                    long mask=(0xffffffffL << (32-prefix)) & 0xffffffffL;
+                    long network=numeric & mask;
+                    long broadcast=network | (~mask & 0xffffffffL);
+                    long first=network+1, last=broadcast-1;
+                    if(last-first+1>1022){
+                        long local24=numeric & 0xffffff00L;
+                        first=local24+1;
+                        last=local24+254;
                     }
-                    // Two private subnets at most; avoid scanning large networks.
-                    if(addresses.size()>=508)break;
+                    for(long candidate=first;candidate<=last;candidate++){
+                        String target=((candidate>>>24)&255)+"."+
+                            ((candidate>>>16)&255)+"."+((candidate>>>8)&255)+"."+
+                            (candidate&255);
+                        if(!target.equals(ip))addresses.add(target);
+                    }
+                    // Keep the scan bounded even when multiple interfaces exist.
+                    if(addresses.size()>=1022)break;
                 }
-                if(addresses.size()>=508)break;
+                if(addresses.size()>=1022)break;
             }
         } catch(Exception ignored){}
         return new ArrayList<>(addresses);
