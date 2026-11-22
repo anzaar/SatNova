@@ -59,11 +59,11 @@ jobs:
           grep -q '^Emulator model: ' "$path/qa-capture-report.txt"
           grep -q 'INSTALL: Success' "$path/qa-capture-report.txt"
           grep -q '^FIRST-RUN FINAL STATE: wizard not detected$' "$path/qa-capture-report.txt"
-          grep -q '^ZEN MOCK PREF: verified app-private preference file$' "$path/qa-capture-report.txt"
           ! grep -q 'SCREENSHOT FAILED' "$path/qa-capture-report.txt"
           ! grep -q 'COMMAND EXCEPTION' "$path/qa-capture-report.txt"
           ! grep -q '^COMMAND ERR' "$path/qa-capture-report.txt"
-          echo "Evidence gate passed. This confirms emulator capture only; Zen mock is not real Zen 4/HDMI validation."
+          ! grep -q -Ei "zen_mock_receiver|ZEN MOCK PREF|receiver ready on 20000" "$path/qa-capture-report.txt"
+          echo "Evidence gate passed. Receiver, Zen protocol, network discovery and HDMI were intentionally excluded."
       - name: Preserve diagnostic screenshots and QA report even when validation fails
         if: always()
         uses: actions/upload-artifact@v4
