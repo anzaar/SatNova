@@ -192,7 +192,7 @@ jobs:
           assert 'greeting.setOnClickListener(v->homeSettingsMenu())' in panel
           assert 'ambientGlow = false' in main and 'appGlow = false' in main
           assert 'atmosphere=null' in panel
-          assert 'prayerText=title("",34,' in panel and 'prayerText.setMinHeight(dp(70))' in panel
+          assert 'prayerText=title("",36,' in panel and 'prayerText.setMinHeight(dp(70))' in panel
           assert 'NextPrayer.display(now,prayers.today()' in panel
           assert 'prayerText.setTypeface(Typeface.DEFAULT,Typeface.BOLD)' in panel
           assert 'private void receiverVisibilityMenu()' in panel
