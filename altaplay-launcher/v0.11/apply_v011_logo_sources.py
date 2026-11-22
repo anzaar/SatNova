@@ -24,6 +24,7 @@ s=once(s,
 '''            .replace('\\u00a0',' ')
             .replaceAll("(?i)\\\\s+(4k|uhd|fhd|hd|sd)$","")''',
 '''            .replace('\\u00a0',' ')
+            .replace('í','i')
             // Broadcaster sometimes arrives as Medi1TV, Medi 1 TV or Medi1 TV HD.
             .replaceAll("(?i)medi\\\\s*1\\\\s*tv","medi1 tv")
             .replaceAll("(?i)\\\\s+(4k|uhd|fhd|hd|sd)$","")''',
