@@ -117,6 +117,10 @@ jobs:
         run: python3 altaplay-launcher/v0.11/apply_v011_remote.py upstream
       - name: Apply v0.11 fast wallpaper cold-start
         run: python3 altaplay-launcher/v0.11/apply_v011_startup.py upstream
+      - name: Remove changing wallpaper color glows and greeting message
+        run: python3 altaplay-launcher/v0.11/apply_v011_wallpaper_colors.py upstream
+      - name: Move Settings to greeting spot and enlarge both dates on one line
+        run: python3 altaplay-launcher/v0.11/apply_v011_header.py upstream
       - name: Validate v0.11 remote key invariants, RTL and wallpaper startup
         run: |
           python3 - <<'PY'
@@ -139,6 +143,13 @@ jobs:
           assert 'supportsRtl="true"' in (base/"AndroidManifest.xml").read_text()
           assert 'decoder.execute(() -> {' in wallpaper and 'showFirst();' in wallpaper
           assert 'shelfLayout.topMargin=dp(23)' in panel
+          assert 'void homeSettingsMenu()' in panel
+          assert 'row.addView(hijriDate' in panel and 'row.addView(arabicDate' in panel
+          assert 'settings.setVisibility(View.GONE)' in panel
+          assert 'greeting.setOnClickListener(v->homeSettingsMenu())' in panel
+          assert 'ambientGlow = false' in main and 'appGlow = false' in main
+          assert 'atmosphere=null' in panel
+          print('PASS header: both dates same row; Settings in former greeting spot; no red/green glow')
           print('PASS v0.11 digits, page volume, other keys preserved, language RTL/LTR, no black splash')
           PY
       - name: Validate v0.10 connected tuning delivery
