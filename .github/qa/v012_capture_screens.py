@@ -131,7 +131,23 @@ REPORT.append("TV version: "+adb("shell","getprop","ro.build.version.release").s
 apk="qa-results/AltaPlay-Launcher-v0.12-debug.apk"
 install_output=adb("install","-r","-t",apk,timeout=90).strip()
 REPORT.append("INSTALL: Success" if re.search(r"(?m)^Success\s*$",install_output) else "INSTALL: FAIL "+install_output.replace("\n"," | "))
-launch()
+
+# Provision only this disposable CI emulator. Google TV's first-boot wizard
+# otherwise intercepts HOME and prevents the launcher journey from starting.
+adb("wait-for-device",timeout=120)
+for _ in range(90):
+    if adb("shell","getprop","sys.boot_completed").strip()=="1": break
+    time.sleep(2)
+REPORT.append("BOOT COMPLETED: "+adb("shell","getprop","sys.boot_completed").strip())
+for namespace,keyname,value in [
+    ("global","device_provisioned","1"),
+    ("secure","user_setup_complete","1"),
+]:
+    out=adb("shell","settings","put",namespace,keyname,value).strip()
+    REPORT.append("EMULATOR PROVISIONING "+namespace+"."+keyname+"=1 "+out)
+adb("shell","am","force-stop","com.google.android.tv.setupwizard")
+adb("shell","am","force-stop","com.google.android.tungsten.setupwraith")
+key("KEYCODE_HOME",1.5)
 shot("01-offline-home-default-wallpaper")
 root=tree("01-offline-ui")
 
@@ -149,10 +165,14 @@ if click(root,["Apps","التطبيقات"],clickable=True):
         time.sleep(2);shot("19-launcher-opened-from-apps")
         remote_sequence("20-launcher-dpad-navigation",["KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_LEFT","KEYCODE_DPAD_DOWN","KEYCODE_DPAD_UP"])
         back();shot("21-exit-launcher-back")
+# Clear only the emulator's remembered HOME preference. This does not
+# disable Google TV or silently assign AltaPlay as HOME; the resolver remains
+# an explicit user-choice screen and the script never taps "Always".
+clear_home=adb("shell","cmd","package","clear-package-preferred-activities","com.google.android.tvlauncher").strip()
+REPORT.append("CLEAR GOOGLE TV HOME PREFERENCE (emulator only): "+clear_home)
 key("KEYCODE_HOME",1.5)
 shot("22-home-key-default-resolution")
-focus_report("default HOME after key",tree("22-home-key-hierarchy"))
-key("KEYCODE_HOME",1)
+focus_report("HOME after clearing preference",tree("22-home-key-hierarchy"))
 shot("23-home-resolver-or-default")
 resolver=tree("23-home-resolver")
 labels=[n.get("text","") for n in resolver.findall(".//node")] if resolver is not None else []
