@@ -131,6 +131,8 @@ method=method[:-len("        }\n    }\n")]+'''            lastError=e.getClass()
     }
 '''
 # body above adds lastError inside catch immediately before closing bracket.
+method=method.replace('        if(!ZenProtocol.privateAddress(host()))return;',
+    '        if(!ZenProtocol.privateAddress(host())){connecting.set(false);return;}')
 method=method.replace('active=s;s.setSoTimeout(0);',
      'active=s;s.setSoTimeout(0);\n            lastReplyAt=android.os.SystemClock.elapsedRealtime();\n            lastError="Connected";')
 s=s[:start]+method+s[end:]
