@@ -1,0 +1,73 @@
+name: Publish real AltaPlay v0.11 emulator screenshot gallery
+on:
+  push:
+    branches:
+      - feature/altaplay-v011-ui-zen-reconnect-20261121
+    paths:
+      - '.github/workflows/altaplay-v011-publish-screenshots.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  publish-gallery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download real Google TV emulator screenshot archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p .temp-evidence
+          gh release download altaplay-launcher-v0.11.0-preview --repo "${GITHUB_REPOSITORY}" --pattern 'AltaPlay-v0.11-Wallpaper-Location-Boot-Audit.zip' --dir .temp-evidence
+          unzip -q .temp-evidence/AltaPlay-v0.11-Wallpaper-Location-Boot-Audit.zip -d .temp-evidence/unpacked
+      - name: Publish representative JPG images, unmodified apart from resizing/compression
+        run: |
+          python3 -m pip install --quiet pillow
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          src=Path(".temp-evidence/unpacked")
+          dst=Path("qa-proofs/v011-google-tv")
+          dst.mkdir(parents=True,exist_ok=True)
+          names=[
+            "01-Home-default.png",
+            "00-setup-choose-language.png",
+            "00-setup-receiver-selection.png",
+            "00-setup-Accessibility-opt-in.png",
+            "12-City-location-dialog.png",
+            "21-french-home.png",
+            "30-Receiver-settings.png",
+            "31-Receiver-connection-diagnostics.png",
+            "40-Android-TV-actual-system-settings.png",
+            "50-Forest-applied-home.png",
+            "51-Ocean-applied-home.png",
+            "60-Android-system-default-home-picker.png",
+            "65-after-reboot-Home-with-stock-launcher-enabled.png"
+          ]
+          published=[]
+          for name in names:
+              matches=list(src.rglob(name))
+              if not matches:
+                  print("MISSING:",name)
+                  continue
+              im=Image.open(matches[0]).convert("RGB")
+              im.thumbnail((1280,720))
+              target=dst/(Path(name).stem+".jpg")
+              im.save(target,format="JPEG",quality=78,optimize=True)
+              published.append((target,len(target.read_bytes())))
+          assert len(published)>=7, "No usable images from real emulator audit"
+          (dst/"README.md").write_text("# AltaPlay Launcher v0.11 — Google TV 14 emulator screenshots\n\nThese are screenshots from GitHub Actions run 44970553486, resized to 1280px and encoded as JPG for viewing. They are **emulator** images, not photos of the physical TV.\n\nThe screenshots do not prove complete HDMI/Zen functionality or post-reboot Home UI stability.\n")
+          print("PUBLISHED:",published)
+          PY
+      - name: Store gallery in branch for inspection
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add qa-proofs/v011-google-tv
+          if git diff --cached --quiet; then
+            echo "No gallery changes."
+          else
+            git commit -m "QA evidence: publish real v0.11 emulator screenshot gallery"
+            git push origin HEAD:feature/altaplay-v011-ui-zen-reconnect-20261121
+          fi
