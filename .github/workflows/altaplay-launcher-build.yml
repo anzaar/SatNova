@@ -164,6 +164,7 @@ jobs:
           normalize=ns['normalize']
           assert normalize('Medi1TV')==normalize('Medi 1 TV')
           assert normalize('Medi1 TV HD')==normalize('Medi 1 TV')
+          assert normalize('Medí1TV')==normalize('Medi 1 TV')
           assert '"medi1tv":' in source and '"medi1 tv":' in source
           print('PASS: TextClock inherits Android timezone and system 12/24-hour format; Medi1TV name variants resolve to the verified logo')
           PY
