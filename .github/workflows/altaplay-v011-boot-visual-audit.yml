@@ -1,0 +1,79 @@
+name: AltaPlay v0.11 wallpaper, settings, location and reboot visual audit
+on:
+  push:
+    branches:
+      - feature/altaplay-v011-ui-zen-reconnect-20261121
+    paths:
+      - '.github/workflows/altaplay-v011-boot-visual-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  visual-first-then-reboot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 38
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch exact latest built APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p qa-results
+          gh release download altaplay-launcher-v0.11.0-preview --repo "${GITHUB_REPOSITORY}" --pattern 'AltaPlay-Launcher-v0.11-debug.apk' --dir qa-results
+          sha256sum qa-results/AltaPlay-Launcher-v0.11-debug.apk | tee qa-results/latest-apk-sha256.txt
+      - name: Free runner space and install screenshot tools
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/hostedtoolcache/CodeQL /usr/local/lib/android/sdk/ndk /usr/local/lib/android/sdk/cmake /usr/local/share/powershell || true
+          sudo apt-get clean
+          python3 -m pip install --quiet pillow
+          if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+      - name: Audit all real TV pages BEFORE any Google Launcher disable and reboot
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google-tv
+          arch: x86
+          profile: tv_1080p
+          cores: 2
+          disk-size: 1536M
+          ram-size: 2048M
+          disable-animations: true
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -partition-size 1536 -gpu swiftshader_indirect
+          script: python3 .github/qa/v011_boot_visual_audit.py
+      - name: Report exact completeness and black-screen measurements
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('qa-results/v011-reboot-visual-audit/audit.json')
+          if not p.exists():
+              print('FAIL: No real emulator audit output')
+              raise SystemExit(1)
+          data=json.loads(p.read_text())
+          print('REVIEW GATE:',data.get('sections',{}).get('review_gate'))
+          print('BOOT RESULTS:',json.dumps(data.get('boot_cases',{}),indent=2)[:5500])
+          images=list(p.parent.rglob('*.png'))
+          print('Real emulator PNG screenshots:',len(images))
+          print('Missing pages are a FAIL or INCONCLUSIVE, not mocked as successful.')
+          PY
+      - name: Upload raw PNG and XML evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AltaPlay-v011-wallpaper-location-boot-visual-audit
+          path: |
+            qa-results/v011-reboot-visual-audit/
+            qa-results/latest-apk-sha256.txt
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Attach audit gallery to private GitHub release
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -d qa-results/v011-reboot-visual-audit ]; then
+            (cd qa-results && zip -q -r ../AltaPlay-v0.11-Wallpaper-Location-Boot-Audit.zip v011-reboot-visual-audit latest-apk-sha256.txt)
+            gh release upload altaplay-launcher-v0.11.0-preview AltaPlay-v0.11-Wallpaper-Location-Boot-Audit.zip --clobber --repo "${GITHUB_REPOSITORY}"
+          fi
