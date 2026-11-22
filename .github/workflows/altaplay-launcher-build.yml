@@ -177,7 +177,11 @@ jobs:
           assert 'new Intent(activity,HomeSettingsActivity.class)' in panel
           assert 'AltaPlaySetupWizard.offerOnce(a)' in panel
           assert 'new Intent(activity,AltaPlaySetupWizard.class)' in panel
+          assert 'Guide d\'installation et de configuration' in Path('altaplay-launcher/v0.11/apply_v011_setup_wizard.py').read_text()
+          assert 'دليل التثبيت والإعداد خطوة بخطوة' in Path('altaplay-launcher/v0.11/apply_v011_setup_wizard.py').read_text()
+          assert 'Installation & setup guide' in Path('altaplay-launcher/v0.11/apply_v011_setup_wizard.py').read_text()
           wizard=(java/'AltaPlaySetupWizard.java').read_text()
+          assert 'offerWhenReady' in wizard and 'attempt<12' in wizard
           assert 'Settings.ACTION_HOME_SETTINGS' in wizard
           assert 'Settings.ACTION_ACCESSIBILITY_SETTINGS' in wizard
           hdmi=(java/'AltaPlayHdmiGuidedSetup.java').read_text()
