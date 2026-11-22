@@ -88,6 +88,8 @@ once('        TextView settings=activity.findViewById(R.id.btnSettings);',
             TextView button=(TextView)inputs;
             button.setText("Wi-Fi");
             button.setContentDescription("Wi-Fi");
+            button.setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_wifi,0,0,0);
+            button.setVisibility(View.VISIBLE);
             button.setOnClickListener(v->openWifi());
             button.setOnLongClickListener(v->{openWifi();return true;});
         }
