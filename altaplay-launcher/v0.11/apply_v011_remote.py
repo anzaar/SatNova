@@ -23,9 +23,23 @@ replacement="""            case KeyEvent.KEYCODE_CHANNEL_UP:return 69;
             case KeyEvent.KEYCODE_PAGE_DOWN:return 36;"""
 assert src.count(needle)==1,"remote channel keys changed: do not disturb existing keys"
 src=src.replace(needle,replacement)
+# Android TV keycodes 0..9 and optional numpad digits are contiguous.
+# Receiver G-MScreen key codes: 0=12, 1=13, ... 9=21.
+# Only accessibility's HDMI-approved window forwards these keys, so
+# typing numbers in Shahid, YouTube, settings and other apps is unaffected.
+digit_anchor='''    static int zenCode(Context c,int key){
+        switch(key){'''
+digit_replacement='''    static int zenCode(Context c,int key){
+        if(key>=KeyEvent.KEYCODE_0 && key<=KeyEvent.KEYCODE_9)
+            return 12+(key-KeyEvent.KEYCODE_0);
+        if(key>=KeyEvent.KEYCODE_NUMPAD_0 && key<=KeyEvent.KEYCODE_NUMPAD_9)
+            return 12+(key-KeyEvent.KEYCODE_NUMPAD_0);
+        switch(key){'''
+assert src.count(digit_anchor)==1,"Zen remote digit anchor changed"
+src=src.replace(digit_anchor,digit_replacement,1)
 file.write_text(src,encoding="utf-8")
 service=(java/"AltaPlayHdmiRemoteService.java").read_text(encoding="utf-8")
 assert "KEYCODE_VOLUME_UP" in service and "KEYCODE_VOLUME_DOWN" in service
 assert "AltaPlayRemoteKeys.zenCode(this,code)<0" in service
 assert "prefs.getBoolean" in service
-print("PASS v0.11 Page up/down -> receiver 35/36; CH+/CH- and television volume remain unchanged")
+assert "KEYCODE_0" in src and "KEYCODE_NUMPAD_9" in src\nprint("PASS v0.11 Page up/down -> 35/36 and HDMI digits 0..9 -> 12..21; other TV keys unchanged")
