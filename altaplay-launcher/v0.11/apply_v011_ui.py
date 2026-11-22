@@ -256,5 +256,27 @@ t=t.replace(old,'''        String selected=base.getSharedPreferences("altaplay_u
             .getString("language","");
         Locale locale = parse(selected.isEmpty()?Config.load(base).locale:selected);''',1)
 locale.write_text(t,encoding="utf-8")
+
+# Android owns the launcher clock: no private timezone or 12/24-hour override.
+def patch_file(path,old,new,label):
+    source=path.read_text(encoding="utf-8")
+    count=source.count(old)
+    if count!=1: raise RuntimeError("System clock "+label+" anchor="+str(count))
+    path.write_text(source.replace(old,new,1),encoding="utf-8")
+
+main=java/"MainActivity.java"
+patch_file(main,'clockFormat = cfg.clockFormat;','clockFormat = "system";',"MainActivity config")
+patch_file(main,'ClockFormat.apply(getWindow().getDecorView(), clockFormat);',
+    'ClockFormat.apply(getWindow().getDecorView(), "system");',"MainActivity formatter")
+clock_activity=java/"ClockActivity.java"
+patch_file(clock_activity,
+    'ClockFormat.apply(getWindow().getDecorView(), Config.load(this).clockFormat);',
+    'ClockFormat.apply(getWindow().getDecorView(), "system");',"ClockActivity formatter")
+settings=java/"LauncherSettingsActivity.java"
+patch_file(settings,'        clockFormat = config.clockFormat;','        clockFormat = "system";',"settings selection")
+patch_file(settings,
+    '        // Mirror text alignment without globally opting the launcher into RTL.',
+    '        // Only Android System clock is available; hide launcher-owned 12/24 overrides.\n        clockChoices[1].setVisibility(View.GONE);\n        clockChoices[2].setVisibility(View.GONE);\n        // Mirror text alignment without globally opting the launcher into RTL.',
+    "hide independent clock choices")
 shutil.copyfile(Path(__file__).parent/"java/ZenManualLogo.java",java/"ZenManualLogo.java")
 print("PASS v0.11 UI: wallpaper gap/no radios, system clock, Wi-Fi+Zen menu, AR/FR/EN, per-ID manual logos and rename")
