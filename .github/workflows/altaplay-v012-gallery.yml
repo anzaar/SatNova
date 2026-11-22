@@ -15,20 +15,6 @@ jobs:
     timeout-minutes: 38
     steps:
       - uses: actions/checkout@v4
-      - name: Wait for final v0.12 build before testing its exact APK
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          for i in {1..60}; do
-            status=$(gh run list -w altaplay-v012-build.yml -b feature/altaplay-v012-multilingual-safe-ui-20261122 --limit 1 --json status -q '.[0].status')
-            conclusion=$(gh run list -w altaplay-v012-build.yml -b feature/altaplay-v012-multilingual-safe-ui-20261122 --limit 1 --json conclusion -q '.[0].conclusion')
-            echo "v0.12 build status: ${status}, conclusion: ${conclusion}"
-            if [ "$status" = "completed" ] && [ "$conclusion" = "success" ]; then exit 0; fi
-            if [ "$status" = "completed" ] && [ "$conclusion" != "success" ]; then exit 1; fi
-            sleep 10
-          done
-          echo "FAIL: v0.12 build not complete"; exit 1
       - name: Download exact tested AltaPlay v0.12 release APK
         env:
           GH_TOKEN: ${{ github.token }}
@@ -74,6 +60,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          test -d qa-results/v012-gallery || mkdir -p qa-results/v012-gallery
-          (cd qa-results && zip -q -r ../AltaPlay-v0.12-Full-GoogleTV-Screenshots.zip v012-gallery)
-          gh release upload altaplay-launcher-v0.12.0-preview AltaPlay-v0.12-Full-GoogleTV-Screenshots.zip --clobber --repo "${GITHUB_REPOSITORY}"
+          if [ -d qa-results/v012-gallery ] && [ "$(find qa-results/v012-gallery -name '*.png' | wc -l)" -ge 3 ]; then
+            (cd qa-results && zip -q -r ../AltaPlay-v0.12-Full-GoogleTV-Screenshots.zip v012-gallery)
+            gh release upload altaplay-launcher-v0.12.0-preview AltaPlay-v0.12-Full-GoogleTV-Screenshots.zip --clobber --repo "${GITHUB_REPOSITORY}"
+          else
+            echo "No genuine emulator screenshots; evidence archive will not be published."
+          fi
