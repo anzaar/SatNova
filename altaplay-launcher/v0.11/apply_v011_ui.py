@@ -134,7 +134,8 @@ once("    private View channel(List<ZenClient.Channel> group,boolean radio){",
             tr("التحكم بالتيليكوموند","Télécommande Zen","Zen remote"),
             tr("إعدادات إمكانية الوصول","Paramètres d'accessibilité","Accessibility settings"),
             tr("تحديث لائحة القنوات","Actualiser les chaînes","Refresh channel catalogue"),
-            tr("اللغة","Langue","Language")
+            tr("اللغة","Langue","Language"),
+            tr("الخلفيات وإعدادات اللانشر","Fonds d'écran et paramètres du lanceur","Wallpaper & launcher settings")
         };
         new AlertDialog.Builder(activity)
             .setTitle("Zen 4 · "+(client.isOnline()?
@@ -157,6 +158,8 @@ once("    private View channel(List<ZenClient.Channel> group,boolean radio){",
                     catch(Exception e){Toast.makeText(activity,"Accessibility unavailable",Toast.LENGTH_SHORT).show();}
                 else if(which==6)client.refreshCatalogue();
                 else if(which==7)languageMenu();
+                else if(which==8)activity.startActivity(
+                    new Intent(activity,LauncherSettingsActivity.class));
             })
             .setNegativeButton(tr("إغلاق","Fermer","Close"),null).show();
     }
