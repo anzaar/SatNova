@@ -54,7 +54,12 @@ def find(root,keys,attrs=("text","content-desc","resource-id"),clickable=False):
     for key in keys:
         for n in nodes:
             if clickable and n.get("clickable")!="true":continue
-            if any(key.casefold() in (n.get(a) or "").casefold() for a in attrs):
+            if any(
+                key.casefold() == (n.get(a) or "").strip().casefold()
+                or (a == "text" and (n.get(a) or "").strip().casefold().startswith(key.casefold() + " "))
+                or (a == "resource-id" and key.casefold() in (n.get(a) or "").casefold())
+                for a in attrs
+            ):
                 bounds=n.get("bounds","")
                 if re.match(r"\[\d+,\d+\]\[\d+,\d+\]",bounds):return n
     return None
@@ -151,6 +156,31 @@ key("KEYCODE_HOME",1.5)
 shot("01-offline-home-default-wallpaper")
 root=tree("01-offline-ui")
 
+# Launch AltaPlay once and walk the first-run assistant using the remote.
+# The HOME-assignment step is deliberately skipped: the test must never
+# silently set AltaPlay as HOME or disable Google TV on the user's behalf.
+launch()
+shot("02-first-run-step-1")
+setup=tree("02-first-run-step-1")
+if setup is not None and any("1/5" in (n.get("text") or "") for n in setup.findall(".//node")):
+    if click(setup,["Français","English","العربية"]):
+        time.sleep(1)
+        shot("03-first-run-step-2")
+        setup=tree("03-first-run-step-2")
+for step in range(2,6):
+    if setup is None: break
+    title_text=" ".join((n.get("text") or "") for n in setup.findall(".//node"))
+    if not re.search(rf"{step}/5",title_text): break
+    # Skip the optional HOME role prompt; do not press the affirmative button.
+    skipped=click(setup,["تجاوز دابا","Plus tard","LATER","Skip","تخطي"])
+    if not skipped:
+        REPORT.append("FIRST-RUN STEP "+str(step)+": no safe skip control found; stopping wizard automation")
+        break
+    time.sleep(1)
+    shot("0"+str(3+step)+"-first-run-after-skip")
+    setup=tree("first-run-after-"+str(step))
+REPORT.append("FIRST-RUN FINAL STATE: "+("wizard remains visible" if setup is not None and any("/5" in (n.get("text") or "") for n in setup.findall(".//node")) else "wizard not detected"))
+
 # Virtual-remote journey: HOME, Apps, enter/exit launcher, return HOME.
 key("KEYCODE_HOME",1.2)
 remote_sequence("17-google-tv-home",["KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_DOWN"])
@@ -168,8 +198,10 @@ if click(root,["Apps","التطبيقات"],clickable=True):
 # Clear only the emulator's remembered HOME preference. This does not
 # disable Google TV or silently assign AltaPlay as HOME; the resolver remains
 # an explicit user-choice screen and the script never taps "Always".
-clear_home=adb("shell","cmd","package","clear-package-preferred-activities","com.google.android.tvlauncher").strip()
-REPORT.append("CLEAR GOOGLE TV HOME PREFERENCE (emulator only): "+clear_home)
+# Each workflow receives a freshly created AVD. Do not call an unsupported
+# package-manager subcommand or assign/clear HOME preferences programmatically.
+home_resolution=adb("shell","cmd","package","resolve-activity","--brief","-a","android.intent.action.MAIN","-c","android.intent.category.HOME").strip()
+REPORT.append("HOME RESOLUTION ON FRESH AVD (no preferred HOME forced): "+home_resolution)
 key("KEYCODE_HOME",1.5)
 shot("22-home-key-default-resolution")
 focus_report("HOME after clearing preference",tree("22-home-key-hierarchy"))
@@ -277,8 +309,15 @@ root=tree("13-before-wallpaper-settings")
 if click(root,["com.altaplay.launcher:id/btnSettings","الإعدادات","Settings"],clickable=True):
     shot("13-open-launcher-settings")
     settings=tree("13-launcher-settings")
-    if click(settings,["wallpaperChoice","الخلفية","Fond d'écran","Wallpaper"]):
-        shot("14-wallpaper-picker-two-options")
+    # Settings is a category list; enter the AltaPlay wallpapers/settings
+    # category first, then inspect the actual available wallpaper controls.
+    if click(settings,["خلفيات وإعدادات AltaPlay"]):
+        shot("14-wallpaper-category")
+        wallpaper_menu=tree("14-wallpaper-category")
+        visible=[n.get("text","") for n in wallpaper_menu.findall(".//node")] if wallpaper_menu is not None else []
+        REPORT.append("WALLPAPER CATEGORY ITEMS: "+repr([x for x in visible if x]))
+        if click(wallpaper_menu,["اختيار الخلفية","تغيير الخلفية","الخلفية","Wallpaper","Fond d'écran"]):
+            shot("14-wallpaper-picker-two-options")
         choices=tree("14-wallpaper-options")
         if click(choices,["qa-wallpaper-forest.png"]):
             back()
