@@ -178,7 +178,7 @@ jobs:
           wizard=(java/'AltaPlaySetupWizard.java').read_text()
           assert 'Settings.ACTION_HOME_SETTINGS' in wizard
           assert 'Settings.ACTION_ACCESSIBILITY_SETTINGS' in wizard
-          assert 'getRoleHolders(RoleManager.ROLE_HOME)' in wizard
+          assert 'isRoleHeld(RoleManager.ROLE_HOME)' in wizard
           assert 'startActivityForResult' in wizard
           assert 'AUTO_OFFERED' in wizard and 'postDelayed' in wizard
           assert 'receiver_show_channels' in wizard and 'receiver_show_button' in wizard
