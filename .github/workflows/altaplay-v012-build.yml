@@ -159,7 +159,7 @@ jobs:
           assert 'AltaPlayAmbientText.weather(activity,value)' in panel
           assert 'AltaPlayAmbientText.prayer(activity,' in panel
           assert 'setLayoutDirection(uiRtl()?' in panel
-          assert 'prayerText=title("",34' in panel and 'weatherText=title("",28' in panel
+          assert 'prayerText=title("",36' in panel and 'weatherText=title("",30' in panel
           assert '0x44234740' in (base/"DockDecoration.java").read_text()
           assert 'ZenClient' not in helper and 'ZenProtocol' not in helper
           print("PASS v0.12 view-only patch, Zen v0.11 connection/remote unchanged")

@@ -37,7 +37,7 @@ s=panel.read_text(encoding="utf-8")
 
 # Bigger text, same actual Habous/NextPrayer algorithm.
 s=once(s,'prayerText=title("",18,0xFFF9FFF8);',
-       'prayerText=title("",34,0xFFF9FFF8);',
+       'prayerText=title("",36,0xFFF9FFF8);',
        "larger next prayer")
 s=once(s,"prayerText.setMinHeight(dp(37));",
        "prayerText.setMinHeight(dp(70));",
@@ -46,7 +46,7 @@ s=once(s,"prayerText.setMinHeight(dp(37));",
 # Weather is a view-only transformation: keep weather.text() cached data and
 # condition/icon recognition in Arabic, translate only when painting the text.
 s=once(s,'weatherText=title("",15,0xFFE6FAF0);',
-       'weatherText=title("",28,0xFFE6FAF0);',
+       'weatherText=title("",30,0xFFE6FAF0);',
        "larger current weather")
 s=once(s,'weatherText.setSingleLine(true);',
        '''weatherText.setSingleLine(false);
