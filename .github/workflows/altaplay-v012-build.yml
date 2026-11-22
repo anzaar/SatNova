@@ -1,0 +1,370 @@
+name: Build AltaPlay Launcher v0.12 (multilingual safe UI)
+
+on:
+  push:
+    branches:
+      - feature/altaplay-launcher-cleanyourtv-build
+      - fix/altaplay-v09-hw5-logo-remote-20261120
+      - fix/altaplay-v010-zen-tune-confirmed-20261120
+      - feature/altaplay-v012-multilingual-safe-ui-20261122
+    paths:
+      - 'altaplay-launcher/**'
+      - '.github/workflows/altaplay-v012-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout build payload
+        uses: actions/checkout@v4
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android 34 platform
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+      - name: Download CleanYourTV upstream source
+        run: git clone --depth 1 https://github.com/Gathin23/cleanyourtv.git upstream
+      - name: Apply AltaPlay source overlay
+        run: |
+          python3 - <<'PY'
+          import base64,pathlib,zipfile
+          source=pathlib.Path("altaplay-launcher/overlay-v0.1.zip.base64.txt").read_text()
+          payload=base64.b64decode("".join(source.split()))
+          archive=pathlib.Path("overlay.zip")
+          archive.write_bytes(payload)
+          with zipfile.ZipFile(archive) as z:
+              z.extractall(".")
+          PY
+          python3 AltaPlay-CleanYourTV-overlay/apply_overlay.py upstream
+      - name: Apply v0.3 official Habous prayer and Open-Meteo city integration
+        run: python3 altaplay-launcher/v0.3/apply_v03.py upstream
+      - name: Use certified Ministry monthly data and v0.4 reader
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent --location --retry 3 --connect-timeout 12 \
+            https://www.habous.gov.ma/data/horaires-2026-11.js -o /tmp/habous-november-2026.js
+          echo '17f3372351fc53c1bcf22d0bb32ffee5b0e13592c8e0950b6710a5150a63c9eb  /tmp/habous-november-2026.js' | sha256sum -c -
+          python3 - <<'PY'
+          import json,pathlib
+          raw=pathlib.Path("/tmp/habous-november-2026.js").read_text(encoding="utf-8")
+          monthly=json.loads(raw[raw.index("{"):raw.rindex("}")+1])
+          assert monthly["annee"]==2026 and monthly["mois"]==11 and monthly["fuseau"]=="GMT"
+          assert len(monthly["villes"])==190
+          khemisset=next(c for c in monthly["villes"] if c["c"]==2)
+          assert khemisset["n"]=="الخميسات" and khemisset["h"][19]==["05:29","06:56","12:15","14:59","17:24","18:40"]
+          assert all(len(c["h"])==30 for c in monthly["villes"])
+          assets=pathlib.Path("upstream/launcher/app/src/main/assets")
+          assets.mkdir(parents=True,exist_ok=True)
+          (assets/"altaplay_habous_2026-11.json").write_text(json.dumps(monthly,ensure_ascii=False,separators=(',',':')),encoding="utf-8")
+          previous=json.loads((assets/"altaplay_habous_cities.json").read_text(encoding="utf-8"))
+          french={int(c["id"]):c.get("fr",c["ar"]) for c in previous["cities"]}
+          official={"source":"https://www.habous.gov.ma/data/horaires-2026-11.js",
+                  "cities":[{"id":c["c"],"ar":c["n"],"fr":french.get(c["c"],c["n"])} for c in monthly["villes"]]}
+          (assets/"altaplay_habous_cities.json").write_text(json.dumps(official,ensure_ascii=False),encoding="utf-8")
+          print("PACKAGED: certified official data (190 cities, 30 days), November 2026, including 20 Nov Khemisset")
+          PY
+          cp altaplay-launcher/v0.4/java/HabousPrayerSchedule.java \
+            upstream/launcher/app/src/main/java/com/gathin/tvhome/HabousPrayerSchedule.java
+          cp altaplay-launcher/v0.4/java/HabousMonthlyParser.java \
+            upstream/launcher/app/src/main/java/com/gathin/tvhome/HabousMonthlyParser.java
+      - name: Apply v0.5 native connected Zen 4 Arabic UI
+        run: python3 altaplay-launcher/v0.5/apply_v05.py upstream
+      - name: Apply v0.6 layout, Casablanca clock and real logo matcher
+        run: python3 altaplay-launcher/v0.6/apply_v06.py upstream
+      - name: Apply v0.7 resilient Arabic weather and cache
+        run: python3 altaplay-launcher/v0.7/apply_v07.py upstream
+      - name: Verify Arabic weather failure states, cached fallback and retry logic
+        shell: bash
+        run: |
+          mkdir -p /tmp/altaplay-weather-tests
+          javac -encoding UTF-8 -d /tmp/altaplay-weather-tests \
+            altaplay-launcher/v0.7/java/ZenWeatherText.java \
+            altaplay-launcher/v0.7/tests/ZenWeatherTextTest.java
+          java -cp /tmp/altaplay-weather-tests com.gathin.tvhome.ZenWeatherTextTest
+          python3 - <<'PY'
+          from pathlib import Path
+          weather=Path("upstream/launcher/app/src/main/java/com/gathin/tvhome/ZenWeather.java").read_text()
+          ui=Path("upstream/launcher/app/src/main/java/com/gathin/tvhome/AltaPlayZenPanel.java").read_text()
+          assert 'error=ZenWeatherText.problem(failure);' in weather
+          assert 'weather_last_value' in weather
+          assert 'error=ZenWeatherText.problem(failure);' in weather and 'error=e.getMessage()' not in weather, "Network errors must be localized"
+          assert 'weatherText.setOnLongClickListener' in ui
+          print("PASS: original Zen panel intact and weather error goes through Arabic-only localization")
+          PY
+      - name: Apply v0.8 complete TV remote + prayer + logos integration
+        run: python3 altaplay-launcher/v0.8/apply_v08.py upstream
+      - name: Apply v0.9 verified Vestel HDMI 1 and full-logo fallback
+        run: python3 altaplay-launcher/v0.9/apply_v09.py upstream
+      - name: Apply v0.10 Zen tuning before HDMI display and prefer ProgramId
+        run: python3 altaplay-launcher/v0.10/apply_v010.py upstream
+      - name: Apply v0.11 persistent Zen discovery and health heartbeat
+        run: python3 altaplay-launcher/v0.11/apply_v011_zen.py upstream
+      - name: Apply v0.11 light UI, Zen settings, languages and manual channel logos
+        run: python3 altaplay-launcher/v0.11/apply_v011_ui.py upstream
+      - name: Apply v0.11 RTL+LTR layout and remove extra app-TV text
+        run: python3 altaplay-launcher/v0.11/apply_v011_rtl.py upstream
+      - name: Apply v0.11 Page plus/minus and digit keys for HDMI Zen receiver
+        run: python3 altaplay-launcher/v0.11/apply_v011_remote.py upstream
+      - name: Apply v0.11 fast wallpaper cold-start
+        run: python3 altaplay-launcher/v0.11/apply_v011_startup.py upstream
+      - name: Remove changing wallpaper color glows and greeting message
+        run: python3 altaplay-launcher/v0.11/apply_v011_wallpaper_colors.py upstream
+      - name: Move Settings to greeting spot and enlarge both dates on one line
+        run: python3 altaplay-launcher/v0.11/apply_v011_header.py upstream
+      - name: Enlarge upcoming prayer and time remaining, preserving official times
+        run: python3 altaplay-launcher/v0.11/apply_v011_prayer.py upstream
+      - name: Preserve real authenticated receiver name after initial pairing
+        run: python3 altaplay-launcher/v0.11/apply_v011_receiver_name.py upstream
+      - name: Add independent receiver shelf and setup visibility options
+        run: python3 altaplay-launcher/v0.11/apply_v011_receiver_visibility.py upstream
+      - name: Stop receiver network work when both UI elements are disabled
+        run: python3 altaplay-launcher/v0.11/apply_v011_receiver_idle.py upstream
+      - name: Attach transparent logo source provenance and manual override UI
+        run: python3 altaplay-launcher/v0.11/apply_v011_logo_sources.py upstream
+      - name: Add explicit Android system HOME approval shortcut
+        run: python3 altaplay-launcher/v0.11/apply_v011_home_opt_in.py upstream
+      - name: Install five-step optional first-run guide and OS approval handoffs
+        run: python3 altaplay-launcher/v0.11/apply_v011_setup_wizard.py upstream
+      - name: Add HDMI input pairing without ADB or vendor package typing
+        run: python3 altaplay-launcher/v0.11/apply_v011_hdmi_guided.py upstream
+      - name: Apply v0.12 presentation-only localization and layout patch
+        run: |
+          python3 -m py_compile altaplay-launcher/v0.12/apply_v012.py
+          python3 altaplay-launcher/v0.12/apply_v012.py upstream
+      - name: Verify receiver connection, channel switching and HDMI remote remain untouched
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          base=Path("upstream/launcher/app/src/main/java/com/gathin/tvhome")
+          panel=(base/"AltaPlayZenPanel.java").read_text()
+          helper=(base/"AltaPlayAmbientText.java").read_text()
+          remote=(base/"AltaPlayHdmiRemoteService.java").read_text()
+          receiver=(base/"ZenClient.java").read_text()
+          assert 'client.setListener(this::render)' in panel and 'client.start();' in panel
+          assert 'client.tune(item, sent->' in panel
+          assert 'AltaPlayHdmi1.open(activity)' in panel
+          assert 'client.onReceiverVisibilityChanged()' in panel
+          assert 'expected.equals(activePackage)' in remote and 'hdmi_remote_enabled' in remote
+          assert 'receiverFeatureActive()' in receiver and 'discoverNow()' in receiver
+          assert 'AltaPlayAmbientText.weather(activity,value)' in panel
+          assert 'AltaPlayAmbientText.prayer(activity,' in panel
+          assert 'setLayoutDirection(uiRtl()?' in panel
+          assert 'prayerText=title("",34' in panel and 'weatherText=title("",28' in panel
+          assert '0x44234740' in (base/"DockDecoration.java").read_text()
+          assert 'ZenClient' not in helper and 'ZenProtocol' not in helper
+          print("PASS v0.12 view-only patch, Zen v0.11 connection/remote unchanged")
+          PY
+      - name: Validate v0.11 remote key invariants, RTL and wallpaper startup
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          base=Path("upstream/launcher/app/src/main")
+          java=base/"java/com/gathin/tvhome"
+          remote=(java/"AltaPlayRemoteKeys.java").read_text()
+          service=(java/"AltaPlayHdmiRemoteService.java").read_text()
+          panel=(java/"AltaPlayZenPanel.java").read_text()
+          main=(java/"MainActivity.java").read_text()
+          wallpaper=(java/"WallpaperPlayer.java").read_text()
+          assert 'KEYCODE_PAGE_UP:return 35' in remote
+          assert 'KEYCODE_PAGE_DOWN:return 36' in remote
+          assert 'KEYCODE_0' in remote and 'KEYCODE_NUMPAD_9' in remote
+          assert 'KEYCODE_CHANNEL_UP:return 69' in remote
+          assert 'KEYCODE_CHANNEL_DOWN:return 70' in remote
+          assert 'KEYCODE_VOLUME_UP' in service and 'KEYCODE_VOLUME_DOWN' in service
+          assert 'getBoolean("hdmi_remote_enabled",true)' in service
+          assert 'View.LAYOUT_DIRECTION_RTL' in main and 'View.LAYOUT_DIRECTION_LTR' in main
+          assert 'supportsRtl="true"' in (base/"AndroidManifest.xml").read_text()
+          assert 'decoder.execute(() -> {' in wallpaper and 'showFirst();' in wallpaper
+          assert 'shelfLayout.topMargin=dp(23)' in panel
+          assert 'void homeSettingsMenu()' in panel
+          assert 'row.addView(hijriDate' in panel and 'row.addView(arabicDate' in panel
+          assert 'settings.setVisibility(View.GONE)' in panel
+          assert 'greeting.setOnClickListener(v->homeSettingsMenu())' in panel
+          assert 'ambientGlow = false' in main and 'appGlow = false' in main
+          assert 'atmosphere=null' in panel
+          assert 'prayerText=title("",34,' in panel and 'prayerText.setMinHeight(dp(70))' in panel
+          assert 'NextPrayer.display(now,prayers.today()' in panel
+          assert 'prayerText.setTypeface(Typeface.DEFAULT,Typeface.BOLD)' in panel
+          assert 'private void receiverVisibilityMenu()' in panel
+          assert 'receiver_show_channels' in panel and 'receiver_show_button' in panel
+          assert 'receiverShelf.setVisibility(showReceiverChannels()' in panel
+          assert 'zenPill.setVisibility(showReceiverButton()' in panel
+          assert 'else if(which==4)receiverVisibilityMenu()' in panel
+          assert 'showLogoSources()' in panel and 'showChannelLogoSource(item)' in panel
+          assert 'new Intent(activity,HomeSettingsActivity.class)' in panel
+          assert 'AltaPlaySetupWizard.offerOnce(a)' in panel
+          assert 'new Intent(activity,AltaPlaySetupWizard.class)' in panel
+          wizard=(java/'AltaPlaySetupWizard.java').read_text()
+          assert 'Settings.ACTION_HOME_SETTINGS' in wizard
+          assert 'Settings.ACTION_ACCESSIBILITY_SETTINGS' in wizard
+          hdmi=(java/'AltaPlayHdmiGuidedSetup.java').read_text()
+          assert 'TvInputManager' in hdmi and 'TvContract.buildChannelUriForPassthroughInput' in hdmi
+          assert 'queryIntentActivities' in hdmi and 'hdmi_package' in hdmi
+          assert 'hdmi_remote_enabled' in hdmi and 'Yes, enable' in hdmi
+          assert 'AltaPlayHdmiGuidedSetup.show' in wizard and 'AltaPlayHdmiGuidedSetup.show' in panel
+          assert 'com.vendor.hdmi.app' not in panel
+          print('PASS: guided HDMI setup from OS TV input list with explicit consent; other apps keep TV keys')
+          assert 'isRoleHeld(RoleManager.ROLE_HOME)' in wizard
+          assert 'startActivityForResult' in wizard
+          assert 'AUTO_OFFERED' in wizard and 'postDelayed' in wizard
+          assert 'receiver_show_channels' in wizard and 'receiver_show_button' in wizard
+          assert '.AltaPlaySetupWizard' in (base/'AndroidManifest.xml').read_text()
+          assert 'pm disable' not in wizard and 'set-home-activity' not in wizard
+          print('PASS optional first-use onboarding: AR/FR/EN, Android HOME approval, receiver auto-discovery, Accessibility, skip/resume')
+          assert 'which==5' in panel and 'Set AltaPlay as default Home' in panel
+          assert 'Settings.ACTION_HOME_SETTINGS' in (java/'HomeSettingsActivity.java').read_text()
+          print('PASS: HOME set only with Android system approval, Google Launcher remains installed')
+          assert 'static String sourceFor(Context ctx,String channel)' in (java/'AltaPlayOnlineLogos.java').read_text()
+          assert 'receiverDisplayName()' in panel
+          assert 'receiverFeatureActive()' in (java/'ZenClient.java').read_text()
+          assert 'receiverFeatureActive())return false' in service
+          assert 'client.onReceiverVisibilityChanged()' in panel
+          print('PASS receiver controls can be hidden independently; both hidden suspends LAN and remote key forwarding')
+          print('PASS receiver hide/show independently and restored from general Settings')
+          print('PASS next prayer larger, entire remaining countdown visible, official schedule preserved')
+          print('PASS header: both dates same row; Settings in former greeting spot; no red/green glow')
+          print('PASS v0.11 digits, page volume, other keys preserved, language RTL/LTR, no black splash')
+          PY
+      - name: Validate v0.10 connected tuning delivery
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          d=Path('upstream/launcher/app/src/main/java/com/gathin/tvhome')
+          c=(d/'ZenClient.java').read_text()
+          p=(d/'AltaPlayZenPanel.java').read_text()
+          assert 'get(o,"ProgramId","ProgramID","ServiceID")' in c
+          assert 'void tune(Channel item,TuneListener listener)' in c
+          assert 'send(ZenProtocol.tune(item.id,item.tvState,jsonMode))' in c
+          assert 'request1000 written' in c
+          assert 'client.tune(item, sent->' in p
+          assert p.index('client.tune(item, sent->') < p.index('AltaPlayHdmi1.open(activity)')
+          assert 'hdmi_remote_enabled' in (d/'AltaPlayHdmiRemoteService.java').read_text()
+          print("PASS v0.10 source tune and HDMI request sequence")
+          PY
+      - name: Validate HW5 direct URI, logo fallback, remote safety and untouched HOME
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          base=Path('upstream/launcher/app/src/main/java/com/gathin/tvhome')
+          panel=(base/'AltaPlayZenPanel.java').read_text()
+          service=(base/'AltaPlayHdmiRemoteService.java').read_text()
+          hdmi=(base/'AltaPlayHdmi1.java').read_text()
+          assert 'client.tune(item, sent->' in panel
+          assert 'AltaPlayHdmi1.open(activity)' in panel
+          assert 'new Intent("com.android.tv.action.VIEW_INPUTS")' not in panel
+          assert 'com.mediatek.tvinput/.hdmi.HDMIInputService/HW5' in hdmi
+          assert 'TvContract.buildChannelUriForPassthroughInput(INPUT_ID)' in hdmi
+          assert 'ImageView.ScaleType.FIT_CENTER' in panel
+          assert 'GradientDrawable fallback' in panel
+          assert 'prefs.getBoolean("hdmi_remote_enabled",true)' in service
+          assert 'com.mediatek.wwtv.tvcenter' in service
+          assert 'expected.equals(activePackage)' in service
+          print('PASS v0.9 source sanity')
+          PY
+      - name: Build verified external channel-logo URL index
+        run: python3 altaplay-launcher/v0.8/prepare_online_logo_index.py
+      - name: Test next Moroccan prayer and editable approximate Hijri
+        run: |
+          mkdir -p /tmp/altaplay-v08-tests
+          javac -encoding UTF-8 -d /tmp/altaplay-v08-tests \
+            altaplay-launcher/v0.8/java/NextPrayer.java \
+            altaplay-launcher/v0.8/java/MoroccanHijri.java \
+            altaplay-launcher/v0.8/tests/NextPrayerTest.java
+          java -cp /tmp/altaplay-v08-tests com.gathin.tvhome.NextPrayerTest
+      - name: Verify HDMI opt-in only, red/menu yellow/back blue/audio configurable and green/Shahid
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          base=Path("upstream/launcher/app/src/main")
+          remote=(base/"java/com/gathin/tvhome/AltaPlayRemoteKeys.java").read_text()
+          service=(base/"java/com/gathin/tvhome/AltaPlayHdmiRemoteService.java").read_text()
+          main=(base/"java/com/gathin/tvhome/MainActivity.java").read_text()
+          panel=(base/"java/com/gathin/tvhome/AltaPlayZenPanel.java").read_text()
+          assert "KEYCODE_PROG_GREEN" in remote and "shahid://" in remote
+          assert "KEYCODE_PROG_YELLOW" in remote and "KEYCODE_PROG_RED" in remote
+          assert 'getInt("zen_audio_key",54)' in remote
+          assert 'expected.equals(activePackage)' in service and 'hdmi_remote_enabled' in service
+          assert 'if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) return AltaPlayZenPanel.focusTvRow(this);' in main
+          assert 'channelRow.setClipChildren(true)' in panel
+          assert 'AltaPlayOnlineLogos.fetchForVisible' in panel
+          assert 'MoroccanHijri.display' in panel
+          assert 'NextPrayer.display' in panel
+          assert (base/"assets/altaplay_logo_urls.tsv").stat().st_size>300
+          sources=(base/"assets/altaplay_logo_urls.tsv").read_text()
+          assert all(v in sources for v in ('medi1 tv', '2m maroc', 'mbc 5', 'national geographic abu dhabi'))
+          assert 'raw.githubusercontent.com/t4r1k2-dev/minitv-logos' in sources
+          print('PASS automatic logos: Medi1/2M/Arryadia TNT, MBC1–5, National Geographic plus source attribution')
+          print("PASS v0.8: receiver key-code safety, HDMI package permission gate, DPAD channel focus, Hijri, tomorrow prayer and remote artwork")
+          PY
+      - name: Bundle verified broadcaster logo PNGs for offline TV cards
+        shell: bash
+        run: python3 altaplay-launcher/v0.6/prepare_logos.py
+      - name: Verify logo assets and no fabricated demo channel names in actual APK source
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          j=Path("upstream/launcher/app/src/main/java/com/gathin/tvhome/AltaPlayZenPanel.java").read_text()
+          assert "zen_mock_receiver" not in j and "قناة تجريبية" not in j
+          cfg=Path("upstream/launcher/app/src/main/res/values/config.xml").read_text()
+          assert '<bool name="single_row">true</bool>' in cfg
+          assert '<bool name="dock_title">false</bool>' in cfg
+          assert '<bool name="dock_band_all">true</bool>' in cfg
+          assert 'shelfLayout.topMargin=dp(23)' in j
+          logos=list(Path("upstream/launcher/app/src/main/assets/altaplay_channel_logos").glob("*.png"))
+          assert len(logos)>=3
+          print("PASS single app row, transparent channel shelf, 23dp wallpaper gap and",len(logos),"real logo images")
+          PY
+      - name: Test exact Ministry published daily values
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/altaplay-habous-v04
+          javac -encoding UTF-8 -d /tmp/altaplay-habous-v04 \
+            altaplay-launcher/v0.4/java/HabousMonthlyParser.java \
+            altaplay-launcher/v0.4/tests/HabousMonthlyParserTest.java
+          java -cp /tmp/altaplay-habous-v04 com.gathin.tvhome.HabousMonthlyParserTest \
+            /tmp/habous-november-2026.js
+      - name: Verify official Habous table parser without Android
+        run: |
+          mkdir -p /tmp/habous-tests
+          javac -encoding UTF-8 -d /tmp/habous-tests \
+            upstream/launcher/app/src/main/java/com/gathin/tvhome/HabousHtmlParser.java \
+            altaplay-launcher/v0.3/tests/HabousHtmlParserTest.java
+          java -cp /tmp/habous-tests com.gathin.tvhome.HabousHtmlParserTest
+      - name: Test G-MScreen protocol
+        run: bash AltaPlay-CleanYourTV-overlay/tests/run_protocol_tests.sh
+      - name: Build debug APK
+        working-directory: upstream/launcher
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon --stacktrace assembleDebug
+      - name: Stage APK
+        run: |
+          mkdir -p dist
+          cp upstream/launcher/app/build/outputs/apk/debug/app-debug.apk dist/AltaPlay-Launcher-v0.12-debug.apk
+          sha256sum dist/*.apk
+      - name: Publish private GitHub prerelease APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="altaplay-launcher-v0.12.0-preview"
+          ASSET="dist/AltaPlay-Launcher-v0.12-debug.apk"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ASSET" --clobber
+          else
+            gh release create "$TAG" "$ASSET" \
+              --target "$GITHUB_SHA" \
+              --title "AltaPlay Launcher v0.12 Multilingual Preview" \
+              --notes "Android TV preview built from CleanYourTV with SatNova ZEN 4 controls. Test as app first; do not disable the stock launcher. Official certified monthly Habous timetable, shared Open-Meteo; Arabic ambient UI with nonoverlapping single app row and actual Zen channel cards. Includes curated broadcaster logos as PNGs with precise normalized channel-name matching, Moroccan clock/date + official prayer timetable, real channel IDs from connected hardware (demo only uses verified DVB SIDs), no fabricated EPG. Keeps stock HOME untouched. Open-Meteo Arabic weather with stale-cache protection; v0.12 adds presentation-only AR/FR/EN translation, Hijri transliteration, logical RTL/LTR top controls, larger prayer/weather and translucent dock, without altering Zen or remote. v0.11 adds auto rediscovery, health checks, app independence, Wi-Fi and Zen settings, manual logos and AR/FR/EN, system clock and wallpaper gap; v0.10 prioritizes receiver ProgramId and dispatches request 1000 before HDMI; v0.9 adds HW5 direct HDMI, logo fallback and default MediaTek remote; v0.8 fixes channel DPAD, real remote broadcaster logo index with offline caching, next Habous prayer with tomorrow's Fajr, adjustable approximate Morocco Hijri under Gregorian, Shahid green key and opt-in HDMI package-scoped remote. Blue audio uses G-MScreen compatibility candidate key 54, not hardware-verified on Zen 4; overrideable or disableable. Automatic HDMI remote forwarding and audio adhan still need hardware verification." \
+              --prerelease
+          fi
