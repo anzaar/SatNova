@@ -21,6 +21,14 @@ def once(text,old,new,stage):
 
 s=source.read_text(encoding="utf-8")
 s=once(s,
+'''            .replace('\\u00a0',' ')
+            .replaceAll("(?i)\\\\s+(4k|uhd|fhd|hd|sd)$","")''',
+'''            .replace('\\u00a0',' ')
+            // Broadcaster sometimes arrives as Medi1TV, Medi 1 TV or Medi1 TV HD.
+            .replaceAll("(?i)medi\\\\s*1\\\\s*tv","medi1 tv")
+            .replaceAll("(?i)\\\\s+(4k|uhd|fhd|hd|sd)$","")''',
+"Medi1TV logo-name normalization")
+s=once(s,
 '''    static File cached(Context ctx,String name){''',
 '''    /** Returns only an indexed, vetted HTTPS logo source, never guessed URLs. */
     static String sourceFor(Context ctx,String channel){
