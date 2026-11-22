@@ -141,11 +141,8 @@ public final class AltaPlaySetupWizard extends Activity {
         String[] items={"العربية","Français","English"};
         String[] codes={"ar","fr","en"};
         AlertDialog d=new AlertDialog.Builder(this)
-          .setTitle(title())
-          .setMessage(tr(
-              "اختار لغة الواجهة. تقدر تبدلها من الإعدادات فأي وقت.",
-              "Choisissez votre langue. Vous pourrez la changer plus tard.",
-              "Choose the interface language. You can change it later."))
+          .setTitle(title()+" · "+tr("اختار لغة الواجهة",
+             "Choisissez votre langue","Choose your language"))
           .setItems(items,(di,i)->{
               getSharedPreferences(UI,MODE_PRIVATE).edit()
                   .putString("language",codes[i]).apply();
@@ -367,12 +364,6 @@ public final class AltaPlaySetupWizard extends Activity {
                     .putBoolean("completed",true).putBoolean("deferred",false).apply();
                 finish();
             })
-          .setNeutralButton(tr("إعدادات النظام","Paramètres système","System settings"),
-             (di,i)->{
-                try{startActivity(new Intent(Settings.ACTION_SETTINGS));}
-                catch(Exception ignored){}
-                finishFlow();
-             })
           .setNegativeButton(tr("رجوع","Retour","Back"),(di,i)->setStep(3))
           .create();
         dialog(d);
