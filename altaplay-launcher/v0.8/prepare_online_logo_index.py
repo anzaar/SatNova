@@ -48,7 +48,7 @@ sources={
 }
 def normalize(s):
     s=re.sub(r"(?i)\s+(4k|uhd|fhd|hd|sd)$","",s)
-     s=s.lower().replace("í","i").replace("medi 1 tv","medi1 tv").replace("medi1tv","medi1 tv").replace("medi 1tv","medi1 tv")
+    s=s.lower().replace("í","i").replace("medi 1 tv","medi1 tv").replace("medi1tv","medi1 tv").replace("medi 1tv","medi1 tv")
     return " ".join(re.findall(r"[\w]+",s,re.UNICODE)).strip()
 fail=0;candidate={};ambiguous=set()
 try:
