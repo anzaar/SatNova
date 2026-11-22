@@ -30,6 +30,35 @@ s=once(s,
 "wizard in manifest")
 manifest.write_text(s,encoding="utf8")
 s=panel.read_text(encoding="utf8")
+# Keep the installation guide reachable from Home Settings even when Zen is hidden/offline.
+s=once(s,
+'''            tr("خلفيات وإعدادات AltaPlay","Fonds d'écran et paramètres AltaPlay",
+                "AltaPlay wallpaper & settings"),
+            tr("إعدادات التلفاز والنظام","Paramètres du téléviseur","TV & system settings"),''',
+'''            tr("خلفيات وإعدادات AltaPlay","Fonds d'écran et paramètres AltaPlay",
+                "AltaPlay wallpaper & settings"),
+            tr("دليل التثبيت والإعداد خطوة بخطوة","Guide d'installation et de configuration",
+                "Installation & setup guide"),
+            tr("إعدادات التلفاز والنظام","Paramètres du téléviseur","TV & system settings"),''',
+"guide in always-visible Home Settings")
+s=once(s,
+'''                else if(which==1)try{
+                    activity.startActivity(new Intent(Settings.ACTION_SETTINGS));''',
+'''                else if(which==1){
+                    Intent guide=new Intent(activity,AltaPlaySetupWizard.class);
+                    guide.putExtra("start_over",true);
+                    activity.startActivity(guide);
+                }
+                else if(which==2)try{
+                    activity.startActivity(new Intent(Settings.ACTION_SETTINGS));''',
+"open guide from Home Settings")
+s=once(s,
+'''                else if(which==2)languageMenu();
+                else if(which==3)zenMenu();''',
+'''                else if(which==3)languageMenu();
+                else if(which==4)zenMenu();''',
+"preserve menu actions after guide insertion")
+
 s=once(s,
 '''        new AltaPlayZenPanel(a);
     }''',
