@@ -169,17 +169,27 @@ if setup is not None and any("1/5" in (n.get("text") or "") for n in setup.finda
         setup=tree("03-first-run-step-2")
 for step in range(2,6):
     if setup is None: break
-    title_text=" ".join((n.get("text") or "") for n in setup.findall(".//node"))
+    nodes=setup.findall(".//node")
+    title_text=" ".join((n.get("text") or "") for n in nodes)
     if not re.search(rf"{step}/5",title_text): break
-    # Skip the optional HOME role prompt; do not press the affirmative button.
-    skipped=click(setup,["IGNORER","Ignorer","Passer","Plus tard","LATER","Skip","تجاوز دابا","تخطي"])
-    if not skipped:
-        REPORT.append("FIRST-RUN STEP "+str(step)+": no safe skip control found; stopping wizard automation")
-        break
-    time.sleep(1)
-    shot("0"+str(3+step)+"-first-run-after-skip")
+    # Step 3 offers receiver discovery, manual IP, or a safe no-receiver path.
+    # Select only the explicit no-receiver option on this disposable emulator;
+    # never start network discovery or change any HOME role.
+    if step == 3:
+        selected=click(setup,["SANS RÉCEPTEUR","Sans récepteur","No receiver","بدون جهاز استقبال"],clickable=True)
+        if not selected:
+            REPORT.append("FIRST-RUN STEP 3: safe no-receiver choice not found; stopping")
+            break
+    else:
+        selected=click(setup,["IGNORER","Ignorer","Passer","Plus tard","LATER","Skip","تجاوز دابا","تخطي"],clickable=True)
+        if not selected:
+            REPORT.append("FIRST-RUN STEP "+str(step)+": no safe skip control found; stopping wizard automation")
+            break
+    time.sleep(1.2)
+    shot("0"+str(3+step)+"-first-run-step-"+str(step+1))
     setup=tree("first-run-after-"+str(step))
-REPORT.append("FIRST-RUN FINAL STATE: "+("wizard remains visible" if setup is not None and any("/5" in (n.get("text") or "") for n in setup.findall(".//node")) else "wizard not detected"))
+wizard_visible=setup is not None and any(re.search(r"\\b[1-5]/5\\b",(n.get("text") or "")) for n in setup.findall(".//node"))
+REPORT.append("FIRST-RUN FINAL STATE: "+("wizard remains visible" if wizard_visible else "wizard not detected"))
 
 # Virtual-remote journey: HOME, Apps, enter/exit launcher, return HOME.
 key("KEYCODE_HOME",1.2)
@@ -263,11 +273,12 @@ try:
             break
     adb("shell","am","force-stop",PKG)
     pref=b"<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map><string name='zen_ip'>10.0.2.2</string></map>"
-    # Use an absolute app-private path: run-as shell cwd is not guaranteed.
-    pref_path="/data/user/0/"+PKG+"/shared_prefs/altaplay_zen.xml"
-    write_cmd="mkdir -p /data/user/0/"+PKG+"/shared_prefs && cat > "+pref_path
-    cmd("adb","shell","run-as",PKG,"sh","-c",write_cmd,stdin=pref)
-    verify=cmd("adb","shell","run-as",PKG,"sh","-c","test -s "+pref_path+" && cat "+pref_path)
+    # run-as starts in the app-private data directory. Create the prefs
+    # folder as a separate argv command, then stream the XML to a relative path.
+    # Avoid shell parsing of an absolute /data/user/0/... path.
+    mkdir_out=cmd("adb","shell","run-as",PKG,"mkdir","-p","shared_prefs")
+    write_out=cmd("adb","shell","run-as",PKG,"sh","-c","cat > shared_prefs/altaplay_zen.xml",stdin=pref)
+    verify=cmd("adb","shell","run-as",PKG,"sh","-c","test -s shared_prefs/altaplay_zen.xml && cat shared_prefs/altaplay_zen.xml")
     if "zen_ip" in verify and "10.0.2.2" in verify:
         REPORT.append("ZEN MOCK PREF: verified app-private preference file")
     else:
