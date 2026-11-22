@@ -100,7 +100,9 @@ s=replace(s,'''        if(prefs==null)return false;''',
 service.write_text(s,encoding="utf-8")
 
 s=panel.read_text(encoding="utf-8")
-s=replace(s,'''                // Pause or restore LAN clients without deleting any saved data.
+s=replace(s,'''                // Rebuild only the local UI, not data, receiver or Android HOME.
+                activity.recreate();''',
+'''                // Pause or restore LAN clients without deleting any saved data.
                 client.onReceiverVisibilityChanged();
                 // Update only the visible receiver area: a full Activity
                 // recreation would re-decode wallpaper and flash the Home.
