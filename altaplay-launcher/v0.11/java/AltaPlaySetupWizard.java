@@ -43,20 +43,35 @@ public final class AltaPlaySetupWizard extends Activity {
     private AlertDialog current;
 
     static void offerOnce(Activity owner) {
-        if(!AUTO_OFFERED.compareAndSet(false,true))return;
-        SharedPreferences p=owner.getSharedPreferences(PREF,Context.MODE_PRIVATE);
-        if(p.getBoolean("completed",false) || p.getBoolean("deferred",false))return;
+        if(AUTO_OFFERED.get())return;
         View content=owner.findViewById(R.id.root);
-        if(content==null)return;
-        // Never block Home's critical first frame or the owner's wallpaper.
-        content.postDelayed(()->{
-            if(owner.isFinishing() || owner.isDestroyed() || !content.hasWindowFocus())return;
-            // Never interrupt Shahid, YouTube, system dialogs or HDMI while
-            // the user is watching; the guide can be opened from Settings.
-            SharedPreferences check=owner.getSharedPreferences(PREF,Context.MODE_PRIVATE);
-            if(check.getBoolean("completed",false)||check.getBoolean("deferred",false))return;
-            owner.startActivity(new Intent(owner,AltaPlaySetupWizard.class));
-        },2200);
+        if(content==null)content=owner.getWindow().getDecorView();
+        final View target=content;
+        // Retry while Home is regaining focus. The old implementation marked
+        // the guide as offered BEFORE checking focus, so one missed first
+        // frame permanently hid the installation guide.
+        target.postDelayed(()->offerWhenReady(owner,target,0),2200);
+    }
+
+    private static void offerWhenReady(Activity owner,View target,int attempt) {
+        if(owner.isFinishing() || owner.isDestroyed() || AUTO_OFFERED.get())return;
+        SharedPreferences p=owner.getSharedPreferences(PREF,Context.MODE_PRIVATE);
+        if(p.getBoolean("completed",false) || p.getBoolean("deferred",false)) {
+            AUTO_OFFERED.set(true);
+            return;
+        }
+        if(!target.hasWindowFocus()) {
+            if(attempt<12)target.postDelayed(
+                ()->offerWhenReady(owner,target,attempt+1),1500);
+            return;
+        }
+        if(AUTO_OFFERED.compareAndSet(false,true)) {
+            try {
+                owner.startActivity(new Intent(owner,AltaPlaySetupWizard.class));
+            } catch(Exception failure) {
+                AUTO_OFFERED.set(false);
+            }
+        }
     }
 
     @Override protected void attachBaseContext(Context base) {
