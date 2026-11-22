@@ -147,6 +147,9 @@ jobs:
           assert 'ampm.setTimeZone(null)' in ui
           assert 'clock.setFormat12Hour(null)' in ui and 'clock.setFormat24Hour(null)' in ui
           assert 'ampm.setFormat12Hour(null)' in ui and 'ampm.setFormat24Hour(null)' in ui
+          assert 'clockFormat = "system";' in ui
+          assert 'ClockFormat.apply(getWindow().getDecorView(), "system");' in ui
+          assert 'clockChoices[1].setVisibility(View.GONE)' in ui and 'clockChoices[2].setVisibility(View.GONE)' in ui
           logo_path=Path('altaplay-launcher/v0.8/prepare_online_logo_index.py')
           source=logo_path.read_text(encoding='utf-8')
           logo_patch=Path('altaplay-launcher/v0.11/apply_v011_logo_sources.py').read_text(encoding='utf-8')
