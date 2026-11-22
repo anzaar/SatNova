@@ -9,6 +9,27 @@ out=Path("upstream/launcher/app/src/main/assets/altaplay_logo_urls.tsv")
 out.parent.mkdir(parents=True,exist_ok=True)
 raw="https://raw.githubusercontent.com/tv-logo/tv-logos/main/"
 sources={
+ "2m":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/2m.png",
+ "2m maroc":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/2m.png",
+ "2m maroc hd":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/2m.png",
+ "2m monde":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/2mmonde.png",
+ "medi1":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/medi1.png",
+ "medi1 tv":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/medi1.png",
+ "medi 1":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/medi1.png",
+ "medi 1 tv":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/medi1.png",
+ "arryadia tnt":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/arryadiaTNT.png",
+ "mbc 3":"https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/mbc-3-ae.png",
+ "mbc 4":"https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/mbc-4-ae.png",
+ "mbc 5":"https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/mbc-5-ae.png",
+ "mbc max":"https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/mbc-max-ae.png",
+ "mbc drama":"https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/mbc-drama-ae.png",
+ "mbc bollywood":"https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/mbc-bollywood-ae.png",
+ "national geographic abu dhabi":"https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/national-geographic-abu-dhabi-ae.png",
+ "nat geo abu dhabi":"https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/national-geographic-abu-dhabi-ae.png",
+ "nat geo arabic":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/national-geo-arabic.png",
+ "national geographic arabic":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/national-geo-arabic.png",
+ "qatar tv":"https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/qatar-tv-ae.png",
+ "al arabiya":"https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/united-arab-emirates/al-arabiya-ae.png",
  "al aoula":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/al-aoula.png",
  "al aoula inter":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/al-aoula.png",
  "الأولى":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/al-aoula.png",
@@ -52,4 +73,10 @@ with out.open("w",encoding="utf-8") as fp:
         if key and url.startswith("https://raw.githubusercontent.com/") and url.endswith(".png"):
             fp.write(key+"\t"+url+"\n")
 print("LOGO INDEX",len(sources),"aliases, ambiguous skipped",len(ambiguous),"offline API fallback",bool(fail))
-assert len(sources)>=12
+# Explicit critical identities on Badr / Es'hail / Arabsat satellites;
+# derived from checked asset filenames. This is LOGO sourcing only:
+# it never adds or renumbers Zen receiver channels.
+critical={"medi1 tv","2m maroc","al aoula","arryadia","mbc 1","mbc 2","mbc 3","mbc 4","mbc 5","national geographic abu dhabi"}
+assert critical.issubset(sources),f"Missing core channel logos: {critical-set(sources)}"
+assert len(sources)>=28
+print("LOGO SOURCES: tv-logo/tv-logos and t4r1k2-dev/minitv-logos (GitHub raw HTTPS). Remote manual logo per ProgramId overrides automatic matching.")
