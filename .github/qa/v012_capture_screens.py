@@ -191,66 +191,59 @@ for step in range(2,6):
 wizard_visible=setup is not None and any(re.search(r"\b[1-5]/5\b",(n.get("text") or "")) for n in setup.findall(".//node"))
 REPORT.append("FIRST-RUN FINAL STATE: "+("wizard remains visible" if wizard_visible else "wizard not detected"))
 
-# Virtual-remote journey: HOME, Apps, enter/exit launcher, return HOME.
-key("KEYCODE_HOME",1.2)
-remote_sequence("17-google-tv-home",["KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_DOWN"])
-focus_report("Google TV home focus",tree("17-google-tv-focus"))
-root=tree("17-apps-entry")
-if click(root,["Apps","التطبيقات"],clickable=True):
-    shot("18-google-tv-apps-screen")
-    apps=tree("18-apps-hierarchy")
-    focus_report("Apps screen",apps)
-    if find(apps,["AltaPlay"],clickable=True):
-        click(apps,["AltaPlay"],clickable=True)
-        time.sleep(2);shot("19-launcher-opened-from-apps")
-        remote_sequence("20-launcher-dpad-navigation",["KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_LEFT","KEYCODE_DPAD_DOWN","KEYCODE_DPAD_UP"])
-        back();shot("21-exit-launcher-back")
-# Clear only the emulator's remembered HOME preference. This does not
-# disable Google TV or silently assign AltaPlay as HOME; the resolver remains
-# an explicit user-choice screen and the script never taps "Always".
-# Each workflow receives a freshly created AVD. Do not call an unsupported
-# package-manager subcommand or assign/clear HOME preferences programmatically.
-home_resolution=adb("shell","cmd","package","resolve-activity","--brief","-a","android.intent.action.MAIN","-c","android.intent.category.HOME").strip()
-REPORT.append("HOME RESOLUTION ON FRESH AVD (no preferred HOME forced): "+home_resolution)
-key("KEYCODE_HOME",1.5)
-shot("22-home-key-default-resolution")
-focus_report("HOME after clearing preference",tree("22-home-key-hierarchy"))
-shot("23-home-resolver-or-default")
-resolver=tree("23-home-resolver")
-labels=[n.get("text","") for n in resolver.findall(".//node")] if resolver is not None else []
-REPORT.append("HOME RESOLVER LABELS "+repr([x for x in labels if x]))
-if any("AltaPlay" in x or "Google TV" in x for x in labels):
-    REPORT.append("HOME chooser presented; inspect options and persistence after emulator reboot")
-else:
-    REPORT.append("No HOME chooser surfaced; default launcher selection not proven")
-
-# Receiver-independent app coverage only.
-# This CI pass deliberately does not start a Zen simulator, inject receiver
-# preferences, open Zen menus, scan the network, or issue receiver commands.
-# Receiver/HDMI validation is reserved for a separately authorized hardware pass.
-
-# Re-open the launcher after HOME testing and capture its offline state.
+# App-transition journey; HOME is deliberately excluded.
+REPORT.append("APP TRANSITION TEST: HOME key intentionally excluded")
+activity_query=adb("shell","cmd","package","query-activities","--brief","-a","android.intent.action.MAIN","-c","android.intent.category.LAUNCHER")
+packages=[]
+for line in activity_query.splitlines():
+    line=line.strip()
+    if "/" in line:
+        pkg=line.split("/",1)[0]
+        if pkg not in packages and pkg not in {PKG,"com.android.shell"}:
+            packages.append(pkg)
+REPORT.append("DISCOVERED LAUNCHER PACKAGES: "+repr(packages))
+preferred=["com.altaplay.app","com.google.android.youtube.tv","com.android.tv"]
+candidates=[p for p in preferred if p in packages]
+candidates += [p for p in packages if p not in candidates
+               and not p.startswith(("com.google.android.tv.setup","com.google.android.tungsten"))
+               and not p.startswith(("com.android.settings","com.android.systemui"))]
+tested=0
+for pkg in candidates[:4]:
+    REPORT.append("APP TRANSITION CANDIDATE: "+pkg)
+    launch_out=adb("shell","monkey","-p",pkg,"-c","android.intent.category.LAUNCHER","1",timeout=45)
+    time.sleep(2)
+    foreground=adb("shell","dumpsys","activity","activities")
+    is_foreground=(pkg in foreground and any(x in foreground for x in ("mResumedActivity","topResumedActivity","ResumedActivity")))
+    REPORT.append("APP LAUNCH "+pkg+": "+("foreground confirmed" if is_foreground else "foreground not confirmed")+"; "+launch_out[-180:].replace("\\n"," | "))
+    safe=re.sub(r"[^A-Za-z0-9_.-]","_",pkg)
+    shot("app-"+str(tested+1)+"-"+safe+"-opened")
+    app_tree=tree("app-"+str(tested+1)+"-hierarchy")
+    focus_report("app "+pkg,app_tree)
+    back()
+    time.sleep(1.2)
+    state=adb("shell","dumpsys","activity","activities")
+    returned=PKG in state and any(x in state for x in ("mResumedActivity","topResumedActivity","ResumedActivity"))
+    REPORT.append("BACK RETURN "+pkg+": "+("AltaPlay foreground confirmed" if returned else "AltaPlay foreground not confirmed"))
+    shot("app-"+str(tested+1)+"-"+safe+"-after-back")
+    tested+=1
+    if tested>=2: break
+REPORT.append("APP TRANSITION COUNT: "+str(tested))
+if not tested: REPORT.append("APP TRANSITION RESULT: no eligible installed app; not tested")
+# Verify DPAD focus changes inside AltaPlay; no HOME key events are sent.
 launch()
 shot("04-launcher-offline-home")
-offline=tree("04-launcher-offline-hierarchy")
-focus_report("offline launcher initial focus",offline)
-remote_sequence("05-offline-dpad-right",["KEYCODE_DPAD_RIGHT"])
-remote_sequence("06-offline-dpad-down",["KEYCODE_DPAD_DOWN"])
-remote_sequence("07-offline-dpad-left",["KEYCODE_DPAD_LEFT"])
-remote_sequence("08-offline-dpad-up",["KEYCODE_DPAD_UP"])
+root=tree("04-launcher-offline-hierarchy")
+focus_report("offline launcher initial focus",root)
+for index,k in enumerate(["KEYCODE_DPAD_RIGHT","KEYCODE_DPAD_DOWN","KEYCODE_DPAD_LEFT","KEYCODE_DPAD_UP"],1):
+    key(k,0.8)
+    current=tree("dpad-"+str(index))
+    focused=[n.attrib for n in current.findall(".//node") if n.get("focused")=="true"] if current is not None else []
+    REPORT.append("DPAD FOCUS "+k+": "+repr(focused[:3]))
+    shot("dpad-"+str(index))
 key("KEYCODE_BACK",0.8)
 shot("09-offline-back-navigation")
-key("KEYCODE_HOME",1.0)
-shot("10-google-tv-home-return")
 launch()
-shot("11-launcher-reopen-after-home")
-# Verify the launcher can be backgrounded and restored without changing the
-# system HOME role. Do not tap any HOME resolver's "Always" choice.
-key("KEYCODE_HOME",1.0)
-shot("12-home-key-does-not-force-default")
-launch()
-shot("13-launcher-restored-after-home")
-
+shot("10-launcher-restored-after-back")
 # Actual two-image wallpaper picker test: add user-selectable images to
 # emulator's own app external-file collection. No installed TV is touched.
 sample=Path("qa-results")
