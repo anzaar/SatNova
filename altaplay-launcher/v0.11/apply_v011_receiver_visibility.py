@@ -80,7 +80,7 @@ once('''    private void homeSettingsMenu(){''',
 "persistent independent options")
 
 # The general settings menu MUST remain the way back if both are hidden.
-once('''            tr("إعدادات Zen 4","Paramètres Zen 4","Zen 4 settings")
+once('''            tr("إعدادات جهاز الاستقبال","Paramètres du récepteur","Receiver settings")
         };''',
 '''            tr("إظهار وإخفاء جهاز الاستقبال","Afficher ou masquer le récepteur",
                 "Show or hide receiver"),
