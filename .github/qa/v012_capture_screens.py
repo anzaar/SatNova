@@ -172,7 +172,7 @@ for step in range(2,6):
     title_text=" ".join((n.get("text") or "") for n in setup.findall(".//node"))
     if not re.search(rf"{step}/5",title_text): break
     # Skip the optional HOME role prompt; do not press the affirmative button.
-    skipped=click(setup,["تجاوز دابا","Plus tard","LATER","Skip","تخطي"])
+    skipped=click(setup,["IGNORER","Ignorer","Passer","Plus tard","LATER","Skip","تجاوز دابا","تخطي"])
     if not skipped:
         REPORT.append("FIRST-RUN STEP "+str(step)+": no safe skip control found; stopping wizard automation")
         break
@@ -262,9 +262,16 @@ try:
         if "receiver ready on 20000" in (OUT/"simulated-zen.log").read_text(errors="replace"):
             break
     adb("shell","am","force-stop",PKG)
-    adb("shell","run-as",PKG,"mkdir","-p","shared_prefs")
-    pref=b"<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map><string name=\"zen_ip\">10.0.2.2</string></map>"
-    cmd("adb","shell","run-as",PKG,"sh","-c","cat > shared_prefs/altaplay_zen.xml",stdin=pref)
+    pref=b"<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map><string name=\\\"zen_ip\\\">10.0.2.2</string></map>"
+    # Use an absolute app-private path: run-as shell cwd is not guaranteed.
+    pref_path="/data/user/0/"+PKG+"/shared_prefs/altaplay_zen.xml"
+    write_cmd="mkdir -p /data/user/0/"+PKG+"/shared_prefs && cat > "+pref_path
+    cmd("adb","shell","run-as",PKG,"sh","-c",write_cmd,stdin=pref)
+    verify=cmd("adb","shell","run-as",PKG,"sh","-c","test -s "+pref_path+" && cat "+pref_path)
+    if "zen_ip" in verify and "10.0.2.2" in verify:
+        REPORT.append("ZEN MOCK PREF: verified app-private preference file")
+    else:
+        REPORT.append("ZEN MOCK PREF: FAILED verification "+verify[-300:])
     launch()
     time.sleep(7)
     shot("07-simulated-zen-connected-home")
