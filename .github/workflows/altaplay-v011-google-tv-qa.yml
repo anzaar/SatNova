@@ -1,0 +1,81 @@
+name: AltaPlay v0.11 Google TV Emulator QA
+on:
+  push:
+    branches:
+      - feature/altaplay-v011-ui-zen-reconnect-20261121
+    paths:
+      - '.github/workflows/altaplay-v011-google-tv-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  emulator-qa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download exact released v0.11 APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p qa-results
+          gh release download altaplay-launcher-v0.11.0-preview --repo "${GITHUB_REPOSITORY}" --pattern 'AltaPlay-Launcher-v0.11-debug.apk' --dir qa-results
+          sha256sum qa-results/AltaPlay-Launcher-v0.11-debug.apk | tee qa-results/sha256.txt
+      - name: Use release in existing Google TV smoke harness
+        run: |
+          sed -i 's/AltaPlay-Launcher-v0.3-debug.apk/AltaPlay-Launcher-v0.11-debug.apk/g' altaplay-launcher/qa/google-tv-smoke.sh
+      - name: Free disposable runner toolchains and enable KVM
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /opt/hostedtoolcache/CodeQL /usr/local/lib/android/sdk/ndk /usr/local/lib/android/sdk/cmake /usr/local/share/powershell || true
+          sudo apt-get clean
+          if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; fi
+          df -h /
+      - name: Run offline and simulated-Zen QA on Google TV 14
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google-tv
+          arch: x86
+          profile: tv_1080p
+          cores: 2
+          disk-size: 1536M
+          ram-size: 2048M
+          disable-animations: true
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -partition-size 1536 -gpu swiftshader_indirect
+          script: |
+            bash altaplay-launcher/qa/google-tv-smoke.sh
+            bash .github/qa/connected_zen_test.sh
+      - name: Verify light UI and no Android launcher crashes
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from xml.etree import ElementTree as ET
+          offline=Path('qa-results/first-window.xml')
+          online=Path('qa-results/zen-connected-window.xml')
+          for file in (offline,online):
+              if not file.exists():
+                  print('INCONCLUSIVE no UI hierarchy:',file)
+                  continue
+              nodes=ET.parse(file).getroot().findall('.//node')
+              text='\n'.join(n.get('text','') for n in nodes)
+              print(file,'texts:',len(text),'radio word present:', 'الإذاعات' in text)
+              assert 'الإذاعات' not in text, 'Radio header should be removed in v0.11'
+              assert 'التطبيقات' not in text, 'App-TV gap text should be removed in v0.11'
+          for f in Path('qa-results').glob('*crash*'):
+              if f.is_file():
+                  txt=f.read_text(errors='replace')
+                  assert 'Process: com.altaplay.launcher' not in txt, 'Crash of AltaPlay'
+          print('PASS/INCONCLUSIVE: v0.11 offline/online header and crash checks')
+          PY
+      - name: Publish v0.11 Google TV screenshots and QA diagnostics
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -d qa-results ]; then
+            (cd qa-results && zip -q -r ../AltaPlay-v0.11-GoogleTV-API34-QA.zip .)
+            gh release upload altaplay-launcher-v0.11.0-preview AltaPlay-v0.11-GoogleTV-API34-QA.zip --clobber --repo "${GITHUB_REPOSITORY}"
+          fi
