@@ -137,6 +137,28 @@ jobs:
         run: python3 altaplay-launcher/v0.11/apply_v011_setup_wizard.py upstream
       - name: Add HDMI input pairing without ADB or vendor package typing
         run: python3 altaplay-launcher/v0.11/apply_v011_hdmi_guided.py upstream
+      - name: Verify system-clock inheritance and Medi1TV logo matching
+        run: |
+          python3 - <<'PY'
+          import ast
+          from pathlib import Path
+          ui=Path('altaplay-launcher/v0.11/apply_v011_ui.py').read_text(encoding='utf-8')
+          assert 'clock.setTimeZone(null)' in ui
+          assert 'ampm.setTimeZone(null)' in ui
+          assert 'clock.setFormat12Hour(null)' in ui and 'clock.setFormat24Hour(null)' in ui
+          assert 'ampm.setFormat12Hour(null)' in ui and 'ampm.setFormat24Hour(null)' in ui
+          logo_path=Path('altaplay-launcher/v0.8/prepare_online_logo_index.py')
+          source=logo_path.read_text(encoding='utf-8')
+          tree=ast.parse(source)
+          fn=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='normalize')
+          ns={}
+          exec(compile(ast.Module(body=[fn],type_ignores=[]),str(logo_path),'exec'),ns)
+          normalize=ns['normalize']
+          assert normalize('Medi1TV')==normalize('Medi 1 TV')
+          assert normalize('Medi1 TV HD')==normalize('Medi 1 TV')
+          assert '"medi1tv":' in source and '"medi1 tv":' in source
+          print('PASS: TextClock inherits Android timezone and system 12/24-hour format; Medi1TV name variants resolve to the verified logo')
+          PY
       - name: Validate v0.11 remote key invariants, RTL and wallpaper startup
         run: |
           python3 - <<'PY'
