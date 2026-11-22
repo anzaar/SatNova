@@ -19,7 +19,7 @@ PKG="com.altaplay.launcher"
 HOME=PKG+"/com.gathin.tvhome.MainActivity"
 GOOGLE="com.google.android.tvlauncher"
 events=[]
-results={"purpose":"TV UI audit followed by cold reboot with Google launcher disabled on emulator ONLY",
+results={"purpose":"TV UI audit, Android Settings Home confirmation with stock Google Launcher enabled, then reboot",
          "qa":"emulated Google TV 14 x86 / 1080p", "sections":{},"boot_cases":{}}
 def record(key,val):
     events.append(f"{time.strftime('%H:%M:%S')} {key}: {val}")
@@ -300,28 +300,106 @@ def reboot_case(label):
             "first_observable_screen":img,"transition":samples,
             "after_state":after,"errors_in_crash_buffer":PKG in crash}
 
+def capture_accessibility_remote_state(label):
+    """Read-only: no root, no secure-settings writes, no service activation."""
+    folder=ROOT/"system"
+    folder.mkdir(exist_ok=True)
+    probes={
+        "accessibility_services":adb("shell","settings","get","secure","enabled_accessibility_services"),
+        "accessibility_on":adb("shell","settings","get","secure","accessibility_enabled"),
+        "accessibility_details":adb("shell","dumpsys","accessibility",timeout=55),
+        "hdmi_remote_declarations":adb("shell","dumpsys","package",PKG,timeout=45),
+        "last_hdmi_input":adb("shell","dumpsys","tv_input",timeout=45),
+        "default_home_role":adb("shell","cmd","role","holders","android.app.role.HOME"),
+        "foreground_window":adb("shell","dumpsys","window","windows",timeout=45),
+    }
+    for name,value in probes.items():
+        (folder/(label+"-"+name+".txt")).write_text(value,encoding="utf8")
+    enabled=probes["accessibility_services"]
+    info={
+        "accessibility_enabled":probes["accessibility_on"].strip(),
+        "accessibility_services":enabled.strip(),
+        "receiver_hdmi_bridge_enabled":("AltaPlayHdmiRemoteService" in enabled),
+        "receiver_key_service_enabled":("InputKeyService" in enabled),
+        "home_key_service_enabled":("HomeKeyService" in enabled),
+        "os_home_role":probes["default_home_role"].strip(),
+        "vendor_hdmi_service_reference_found":
+            "com.mediatek" in probes["last_hdmi_input"].lower()
+    }
+    record("ACCESSIBILITY & HDMI "+label,info)
+    return info
+
+def is_altaplay_default():
+    roles=adb("shell","cmd","role","holders","android.app.role.HOME")
+    preferred=adb("shell","cmd","package","resolve-activity","--brief","-a",
+                  "android.intent.action.MAIN","-c","android.intent.category.HOME")
+    return PKG in roles or (PKG in preferred and
+           "ResolverActivity" not in preferred)
+
+def choose_home_with_system_approval():
+    """Only OS settings taps, just like a TV user would make with a remote."""
+    record("HOME SELECTION","Opening OS-owned default Home settings from app's general menu.")
+    details={"initial_default":is_altaplay_default(),"selection_through_system":False,
+             "os_approval_shown":False,"verified_default":False}
+    settings=go_settings()
+    if settings is None:
+        record("HOME SELECTION","Blocked: AltaPlay Settings entry unavailable")
+        return details
+    if not touch(settings,["تعيين AltaPlay كواجهة رئيسية",
+                           "Définir AltaPlay comme écran d'accueil",
+                           "Set AltaPlay as default Home"]):
+        record("HOME SELECTION","No explicit option to handoff to system Home selector")
+        return details
+    sleep(1.8)
+    details["selection_through_system"]=True
+    shot("60-Android-system-default-home-picker")
+    root=xml("60-system-default-home-options")
+    # The Android Settings page can be a list (Google TV/AltaPlay) or a
+    # single "Home app" subpage. Navigate only text actually visible in XML.
+    if not is_altaplay_default():
+        if touch(root,["Home app","App d'accueil","Application d'accueil",
+                        "Application écran d'accueil","تطبيق الشاشة الرئيسية"]):
+            shot("61-Android-home-apps-list")
+            root=xml("61-Android-home-apps-list")
+        if touch(root,["AltaPlay Launcher","AltaPlay","com.altaplay.launcher"]):
+            details["os_approval_shown"]=True
+            shot("62-Android-confirm-AltaPlay-home")
+            root=xml("62-Android-confirm-AltaPlay-home")
+            # Some Android variants ask explicit confirmation via dialog.
+            for i in range(2):
+                if is_altaplay_default():break
+                if touch(root,["Set as default","Use AltaPlay",
+                               "Always","Toujours","Définir par défaut",
+                               "Utiliser","دائماً","تعيين كافتراضي","موافق"]):
+                    shot("63-Android-home-approval-"+str(i))
+                    root=xml("63-home-dialog-"+str(i))
+                else:break
+    details["verified_default"]=is_altaplay_default()
+    details["google_still_enabled"]=GOOGLE in adb("shell","pm","list","packages","-e")
+    record("HOME SELECTION RESULT",details)
+    shot("64-after-system-Home-selection")
+    return details
+
 def test_boot():
-    record("BOOT SAFETY","All UI visual tests above completed before touching Google TV launcher.")
-    state("before-any-home-change")
-    # Snapshot the existing Android HOME selection and package state.
-    resolution=adb("shell","cmd","package","resolve-activity","--brief","-a",
-                   "android.intent.action.MAIN","-c","android.intent.category.HOME")
-    (ROOT/"home-before-disable.txt").write_text(resolution,encoding="utf-8")
-    choose=adb("shell","cmd","package","set-home-activity",
-               PKG+"/com.gathin.tvhome.MainActivity")
-    record("HOME set",choose.strip())
-    results["boot_cases"]["google_enabled"]=reboot_case("google-enabled-altaplay-home")
-    # Destructive to a live user's TV. SAFE ONLY IN DISPOSABLE AVD.
-    # Restoration is attempted regardless of the boot outcome.
-    try:
-        disable=adb("shell","pm","disable-user","--user","0",GOOGLE,timeout=18)
-        record("GOOGLE LAUNCHER DISABLED (emulator only)",disable.strip())
-        results["boot_cases"]["google_disabled"]=reboot_case("google-disabled-altaplay-home")
-    finally:
-        adb("shell","pm","enable","--user","0",GOOGLE,timeout=18)
-        state("google-restored")
-        record("RESTORED","Google TV launcher enabled again in disposable emulator")
-    # No attempt to copy this disable command to user's TV.
+    # Google TV Launcher is NEVER disabled in this experiment; HOME is an
+    # ordinary OS user choice, not a forced ADB assignment.
+    record("BOOT SAFETY","Google TV Launcher stays enabled; no pm disable or set-home-activity.")
+    results["boot_cases"]["before_system_choice"]=state("before-system-home-choice")
+    results["boot_cases"]["services_before"]=capture_accessibility_remote_state("before-home-choice")
+    selection=choose_home_with_system_approval()
+    results["sections"]["default_home_selection"]=selection
+    if not selection.get("verified_default") or not selection.get("google_still_enabled"):
+        record("REBOOT BLOCKED","System Home approval not confirmed. No forced switch and no reboot.")
+        results["boot_cases"]["not_run"]="OS default HOME selection did not succeed through settings UI"
+        return
+    # Measure HOME transitions before cold restart, with real screenshots.
+    results["boot_cases"]["warm_home_transition"]=capture_home_transition("before-reboot-home")
+    results["boot_cases"]["after_user_approved_home"]=reboot_case("google-enabled-user-approved-altaplay-home")
+    results["boot_cases"]["services_after"]=capture_accessibility_remote_state("after-reboot")
+    results["boot_cases"]["default_persisted"]=is_altaplay_default()
+    results["boot_cases"]["google_launcher_remained_enabled"]=(GOOGLE in
+        adb("shell","pm","list","packages","-e"))
+    shot("65-after-reboot-Home-with-stock-launcher-enabled")
 
 def main():
     results["emulator_model"]=adb("shell","getprop","ro.product.model").strip()
@@ -345,17 +423,16 @@ def main():
                        results["sections"].get("languages",{}).values()),
       "device_settings":isinstance(results["sections"].get("device_settings"),dict),
       "location":results["sections"].get("location")}
-    # User requested review first. On failure we still record the boot diagnostics
-    # but do not disable Google TV launcher on a configuration that did not
-    # pass preliminary UI readiness checks.
+    # Audit pages are done first and their limitations retained transparently.
+    # The Android HOME picker must be exercised next, BEFORE any reboot.
+    # Do not disable Google TV Launcher, even on the emulator.
     gate=results["sections"]["review_gate"]
-    location_entry=results["sections"].get("location_settings",{})
-    if not (gate["wallpapers"] and gate["languages"] and gate["device_settings"] and
-            isinstance(gate["location"],dict) and
-            location_entry.get("has_country_city_entry",False)):
-        record("BOOT BLOCKED","UI prerequisites incomplete; do not disable Google TV launcher.")
-        results["boot_cases"]["not_run"]="Precondition failed: missing wallpaper/language/location/device-settings functionality"
-        return
+    results["sections"]["ui_review_complete"]={
+        "wallpaper_picker_verified":gate["wallpapers"],
+        "languages_verified":gate["languages"],
+        "device_settings_verified":gate["device_settings"],
+        "city_country_options":results["sections"].get("location_settings",{})
+    }
     test_boot()
 
 try:main()
@@ -363,8 +440,7 @@ except Exception as e:
     record("QA EXCEPTION",traceback.format_exc())
     results["exception"]=str(e)
 finally:
-    try:adb("shell","pm","enable","--user","0",GOOGLE,timeout=10)
-    except Exception:pass
+    # No Google TV package state is changed, including during cleanup.
     (ROOT/"audit.json").write_text(json.dumps(results,ensure_ascii=False,indent=2),encoding="utf8")
     (ROOT/"events.txt").write_text("\n".join(events)+"\n",encoding="utf8")
     record("EVIDENCE","Saved "+str(len(list(ROOT.rglob("*.png"))))+" genuine emulator screenshots")
