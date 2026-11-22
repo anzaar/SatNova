@@ -22,7 +22,7 @@ Depuis l'accueil, sélectionner **Paramètres** (à l'emplacement de l'ancien me
 Les réglages disponibles dans l'écran du lanceur comprennent :
 - disposition des applications : colonnes et rangées;
 - opacité du dock;
-- format de l'horloge : système, 12 h ou 24 h;
+- horloge synchronisée avec Android : même heure, fuseau horaire, réglage automatique et format 12/24 h du téléviseur. Il n'existe pas de fuseau horaire séparé dans AltaPlay;
 - choix du fond d'écran;
 - animations et effets avancés;
 - application à ouvrir au démarrage, si l'option est prise en charge;
@@ -61,7 +61,7 @@ Dans **Paramètres > Réglages Zen 4**, l'utilisateur peut consulter le diagnost
 تتضمن إعدادات اللانشر:
 - عدد أعمدة وصفوف التطبيقات.
 - شفافية شريط التطبيقات.
-- تنسيق الساعة: حسب النظام أو 12 ساعة أو 24 ساعة.
+- الساعة تتبع Android مباشرة: نفس التوقيت والمنطقة الزمنية والضبط التلقائي وتنسيق 12/24 ساعة. لا توجد منطقة زمنية مستقلة داخل AltaPlay.
 - اختيار الخلفية.
 - تشغيل/إيقاف الحركات والمؤثرات المتقدمة.
 - اختيار التطبيق الذي يفتح عند بدء التشغيل إذا كان مدعوماً.
