@@ -100,12 +100,23 @@ s=replace(s,'''        if(prefs==null)return false;''',
 service.write_text(s,encoding="utf-8")
 
 s=panel.read_text(encoding="utf-8")
-s=replace(s,'''                // Rebuild only the local UI, not data, receiver or Android HOME.
-                activity.recreate();''',
-'''                // Pause or restore LAN clients without touching cached channels.
+s=replace(s,'''                // Pause or restore LAN clients without deleting any saved data.
                 client.onReceiverVisibilityChanged();
-                // Only a visible local layout needs rebuilding (no app-data reset).
-                activity.recreate();''',
-"pause background on visibility save")
+                // Update only the visible receiver area: a full Activity
+                // recreation would re-decode wallpaper and flash the Home.
+                if(receiverShelf!=null)
+                    receiverShelf.setVisibility(showReceiverChannels()?View.VISIBLE:View.GONE);
+                if(zenPill!=null){
+                    zenPill.setVisibility(showReceiverButton()?View.VISIBLE:View.GONE);
+                    zenPill.setFocusable(showReceiverButton());
+                }
+                if(showReceiverChannels()){
+                    renderedSignature=Integer.MIN_VALUE;render();
+                }
+                // The Settings entry always remains, even if both are hidden.
+                View settingsEntry=activity.findViewById(R.id.greeting);
+                if(settingsEntry!=null && settingsEntry.isFocusable())
+                    settingsEntry.requestFocus();''',
+"pause background and update receiver views without black-screen recreation")
 panel.write_text(s,encoding="utf-8")
-print("PASS hidden receiver both controls -> no LAN polling, heartbeat or remote key capture; existing data retained")
+print("PASS hidden receiver both controls -> no LAN polling, heartbeat or remote capture; instant UI update without full Activity recreate")
