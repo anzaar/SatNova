@@ -262,7 +262,7 @@ try:
         if "receiver ready on 20000" in (OUT/"simulated-zen.log").read_text(errors="replace"):
             break
     adb("shell","am","force-stop",PKG)
-    pref=b"<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map><string name=\\\"zen_ip\\\">10.0.2.2</string></map>"
+    pref=b"<?xml version='1.0' encoding='utf-8' standalone='yes' ?><map><string name='zen_ip'>10.0.2.2</string></map>"
     # Use an absolute app-private path: run-as shell cwd is not guaranteed.
     pref_path="/data/user/0/"+PKG+"/shared_prefs/altaplay_zen.xml"
     write_cmd="mkdir -p /data/user/0/"+PKG+"/shared_prefs && cat > "+pref_path
