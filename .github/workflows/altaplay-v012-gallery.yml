@@ -54,13 +54,13 @@ jobs:
           cat "$path/qa-capture-report.txt"
           count=$(find "$path" -maxdepth 1 -type f -name '*.png' | wc -l)
           echo "Real Google TV emulator screenshots: $count"
-          # A handful of screenshots is not a completed gallery. Require a broad
-          # evidence set and verify the emulator/API and APK installation report.
           test "$count" -ge 12
           grep -Eq '^TV version: 14([.]0)?$' "$path/qa-capture-report.txt"
           grep -q '^Emulator model: ' "$path/qa-capture-report.txt"
           grep -q 'INSTALL: Success' "$path/qa-capture-report.txt"
-          grep -q '^FIRST-RUN FINAL STATE: wizard not detected
+          grep -q '^FIRST-RUN FINAL STATE: wizard not detected$' "$path/qa-capture-report.txt"
+          grep -q '^ZEN MOCK PREF: verified app-private preference file$' "$path/qa-capture-report.txt"
+          ! grep -q 'SCREENSHOT FAILED' "$path/qa-capture-report.txt"
           ! grep -q 'COMMAND EXCEPTION' "$path/qa-capture-report.txt"
           ! grep -q '^COMMAND ERR' "$path/qa-capture-report.txt"
           echo "Evidence gate passed. This confirms emulator capture only; Zen mock is not real Zen 4/HDMI validation."
