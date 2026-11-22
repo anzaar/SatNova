@@ -139,9 +139,11 @@ s=once(s,'Toast.makeText(activity,"Zen 4 غير متصل · القناة محف�
 s=once(s,'new AlertDialog.Builder(activity).setTitle("اختر نسخة "+item.name)',
        'new AlertDialog.Builder(activity).setTitle(tr("اختر نسخة ","Choisir une version de ","Choose a version of ")+item.name)',
        "localized duplicate channel selector")
-s=once(s,'.setNegativeButton("إلغاء",null).show();',
-       '.setNegativeButton(tr("إلغاء","Annuler","Cancel"),null).show();',
-       "duplicate channel cancel")
+# Both the receiver settings and channel-variant dialogs may use the old
+# cancel label. Localization is presentation-only; translate every such label.
+assert '.setNegativeButton("إلغاء",null).show();' in s
+s=s.replace('.setNegativeButton("إلغاء",null).show();',
+            '.setNegativeButton(tr("إلغاء","Annuler","Cancel"),null).show();')
 panel.write_text(s,encoding="utf-8")
 
 # Keep app tiles and all focus affordances intact, just lighten the visible
