@@ -236,6 +236,12 @@ s=s.replace('title(client.isOnline()?"مباشر":"محفوظة",10,0xB4D8ECDA)'
             'title(client.isOnline()?tr("مباشر","Direct","Live"):tr("محفوظة","En cache","Cached"),10,0xB4D8ECDA)')
 # Keep source receiver IDs unchanged. The menu uses these IDs for correct tune.
 
+# Android AlertDialog list and message are mutually exclusive. Keep the
+# diagnostics in the dedicated first item; otherwise the language/Zen menu
+# is silently hidden on Google TV.
+once('            .setMessage(client.diagnostics())\\n            .setItems(choices,',
+     '            .setItems(choices,',
+     "Zen settings must display selectable menu items")
 panel.write_text(s,encoding="utf-8")
 locale=java/"LauncherLocale.java"
 t=locale.read_text(encoding="utf-8")
