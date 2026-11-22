@@ -15,6 +15,9 @@ sources={
  "2m monde":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/2mmonde.png",
  "medi1":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/medi1.png",
  "medi1 tv":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/medi1.png",
+ "medi1tv":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/medi1.png",
+ "medi 1tv":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/medi1.png",
+ "medi1 tv hd":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/medi1.png",
  "medi 1":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/medi1.png",
  "medi 1 tv":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/medi1.png",
  "arryadia tnt":"https://raw.githubusercontent.com/t4r1k2-dev/minitv-logos/main/arryadiaTNT.png",
@@ -45,7 +48,8 @@ sources={
 }
 def normalize(s):
     s=re.sub(r"(?i)\s+(4k|uhd|fhd|hd|sd)$","",s)
-    return " ".join(re.findall(r"[\w]+",s.lower(),re.UNICODE)).strip()
+    s=s.lower().replace("medi 1 tv","medi1 tv").replace("medi1tv","medi1 tv").replace("medi 1tv","medi1 tv")
+    return " ".join(re.findall(r"[\w]+",s,re.UNICODE)).strip()
 fail=0;candidate={};ambiguous=set()
 try:
     url="https://api.github.com/repos/tv-logo/tv-logos/git/trees/main?recursive=1"
