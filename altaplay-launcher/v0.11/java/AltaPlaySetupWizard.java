@@ -193,8 +193,9 @@ public final class AltaPlaySetupWizard extends Activity {
         try {
             RoleManager role=getSystemService(RoleManager.class);
             if(role!=null){
-                List<String> owners=role.getRoleHolders(RoleManager.ROLE_HOME);
-                if(owners!=null && owners.contains(getPackageName()))return true;
+                // Android public API: this app can query only whether IT owns HOME.
+                // getRoleHolders() is a privileged API on many Android TV SDKs.
+                if(role.isRoleHeld(RoleManager.ROLE_HOME))return true;
             }
         }catch(Exception ignored){}
         try {
