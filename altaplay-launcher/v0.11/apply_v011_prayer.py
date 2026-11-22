@@ -27,7 +27,8 @@ once('''        prayerText=title("",13,0xF5E7F5E8);
         prayerText.setSingleLine(true);''',"prayer 18sp bold")
 
 once('''            left.addView(prayerText,new LinearLayout.LayoutParams(-1,dp(25)));''',
-'''            left.addView(prayerText,new LinearLayout.LayoutParams(-1,dp(37)));''',
+'''            prayerText.setMinHeight(dp(37));
+            left.addView(prayerText,new LinearLayout.LayoutParams(-1,-2));''',
 "reserve room for larger prayer text")
 
 # At large Android font scales, keep the actual next-prayer countdown
