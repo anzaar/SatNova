@@ -50,7 +50,9 @@ public final class AltaPlaySetupWizard extends Activity {
         if(content==null)return;
         // Never block Home's critical first frame or the owner's wallpaper.
         content.postDelayed(()->{
-            if(owner.isFinishing() || owner.isDestroyed())return;
+            if(owner.isFinishing() || owner.isDestroyed() || !content.hasWindowFocus())return;
+            // Never interrupt Shahid, YouTube, system dialogs or HDMI while
+            // the user is watching; the guide can be opened from Settings.
             SharedPreferences check=owner.getSharedPreferences(PREF,Context.MODE_PRIVATE);
             if(check.getBoolean("completed",false)||check.getBoolean("deferred",false))return;
             owner.startActivity(new Intent(owner,AltaPlaySetupWizard.class));
