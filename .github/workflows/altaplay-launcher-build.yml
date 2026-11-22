@@ -149,6 +149,11 @@ jobs:
           assert 'ampm.setFormat12Hour(null)' in ui and 'ampm.setFormat24Hour(null)' in ui
           logo_path=Path('altaplay-launcher/v0.8/prepare_online_logo_index.py')
           source=logo_path.read_text(encoding='utf-8')
+          logo_patch=Path('altaplay-launcher/v0.11/apply_v011_logo_sources.py').read_text(encoding='utf-8')
+          ui_patch=Path('altaplay-launcher/v0.11/apply_v011_ui.py').read_text(encoding='utf-8')
+          assert 'Medi1TV logo-name normalization' in logo_patch
+          assert 'Logo via URL ou FTP' in ui_patch and 'card.setOnLongClickListener(v->{channelMenu(item);return true;})' in ui_patch
+          assert 'if(which==6)client.refreshCatalogue();' in ui_patch
           tree=ast.parse(source)
           fn=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='normalize')
           ns={}
