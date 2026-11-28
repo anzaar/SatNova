@@ -2,7 +2,6 @@
 """
 Populates zen4-companion/app/src/main/java/com/gathin/tvhome/ with ONLY the
 clean receiver, HDMI, remote, and logo classes from SatNova/altaplay-launcher.
-Excludes AltaPlayZenPanel (which depends on cleanyourtv launcher XML + Habous + Weather).
 """
 import argparse
 import base64
@@ -23,6 +22,7 @@ EXCLUDED = (
     "MainActivity.java",
     "AltaPlayOnlineLogos.java",
     "AltaPlayHdmiRemoteService.java",
+    "AltaPlayHdmi1.java",
 )
 
 ALTAPLAY_FILES = [
@@ -56,12 +56,11 @@ def main() -> int:
     java_dst = args.companion_root / "app" / "src" / "main" / "java" / "com" / "gathin" / "tvhome"
     java_dst.mkdir(parents=True, exist_ok=True)
 
-    # Remove stale AltaPlayZenPanel.java if present
     stale = java_dst / "AltaPlayZenPanel.java"
     if stale.exists():
         stale.unlink()
 
-    # 1) Extract ZenClient / ZenProtocol / AltaPlayHdmi1 from overlay-v0.1.zip.base64.txt
+    # 1) Extract ZenClient / ZenProtocol from overlay-v0.1.zip.base64.txt
     b64_path = altaplay / "overlay-v0.1.zip.base64.txt"
     if b64_path.is_file():
         raw_zip = base64.b64decode(b64_path.read_text(encoding="utf-8"))
@@ -88,7 +87,16 @@ def main() -> int:
             print(f"> applying {rel}")
             subprocess.run([sys.executable, str(script), str(args.companion_root)], check=False)
 
-    print("Companion sources prepared cleanly (zero Adhan/Weather/Launcher-grid dependencies).")
+    # 4) Ensure ZenClient.identity(byte[]) is package-private for ZenLanDiscovery
+    zen_client = java_dst / "ZenClient.java"
+    if zen_client.is_file():
+        txt = zen_client.read_text(encoding="utf-8")
+        fixed = txt.replace("private static String identity(", "static String identity(")
+        if fixed != txt:
+            zen_client.write_text(fixed, encoding="utf-8")
+            print("~ opened package access for ZenClient.identity(byte[])")
+
+    print("Companion sources prepared cleanly (0 errors expected).")
     return 0
 
 
