@@ -25,3 +25,7 @@ Standalone Android TV application for the Echolink Forever Zen 4 receiver.
 
 ## Branding
 The official AltaPlay logo was supplied in this conversation. The original artwork must be copied into app resources without redrawing or substituting a generated mark. This first code commit does not yet include the binary artwork.
+
+
+## CI validation
+The dedicated GitHub Actions workflow builds this module on every change under `receiver/`. The APK is considered usable only after a successful CI build and a real Zen 4 connection test.
