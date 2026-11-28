@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.InflaterInputStream
 
 /** Zen 4 control channel from the TV itself; it never uses the phone's app data. */
-internal data class ZenChannel(
+data class ZenChannel(
     val id: String, val name: String, val position: Int, val radio: Boolean,
     val logoUrl: String? = null,
     val encrypted: Boolean? = null,
