@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """
 Populates zen4-companion/app/src/main/java/com/gathin/tvhome/ with ONLY the
-receiver, channels, HDMI, and remote classes from SatNova/altaplay-launcher,
-strictly excluding Adhan/Habous/Hijri/Weather and preserving our upgraded
-MainActivity.java, AltaPlayHdmiRemoteService.java, and AltaPlayOnlineLogos.java.
+clean receiver, HDMI, remote, and logo classes from SatNova/altaplay-launcher.
+Excludes AltaPlayZenPanel (which depends on cleanyourtv launcher XML + Habous + Weather).
 """
 import argparse
 import base64
@@ -20,13 +19,13 @@ EXCLUDED = (
     "MoroccanHijri",
     "NextPrayer",
     "AltaPlayAmbientText",
+    "AltaPlayZenPanel",
     "MainActivity.java",
     "AltaPlayOnlineLogos.java",
     "AltaPlayHdmiRemoteService.java",
 )
 
 ALTAPLAY_FILES = [
-    "v0.5/AltaPlayZenPanel.java",
     "v0.6/java/AltaPlayChannelLogos.java",
     "v0.8/java/AltaPlayRemoteKeys.java",
     "v0.11/java/AltaPlayHdmiGuidedSetup.java",
@@ -57,6 +56,11 @@ def main() -> int:
     java_dst = args.companion_root / "app" / "src" / "main" / "java" / "com" / "gathin" / "tvhome"
     java_dst.mkdir(parents=True, exist_ok=True)
 
+    # Remove stale AltaPlayZenPanel.java if present
+    stale = java_dst / "AltaPlayZenPanel.java"
+    if stale.exists():
+        stale.unlink()
+
     # 1) Extract ZenClient / ZenProtocol / AltaPlayHdmi1 from overlay-v0.1.zip.base64.txt
     b64_path = altaplay / "overlay-v0.1.zip.base64.txt"
     if b64_path.is_file():
@@ -77,14 +81,14 @@ def main() -> int:
             shutil.copy2(src, java_dst / src.name)
             print(f"+ copied: {src.name}")
 
-    # 3) Apply v0.11 receiver & remote patches (numpad 0-9, PAGE_UP/DOWN, LAN rediscovery)
+    # 3) Apply v0.11 receiver & remote patches
     for rel in PATCH_SCRIPTS:
         script = altaplay / rel
         if script.is_file():
             print(f"> applying {rel}")
             subprocess.run([sys.executable, str(script), str(args.companion_root)], check=False)
 
-    print("Companion sources prepared successfully (zero Adhan/Weather files).")
+    print("Companion sources prepared cleanly (zero Adhan/Weather/Launcher-grid dependencies).")
     return 0
 
 
