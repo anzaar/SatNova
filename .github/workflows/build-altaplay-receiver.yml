@@ -1,0 +1,44 @@
+name: Build AltaPlay Receiver
+on:
+  push:
+    branches: [feature/altaplay-receiver]
+    paths:
+      - 'receiver/**'
+      - 'settings.gradle.kts'
+      - 'build.gradle.kts'
+      - '.github/workflows/build-altaplay-receiver.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  receiver-debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Prepare Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          SDK_MANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDK_MANAGER"
+          yes | "$SDK_MANAGER" --licenses >/dev/null || true
+          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Run receiver tests and build APK
+        run: gradle --no-daemon --stacktrace :receiver:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AltaPlay-Receiver-alpha
+          path: receiver/build/outputs/apk/debug/receiver-debug.apk
+          if-no-files-found: error
+          retention-days: 14
