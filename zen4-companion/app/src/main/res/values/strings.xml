@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Zen4 TV</string>
+    <string name="hdmi_service_label">Zen4 TV • HDMI Remote Bridge</string>
+    <string name="hdmi_service_desc">يمرّر أزرار ريموت التلفاز المختارة إلى جهاز الاستقبال Zen 4 فقط عند التواجد داخل منفذ HDMI، دون التأثير على لانشر سوكريتو.</string>
+</resources>

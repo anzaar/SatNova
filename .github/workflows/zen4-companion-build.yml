@@ -1,0 +1,47 @@
+name: Build Zen4 TV Companion APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'zen4-companion/**'
+      - '.github/workflows/zen4-companion-build.yml'
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout SatNova
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Prepare isolated Zen4 + HDMI + Remote sources (no Adhan/Weather)
+        run: |
+          python3 zen4-companion/scripts/prepare_from_satnova.py \
+            --satnova-root . \
+            --companion-root zen4-companion
+
+      - name: Generate external Badr 26E + Es'hailSat 25.5E logo index
+        run: python3 zen4-companion/scripts/build_badr_eshail_index.py
+
+      - name: Build Companion APK
+        working-directory: zen4-companion
+        run: gradle :app:assembleRelease --no-daemon
+
+      - name: Upload APK & Logo Index Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zen4-TV-Companion-APK
+          path: |
+            zen4-companion/app/build/outputs/apk/release/*.apk
+            zen4-companion/badr-eshail-logos.tsv
